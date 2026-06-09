@@ -1,0 +1,35 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # Usa Node.js 22.16
+        - nvm install 22.16.0
+        - nvm use 22.16.0
+
+        # Crea il file .env.production
+        - |
+          cat > .env.production << 'EOF'
+          VITE_B2B_URL=https://king-inox.mybigcommerce.com
+          VITE_LOCAL_APP_CLIENT_ID=qxvapwlk4fbb9dyogdcxk9o50d9jqjo
+          VITE_IS_LOCAL_ENVIRONMENT=FALSE
+          VITE_ASSETS_ABSOLUTE_PATH=https://main.d3ioasbw4fm7q5.amplifyapp.com/
+          VITE_DISABLE_BUILD_HASH=TRUE
+          EOF
+
+        # Installa le dipendenze
+        - yarn install --frozen-lockfile
+
+    build:
+      commands:
+        - yarn build
+
+  artifacts:
+    baseDirectory: dist
+    files:
+      - "**/*"
+
+  cache:
+    paths:
+      - node_modules/**/*
+      - .yarn/cache/**/*
