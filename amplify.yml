@@ -9,7 +9,7 @@ frontend:
 
         # Crea il file .env.production
         - |
-          cat > .env.production << 'EOF'
+          cat > apps/storefront/.env.production << 'EOF'
           VITE_B2B_URL=https://king-inox.mybigcommerce.com
           VITE_LOCAL_APP_CLIENT_ID=qxvapwlk4fbb9dyogdcxk9o50d9jqjo
           VITE_IS_LOCAL_ENVIRONMENT=FALSE
