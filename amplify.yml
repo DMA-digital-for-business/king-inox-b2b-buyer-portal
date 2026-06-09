@@ -25,7 +25,7 @@ frontend:
         - yarn build
 
   artifacts:
-    baseDirectory: dist
+    baseDirectory: apps/storefront/dist
     files:
       - "**/*"
 
