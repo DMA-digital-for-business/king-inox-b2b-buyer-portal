@@ -44,7 +44,8 @@ import {
   useAppSelector,
 } from './store';
 
-const FONT_URL = 'https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap';
+const FONT_URL =
+  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap';
 
 export default function App() {
   const showPageMask = usePageMask();
@@ -105,7 +106,24 @@ export default function App() {
   const CUSTOM_STYLES = `
   body {
     background: ${backgroundColor};
-    font-family: Roboto;
+    color: #12100c;
+    font-family: "DM Sans", "Public Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #12100c;
+    font-family: "Space Grotesk", "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  * {
+    box-sizing: border-box;
   }`;
 
   const [customStyles, setCustomStyle] = useState<string>(CUSTOM_STYLES);

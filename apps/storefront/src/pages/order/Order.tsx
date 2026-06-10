@@ -500,7 +500,7 @@ function Order({ isCompanyOrder = false }: OrderProps) {
           />
         </Box>
 
-        <B3Table
+        <B3Table  
           columnItems={columnItems}
           listItems={listItems}
           pagination={
