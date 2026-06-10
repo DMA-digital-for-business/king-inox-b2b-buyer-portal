@@ -16,14 +16,6 @@ const HistoryListContainer = styled('div')(() => ({
   '& > .MuiPaper-root': {
     boxShadow: 'none',
   },
-
-  '& table': {
-    '& td, & th': {
-      '&:first-of-type': {
-        paddingLeft: 0,
-      },
-    },
-  },
 }));
 
 export function OrderHistory() {
