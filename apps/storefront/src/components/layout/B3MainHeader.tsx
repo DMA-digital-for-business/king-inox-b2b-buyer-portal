@@ -140,7 +140,7 @@ export default function MainHeader({ title }: { title: string }) {
                   <Typography
                     id="cart-number-icon"
                     sx={{
-                      backgroundColor: '#1976D2',
+                      backgroundColor: '#0D4372',
                       minWidth: '21px',
                       height: '20px',
                       color: '#FFFFFF',

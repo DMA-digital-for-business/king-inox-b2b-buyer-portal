@@ -254,10 +254,12 @@ function B3ThemeProvider({ children }: Props) {
           MuiOutlinedInput: {
             styleOverrides: {
               root: {
-                borderRadius: 4,
+                borderRadius: 8,
                 backgroundColor: surfaceRaised,
+                minHeight: 40,
+                color: textPrimary,
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: borderStrong,
+                  borderColor: borderSubtle,
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
                   borderColor: brandPrimary,
@@ -266,10 +268,58 @@ function B3ThemeProvider({ children }: Props) {
                   borderColor: brandPrimary,
                   borderWidth: '1px',
                 },
+                '&.Mui-disabled': {
+                  backgroundColor: '#F8F9FB',
+                },
               },
               input: {
-                paddingTop: 12,
-                paddingBottom: 12,
+                padding: '8px 16px',
+                fontSize: '14px',
+                lineHeight: 1.4,
+                '&::placeholder': {
+                  color: textSecondary,
+                  opacity: 1,
+                },
+              },
+            },
+          },
+          MuiFilledInput: {
+            styleOverrides: {
+              root: {
+                borderRadius: 8,
+                backgroundColor: surfaceRaised,
+                minHeight: 40,
+                border: `1px solid ${borderSubtle}`,
+                overflow: 'hidden',
+                '&:before, &:after': {
+                  display: 'none',
+                },
+                '&:hover': {
+                  backgroundColor: surfaceRaised,
+                },
+                '&.Mui-focused': {
+                  backgroundColor: surfaceRaised,
+                  borderColor: brandPrimary,
+                },
+                '&.Mui-disabled': {
+                  backgroundColor: '#F8F9FB',
+                },
+              },
+              input: {
+                padding: '8px 16px',
+                fontSize: '14px',
+                lineHeight: 1.4,
+                '&::placeholder': {
+                  color: textSecondary,
+                  opacity: 1,
+                },
+              },
+            },
+          },
+          MuiInputBase: {
+            styleOverrides: {
+              input: {
+                fontFamily: '"DM Sans","Public Sans","Helvetica Neue",Helvetica,Arial,sans-serif',
               },
             },
           },
@@ -277,6 +327,23 @@ function B3ThemeProvider({ children }: Props) {
             styleOverrides: {
               root: {
                 color: textSecondary,
+                fontSize: '14px',
+              },
+            },
+          },
+          MuiSelect: {
+            styleOverrides: {
+              select: {
+                display: 'flex',
+                alignItems: 'center',
+                minHeight: '40px',
+                padding: '8px 40px 8px 16px',
+                fontSize: '14px',
+                lineHeight: 1.4,
+              },
+              icon: {
+                color: brandPrimary,
+                right: 12,
               },
             },
           },

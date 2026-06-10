@@ -18,7 +18,7 @@ function B3FilterSearch({
   handleChange,
   w = '100%',
   h,
-  searchBGColor = '#efeae7',
+  searchBGColor = 'transparent',
   searchValue = '',
   ...restProps
 }: B3FilterSearchProps) {

@@ -126,7 +126,7 @@ function ShoppingDetailHeader({
       >
         <Box
           sx={{
-            color: '#1976d2',
+            color: '#0D4372',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',

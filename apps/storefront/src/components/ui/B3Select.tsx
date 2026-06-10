@@ -50,16 +50,16 @@ export function B3Select<T extends string | undefined>({
         borderBottomLeftRadius: '0',
         borderBottomRightRadius: '0',
         width: w || 120,
-        backgroundColor: '#efeae7',
+        backgroundColor: 'transparent',
         '& .MuiInputBase-root.MuiFilledInput-root': {
-          backgroundColor: '#efeae7',
+          backgroundColor: 'transparent',
         },
       }}
     >
       <InputLabel
         id="demo-simple-select-filled-label"
         sx={{
-          color: getContrastColor('#efeae7'),
+          color: getContrastColor('transparent'),
         }}
       >
         {label}
@@ -71,9 +71,9 @@ export function B3Select<T extends string | undefined>({
         size={size}
         onChange={handleSelectChange}
         sx={{
-          color: getContrastColor('#efeae7'),
+          color: getContrastColor('transparent'),
           '& svg': {
-            color: getContrastColor('#efeae7'),
+            color: getContrastColor('transparent'),
           },
         }}
       >

@@ -155,7 +155,7 @@ export function QuoteItemCard(props: QuoteItemCardProps) {
           sx={{
             mt: '1rem',
             pl: 0,
-            color: primaryColor || '#1976D2',
+            color: primaryColor || '#0D4372',
             cursor: 'pointer',
             fontWeight: 'bold',
             display: 'inline-block',

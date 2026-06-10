@@ -82,7 +82,7 @@ export default function B3MobileLayout({
               sx={{
                 '& .MuiBadge-badge': {
                   color: '#FFFFFF',
-                  backgroundColor: '#1976D2',
+                  backgroundColor: '#0D4372',
                   fontWeight: 500,
                   fontSize: '12px',
                   minWidth: '18px',

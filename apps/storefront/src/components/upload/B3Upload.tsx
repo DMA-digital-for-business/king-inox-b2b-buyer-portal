@@ -266,7 +266,7 @@ export function B3Upload(props: B3UploadProps) {
           <Grid display="flex" justifyContent="center" xs={12}>
             <InsertDriveFile
               sx={{
-                color: primaryColor || '#1976D2',
+                color: primaryColor || '#0D4372',
                 fontSize: '40px',
               }}
             />
@@ -305,7 +305,7 @@ export function B3Upload(props: B3UploadProps) {
           </Box>
           <Box
             sx={{
-              color: '#1976D2',
+              color: '#0D4372',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               marginLeft: '0.5rem',
@@ -383,7 +383,7 @@ export function B3Upload(props: B3UploadProps) {
           <FileUploadContainer
             ref={uploadRef}
             sx={{
-              border: `1px dashed ${primaryColor || '#1976D2'}`,
+              border: `1px dashed ${primaryColor || '#0D4372'}`,
             }}
           >
             {content}

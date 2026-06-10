@@ -162,7 +162,7 @@ export function B2BAutoCompleteCheckbox({ handleChangeCompanyIds }: B2BAutoCompl
         renderValue={(selected) => selected.join(', ')}
         MenuProps={MenuProps}
         sx={{
-          backgroundColor: '#efeae7',
+          backgroundColor: 'transparent',
           '& #autoComplete-multiple-checkbox': {
             paddingTop: '20px',
           },

@@ -233,7 +233,7 @@ function Message({ msgs, id, isB2BUser, email, status }: MsgsProps) {
               width: '20px',
               height: '20px',
               borderRadius: '50%',
-              background: primaryColor || '#1976D2',
+              background: primaryColor || '#0D4372',
               color: '#fff',
               fontSize: '12px',
               ml: '8px',

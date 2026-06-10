@@ -23,7 +23,7 @@ const FileUploadContainer = styled(Box)(({ style }) => ({
     '& .MuiDropzoneArea-textContainer': {
       display: 'flex',
       alignItems: 'center',
-      color: style?.color || '#1976D2',
+      color: style?.color || '#0D4372',
     },
     '& .MuiDropzoneArea-text': {
       order: 1,
