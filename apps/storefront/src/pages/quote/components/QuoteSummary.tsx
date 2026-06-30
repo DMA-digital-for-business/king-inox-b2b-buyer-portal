@@ -15,11 +15,11 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
-import { currencyFormatInfo, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
 
 import getQuoteDraftShowPriceTBD from '../shared/utils';
 import { draftQuoteListHasBackorderedItemsForDisplay } from '../utils/getDraftBackorderDisplayFields';
+import { formatQuotePrice } from './quotePriceFormat';
 
 interface Summary {
   subtotal: number;
@@ -107,17 +107,7 @@ const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
     refreshSummary: () => getSummary(),
   }));
 
-  const priceFormat = (price: number) => {
-    const moneyFormat = currencyFormatInfo();
-
-    return ordersCurrencyFormat(
-      {
-        ...moneyFormat,
-        decimal_places: Math.min(moneyFormat.decimal_places, 2),
-      },
-      price,
-    );
-  };
+  const priceFormat = (price: number) => formatQuotePrice(price);
 
   const showPrice = (price: string | number): string | number => {
     if (isHideQuoteDraftPrice) return b3Lang('quoteDraft.quoteSummary.tbd');

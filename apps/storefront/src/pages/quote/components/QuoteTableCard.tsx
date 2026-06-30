@@ -6,7 +6,6 @@ import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useB3Lang } from '@/lib/lang';
 import { Product } from '@/types';
 import { QuoteItem } from '@/types/quotes';
-import { currencyFormat } from '@/utils/b3CurrencyFormat';
 import { getBCPrice, getDisplayPrice } from '@/utils/b3Product/b3Product';
 import { getProductOptionsFields } from '@/utils/b3Product/shared/config';
 
@@ -14,6 +13,7 @@ import {
   draftRowQuantityExceedsAvailableToSell,
   getDraftBackorderDisplayFields,
 } from '../utils/getDraftBackorderDisplayFields';
+import { formatQuotePrice } from './quotePriceFormat';
 
 interface QuoteTableCardProps {
   item: QuoteItem['node'];
@@ -78,13 +78,13 @@ function QuoteTableCard({
   const { productUrl } = productsSearch;
 
   const singlePrice = getDisplayPrice({
-    price: currencyFormat(price),
+    price: formatQuotePrice(price),
     productInfo: item,
     showText: b3Lang('quoteDraft.quoteSummary.tbd'),
   });
 
   const totalPrice = getDisplayPrice({
-    price: currencyFormat(total),
+    price: formatQuotePrice(total),
     productInfo: item,
     showText: b3Lang('quoteDraft.quoteSummary.tbd'),
   });

@@ -7,8 +7,9 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
 import { DisplayCurrency } from '@/types/currency';
-import { currencyFormatConvert } from '@/utils/b3CurrencyFormat';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
+
+import { formatQuoteConvertedPrice } from './quotePriceFormat';
 
 interface QuoteTableCardProps {
   item: any;
@@ -174,7 +175,7 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 }}
               >
                 {`${showPrice(
-                  currencyFormatConvert(price, {
+                  formatQuoteConvertedPrice(price, {
                     currency,
                     useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
                   }),
@@ -188,11 +189,11 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 color: isDiscount ? '#2E7D32' : '#212121',
               }}
             >
-              {`${showPrice(
-                currencyFormatConvert(offeredPrice, {
-                  currency,
-                  useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
-                }),
+                {`${showPrice(
+                  formatQuoteConvertedPrice(offeredPrice, {
+                    currency,
+                    useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
+                  }),
                 quoteTableItem,
               )}`}
             </span>
@@ -220,7 +221,7 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 }}
               >
                 {`${showPrice(
-                  currencyFormatConvert(total, {
+                  formatQuoteConvertedPrice(total, {
                     currency,
                     useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
                   }),
@@ -234,11 +235,11 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 color: isDiscount ? '#2E7D32' : '#212121',
               }}
             >
-              {`${showPrice(
-                currencyFormatConvert(totalWithDiscount, {
-                  currency,
-                  useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
-                }),
+                {`${showPrice(
+                  formatQuoteConvertedPrice(totalWithDiscount, {
+                    currency,
+                    useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
+                  }),
                 quoteTableItem,
               )}`}
             </span>

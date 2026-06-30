@@ -8,9 +8,9 @@ import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useBackorderStorefrontMessaging } from '@/hooks/useBackorderStorefrontMessaging';
 import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
-import { currencyFormatConvert } from '@/utils/b3CurrencyFormat';
 import { getBCPrice, getDisplayPrice } from '@/utils/b3Product/b3Product';
 
+import { formatQuoteConvertedPrice } from './quotePriceFormat';
 import QuoteDetailTableCard from './QuoteDetailTableCard';
 
 interface ProductInfoProps {
@@ -269,7 +269,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
                 }}
               >
                 {showPrice(
-                  currencyFormatConvert(price, {
+                  formatQuoteConvertedPrice(price, {
                     currency,
                     isConversionRate: false,
                     useCurrentCurrency: !!currency,
@@ -286,7 +286,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
               }}
             >
               {showPrice(
-                currencyFormatConvert(discountPrice, {
+                formatQuoteConvertedPrice(discountPrice, {
                   currency,
                   isConversionRate: false,
                   useCurrentCurrency: !!currency,
@@ -360,7 +360,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
                 }}
               >
                 {showPrice(
-                  currencyFormatConvert(total, {
+                  formatQuoteConvertedPrice(total, {
                     currency,
                     isConversionRate: false,
                     useCurrentCurrency: !!currency,
@@ -376,7 +376,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
               }}
             >
               {showPrice(
-                currencyFormatConvert(totalWithDiscount, {
+                formatQuoteConvertedPrice(totalWithDiscount, {
                   currency,
                   isConversionRate: false,
                   useCurrentCurrency: !!currency,

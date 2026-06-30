@@ -12,7 +12,6 @@ import { LangFormatFunction, useB3Lang } from '@/lib/lang';
 import { deleteProductFromDraftQuoteList, setDraftProduct, useAppDispatch } from '@/store';
 import { Product } from '@/types';
 import { QuoteItem } from '@/types/quotes';
-import { currencyFormat } from '@/utils/b3CurrencyFormat';
 import {
   calculateProductListPrice,
   getBCPrice,
@@ -31,6 +30,7 @@ import {
   getQuoteItemBackendAvailability,
 } from '../utils/getDraftBackorderDisplayFields';
 
+import { formatQuotePrice } from './quotePriceFormat';
 import QuoteTableCard from './QuoteTableCard';
 
 const StyledQuoteTableContainer = styled('div')(() => ({
@@ -413,7 +413,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
             }}
           >
             {getDisplayPrice({
-              price: currencyFormat(inTaxPrice),
+              price: formatQuotePrice(inTaxPrice),
               productInfo: row,
               showText: b3Lang('quoteDraft.quoteSummary.tbd'),
             })}
@@ -494,7 +494,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
               }}
             >
               {getDisplayPrice({
-                price: currencyFormat(total),
+                price: formatQuotePrice(total),
                 productInfo: row,
                 showText: b3Lang('quoteDraft.quoteSummary.tbd'),
               })}
