@@ -1059,7 +1059,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
               }}
             >
               <QuoteSummary ref={quoteSummaryRef} />
-              <AddToQuote updateList={updateSummary} addToQuote={addToQuote} />
+              {/* <AddToQuote updateList={updateSummary} addToQuote={addToQuote} /> */}
 
               <QuoteNote quoteStatus="Draft" />
 
