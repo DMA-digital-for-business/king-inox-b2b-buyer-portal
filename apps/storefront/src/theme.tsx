@@ -273,7 +273,7 @@ function B3ThemeProvider({ children }: Props) {
                 },
               },
               input: {
-                padding: '8px 16px',
+                padding: '16px 16px',
                 fontSize: '14px',
                 lineHeight: 1.4,
                 '&::placeholder': {
@@ -306,7 +306,7 @@ function B3ThemeProvider({ children }: Props) {
                 },
               },
               input: {
-                padding: '8px 16px',
+                padding: '16px 16px',
                 fontSize: '14px',
                 lineHeight: 1.4,
                 '&::placeholder': {
