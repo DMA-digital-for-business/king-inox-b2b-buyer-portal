@@ -15,7 +15,7 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
-import { currencyFormat } from '@/utils/b3CurrencyFormat';
+import { currencyFormatInfo, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
 
 import getQuoteDraftShowPriceTBD from '../shared/utils';
@@ -107,7 +107,17 @@ const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
     refreshSummary: () => getSummary(),
   }));
 
-  const priceFormat = (price: number) => currencyFormat(price);
+  const priceFormat = (price: number) => {
+    const moneyFormat = currencyFormatInfo();
+
+    return ordersCurrencyFormat(
+      {
+        ...moneyFormat,
+        decimal_places: Math.min(moneyFormat.decimal_places, 2),
+      },
+      price,
+    );
+  };
 
   const showPrice = (price: string | number): string | number => {
     if (isHideQuoteDraftPrice) return b3Lang('quoteDraft.quoteSummary.tbd');
