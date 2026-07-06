@@ -18,7 +18,6 @@ import {
 } from '@/shared/service/b2b';
 import { isB2BUserSelector, useAppSelector } from '@/store';
 import { DisplayCurrency } from '@/types/currency';
-import { currencyFormatConvert } from '@/utils/b3CurrencyFormat';
 import { displayFormat } from '@/utils/b3DateFormat';
 import { channelId } from '@/utils/basicConfig';
 import { buildCurrenciesMap } from '@/utils/currencyUtils';

@@ -9,10 +9,10 @@ import Typography from '@mui/material/Typography';
 import { TableColumnItem } from '@/components/table/B3Table';
 import { useB3Lang } from '@/lib/lang';
 import { DisplayCurrency } from '@/types/currency';
-import { currencyFormatConvert } from '@/utils/b3CurrencyFormat';
 import { displayFormat } from '@/utils/b3DateFormat';
 
 import QuoteStatus from '../quote/components/QuoteStatus';
+import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 
 interface ListItem {
   [key: string]: string | Object | undefined;
@@ -48,7 +48,7 @@ export function QuoteItemCard(props: QuoteItemCardProps) {
     const effectiveCurrency =
       (isCurrencySymbolPlacementFixEnabled && currencyCode && currenciesMap[currencyCode]) ||
       currency;
-    return currencyFormatConvert(Number(totalAmount), {
+    return formatQuoteConvertedPrice(Number(totalAmount), {
       currency: effectiveCurrency,
       isConversionRate: false,
       useCurrentCurrency: !!effectiveCurrency,
