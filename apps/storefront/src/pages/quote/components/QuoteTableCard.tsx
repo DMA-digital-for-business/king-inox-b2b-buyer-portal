@@ -13,6 +13,7 @@ import {
   draftRowQuantityExceedsAvailableToSell,
   getDraftBackorderDisplayFields,
 } from '../utils/getDraftBackorderDisplayFields';
+import { getPackagingMetafieldValue, packagingColumns } from './quotePackaging';
 import { formatQuotePrice } from './quotePriceFormat';
 
 interface QuoteTableCardProps {
@@ -22,6 +23,7 @@ interface QuoteTableCardProps {
   handleUpdateProductQty: (item: QuoteItem['node'], quantity: number) => void;
   isLast: boolean;
   draftQuoteBackorderContextEnabled: boolean;
+  packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>;
   showBackorderDetails?: boolean;
 }
 
@@ -38,6 +40,7 @@ function QuoteTableCard({
   handleUpdateProductQty,
   isLast,
   draftQuoteBackorderContextEnabled,
+  packagingByVariantId,
   showBackorderDetails = false,
 }: QuoteTableCardProps) {
   const {
@@ -155,6 +158,21 @@ function QuoteTableCard({
                 ))}
               </Box>
             )}
+          </Box>
+
+          <Box sx={{ marginBottom: '1rem' }}>
+            {packagingColumns.map((field) => (
+              <Typography
+                key={field.key}
+                sx={{
+                  fontSize: '0.75rem',
+                  lineHeight: '1.5',
+                  color: '#455A64',
+                }}
+              >
+                {field.title}: {getPackagingMetafieldValue(item, field.key, packagingByVariantId)}
+              </Typography>
+            ))}
           </Box>
 
           <Typography sx={{ fontSize: '14px' }}>Price: {singlePrice}</Typography>

@@ -69,6 +69,16 @@ interface OptionValue {
 }
 
 export interface Variant {
+  packagingMetafields?: {
+    edges: Array<{
+      node: {
+        id: string;
+        entityId: number;
+        key: string;
+        value: string;
+      };
+    }>;
+  };
   variant_id: number;
   product_id: number;
   sku: string;

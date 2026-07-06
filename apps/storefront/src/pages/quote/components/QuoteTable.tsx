@@ -31,7 +31,9 @@ import {
 } from '../utils/getDraftBackorderDisplayFields';
 
 import { formatQuotePrice } from './quotePriceFormat';
+import { getPackagingMetafieldValue, packagingColumns } from './quotePackaging';
 import QuoteTableCard from './QuoteTableCard';
+import { useQuotePackagingMetafields } from './useQuotePackagingMetafields';
 
 const StyledQuoteTableContainer = styled('div')(() => ({
   backgroundColor: '#FFFFFF',
@@ -167,6 +169,7 @@ interface QuoteTableProps {
 function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
   const b3Lang = useB3Lang();
   const dispatch = useAppDispatch();
+  const packagingByVariantId = useQuotePackagingMetafields(items);
   const {
     isBackorderEnabled,
     isBackorderMessagingEnabled,
@@ -400,7 +403,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
           </Box>
         );
       },
-      width: '40%',
+      width: '30%',
     },
     {
       key: 'Price',
@@ -423,11 +426,30 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
           </Typography>
         );
       },
-      width: '15%',
+      width: '10%',
       style: {
         textAlign: 'right',
       },
     },
+    ...packagingColumns.map(
+      (column): TableColumnItem<QuoteItem['node']> => ({
+        key: column.key,
+        title: column.title,
+        render: (row) => (
+          <Typography
+            sx={{
+              padding: '12px 0',
+            }}
+          >
+            {getPackagingMetafieldValue(row, column.key, packagingByVariantId)}
+          </Typography>
+        ),
+        width: '10%',
+        style: {
+          textAlign: 'right',
+        },
+      }),
+    ),
     {
       key: 'Qty',
       title: b3Lang('quoteDraft.quoteTable.qty'),
@@ -598,6 +620,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
             onDelete={handleDeleteClick}
             handleUpdateProductQty={handleUpdateProductQty}
             draftQuoteBackorderContextEnabled={draftQuoteBackorderContextEnabled}
+            packagingByVariantId={packagingByVariantId}
             showBackorderDetails={showBackorderDetails}
           />
         )}
