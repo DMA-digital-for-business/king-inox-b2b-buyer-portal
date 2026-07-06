@@ -124,12 +124,12 @@ function OrderCard(props: OrderCardProps) {
   const isAgenting = useAppSelector(({ b2bFeatures }) => b2bFeatures.masqueradeCompany.isAgenting);
 
   const dialogData = [
-    {
-      dialogTitle: b3Lang('orderDetail.orderCard.reorder'),
-      type: 'reOrder',
-      description: b3Lang('orderDetail.orderCard.reorderDescription'),
-      confirmText: b3Lang('orderDetail.orderCard.reorderConfirmText'),
-    },
+    // {
+    //   dialogTitle: b3Lang('orderDetail.orderCard.reorder'),
+    //   type: 'reOrder',
+    //   description: b3Lang('orderDetail.orderCard.reorderDescription'),
+    //   confirmText: b3Lang('orderDetail.orderCard.reorderConfirmText'),
+    // },
     {
       dialogTitle: b3Lang('orderDetail.orderCard.return'),
       type: 'return',
@@ -448,13 +448,13 @@ export function OrderAction(props: OrderActionProps) {
   };
 
   const buttons: Buttons[] = [
-    {
-      value: b3Lang('orderDetail.reorder'),
-      key: 'Re-Order',
-      name: 'reOrder',
-      variant: 'outlined',
-      isCanShow: isB2BUser ? purchasabilityPermission : true,
-    },
+    // {
+    //   value: b3Lang('orderDetail.reorder'),
+    //   key: 'Re-Order',
+    //   name: 'reOrder',
+    //   variant: 'outlined',
+    //   isCanShow: isB2BUser ? purchasabilityPermission : true,
+    // },
     {
       value: b3Lang('orderDetail.return'),
       key: 'Return',
