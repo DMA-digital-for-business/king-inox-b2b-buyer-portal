@@ -227,7 +227,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
                     wordBreak: 'break-word',
                   }}
                 >
-                  <span>Notes: </span>
+                  <span>{b3Lang('global.quoteNote.notes')}: </span>
                   {row.notes}
                 </Typography>
               )}
