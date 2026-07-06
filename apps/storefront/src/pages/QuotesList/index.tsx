@@ -24,6 +24,7 @@ import { channelId } from '@/utils/basicConfig';
 import { buildCurrenciesMap } from '@/utils/currencyUtils';
 
 import QuoteStatus from '../quote/components/QuoteStatus';
+import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import { addPrice } from '../quote/shared/config';
 
 import { QuoteItemCard } from './QuoteItemCard';
@@ -199,7 +200,7 @@ const useColumnList = (
       const effectiveCurrency =
         (isCurrencySymbolPlacementFixEnabled && currencyCode && currenciesMap[currencyCode]) ||
         currency;
-      return currencyFormatConvert(Number(totalAmount), {
+      return formatQuoteConvertedPrice(Number(totalAmount), {
         currency: effectiveCurrency,
         isConversionRate: false,
         useCurrentCurrency: !!effectiveCurrency,
