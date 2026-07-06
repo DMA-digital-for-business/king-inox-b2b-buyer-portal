@@ -21,6 +21,7 @@ interface QuoteTableCardProps {
   onEdit: (item: Product, itemId: string) => void;
   onDelete: (id: string) => void;
   handleUpdateProductQty: (item: QuoteItem['node'], quantity: number) => void;
+  handleCheckProductQty: (item: QuoteItem['node'], quantity: number) => void;
   isLast: boolean;
   draftQuoteBackorderContextEnabled: boolean;
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>;
@@ -38,6 +39,7 @@ function QuoteTableCard({
   onEdit,
   onDelete,
   handleUpdateProductQty,
+  handleCheckProductQty,
   isLast,
   draftQuoteBackorderContextEnabled,
   packagingByVariantId,
@@ -201,6 +203,9 @@ function QuoteTableCard({
               }}
               onChange={(e) => {
                 handleUpdateProductQty(item, Number(e.target.value));
+              }}
+              onBlur={(e) => {
+                handleCheckProductQty(item, Number(e.target.value));
               }}
             />
             {showBackorderMessage && backorderFields && (

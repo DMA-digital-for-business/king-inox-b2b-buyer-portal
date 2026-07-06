@@ -20,3 +20,53 @@ export function getPackagingMetafieldValue(
 
   return packagingFromMap || packagingMetafields.find(({ node }) => node.key === metafieldKey)?.node.value || '-';
 }
+
+export function getBoxQuantity(
+  row: QuoteItem['node'],
+  packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
+) {
+  const boxQuantity = Number(getPackagingMetafieldValue(row, 'SCATOLA', packagingByVariantId));
+
+  if (!Number.isFinite(boxQuantity) || boxQuantity <= 0) {
+    return null;
+  }
+
+  return boxQuantity;
+}
+
+export function normalizeQuantityToBoxMultiple(
+  row: QuoteItem['node'],
+  quantity: number,
+  packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
+) {
+  const boxQuantity = getBoxQuantity(row, packagingByVariantId);
+  console.log('boxQuantity', boxQuantity);
+  if (!boxQuantity || quantity <= 0) {
+    return quantity;
+  }
+
+  return Math.ceil(quantity / boxQuantity) * boxQuantity;
+}
+
+export function normalizeQuantityToBoxStep(
+  row: QuoteItem['node'],
+  quantity: number,
+  currentQuantity: number,
+  packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
+) {
+  const boxQuantity = getBoxQuantity(row, packagingByVariantId);
+
+  if (!boxQuantity || quantity <= 0) {
+    return quantity;
+  }
+
+  if (quantity === currentQuantity) {
+    return quantity;
+  }
+
+  if (quantity > currentQuantity) {
+    return Math.ceil(quantity / boxQuantity) * boxQuantity;
+  }
+
+  return Math.max(boxQuantity, Math.floor(quantity / boxQuantity) * boxQuantity);
+}

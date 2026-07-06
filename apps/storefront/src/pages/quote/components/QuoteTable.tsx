@@ -31,7 +31,12 @@ import {
 } from '../utils/getDraftBackorderDisplayFields';
 
 import { formatQuotePrice } from './quotePriceFormat';
-import { getPackagingMetafieldValue, packagingColumns } from './quotePackaging';
+import {
+  getPackagingMetafieldValue,
+  normalizeQuantityToBoxMultiple,
+  normalizeQuantityToBoxStep,
+  packagingColumns,
+} from './quotePackaging';
 import QuoteTableCard from './QuoteTableCard';
 import { useQuotePackagingMetafields } from './useQuotePackagingMetafields';
 
@@ -212,9 +217,8 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
     updateSummary();
   };
 
-  const handleCheckProductQty = async (item: QuoteItem['node'], quantity: number) => {
+  const handleInputProductQty = async (item: QuoteItem['node'], quantity: number) => {
     let newQty = ceil(quantity);
-    if (newQty === Number(quantity) && newQty >= 1 && newQty <= QUOTE_PRODUCT_QTY_MAX) return;
 
     if (quantity < 1) {
       newQty = 1;
@@ -223,6 +227,41 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
     if (quantity > QUOTE_PRODUCT_QTY_MAX) {
       newQty = QUOTE_PRODUCT_QTY_MAX;
     }
+
+    newQty = normalizeQuantityToBoxStep(
+      item,
+      newQty,
+      Number(item.quantity),
+      packagingByVariantId,
+    );
+
+    if (newQty > QUOTE_PRODUCT_QTY_MAX) {
+      newQty = QUOTE_PRODUCT_QTY_MAX;
+    }
+
+    if (newQty === Number(item.quantity)) return;
+
+    handleUpdateProductQty(item, newQty);
+  };
+
+  const handleCheckProductQty = async (item: QuoteItem['node'], quantity: number) => {
+    let newQty = ceil(quantity);
+
+    if (quantity < 1) {
+      newQty = 1;
+    }
+
+    if (quantity > QUOTE_PRODUCT_QTY_MAX) {
+      newQty = QUOTE_PRODUCT_QTY_MAX;
+    }
+
+    newQty = normalizeQuantityToBoxMultiple(item, newQty, packagingByVariantId);
+
+    if (newQty > QUOTE_PRODUCT_QTY_MAX) {
+      newQty = QUOTE_PRODUCT_QTY_MAX;
+    }
+
+    if (newQty === Number(item.quantity)) return;
 
     handleUpdateProductQty(item, newQty);
   };
@@ -470,7 +509,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
                 pattern: '[0-9]*',
               }}
               onChange={(e) => {
-                handleUpdateProductQty(row, Number(e.target.value));
+                handleInputProductQty(row, Number(e.target.value));
               }}
               onBlur={(e) => {
                 handleCheckProductQty(row, Number(e.target.value));
@@ -618,7 +657,8 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
             isLast={index === total - 1}
             onEdit={handleOpenProductEdit}
             onDelete={handleDeleteClick}
-            handleUpdateProductQty={handleUpdateProductQty}
+            handleUpdateProductQty={handleInputProductQty}
+            handleCheckProductQty={handleCheckProductQty}
             draftQuoteBackorderContextEnabled={draftQuoteBackorderContextEnabled}
             packagingByVariantId={packagingByVariantId}
             showBackorderDetails={showBackorderDetails}
