@@ -9,7 +9,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import type { CatalogQuickVariantSku } from '@/shared/service/b2b/graphql/product';
 import { useAppSelector } from '@/store';
-import { currencyFormat, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
+import { currencyFormatInfo, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { getDisplayPrice, judgmentBuyerProduct } from '@/utils/b3Product/b3Product';
 import { getCatalogProductRowDisplayState } from '@/utils/catalogBackorderDisplay';
 
@@ -113,6 +113,9 @@ const mobileItemStyle = {
 };
 
 type ProductListItemStyle = typeof defaultItemStyle;
+
+const clampDecimalPlaces = (decimalPlaces?: number) =>
+  decimalPlaces === 0 ? 0 : Math.min(decimalPlaces || 2, 2);
 
 interface BackorderLayoutStyles {
   qtyColumn: ProductListItemStyle['qty'];
@@ -384,8 +387,20 @@ export function B3ProductList<T>(props: ProductProps<T>) {
 
         const getDisplayPrice = (priceValue: number) => {
           const newMoney = money
-            ? ordersCurrencyFormat(money, priceValue)
-            : currencyFormat(priceValue);
+            ? ordersCurrencyFormat(
+                {
+                  ...money,
+                  decimal_places: clampDecimalPlaces(money.decimal_places),
+                },
+                priceValue,
+              )
+            : ordersCurrencyFormat(
+                {
+                  ...currencyFormatInfo(),
+                  decimal_places: 2,
+                },
+                priceValue,
+              );
 
           return showTypePrice(newMoney, product);
         };

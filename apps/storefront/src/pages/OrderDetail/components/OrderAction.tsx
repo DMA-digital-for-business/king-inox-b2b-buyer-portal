@@ -12,7 +12,7 @@ import { isB2BUserSelector, rolePermissionSelector, useAppSelector } from '@/sto
 import { Address, MoneyFormat, OrderProductItem } from '@/types';
 import { verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
-import { currencyFormat, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
+import { currencyFormatInfo, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { displayFormat } from '@/utils/b3DateFormat';
 import { b2bPrintInvoice, getPrintInvoiceUrl } from '@/utils/b3PrintInvoice';
 import { snackbar } from '@/utils/b3Tip';
@@ -77,6 +77,9 @@ interface Buttons {
   variant?: 'text' | 'contained' | 'outlined';
   isCanShow: boolean;
 }
+
+const clampDecimalPlaces = (decimalPlaces?: number) =>
+  decimalPlaces === 0 ? 0 : Math.min(decimalPlaces || 2, 2);
 
 interface OrderCardProps {
   header: string;
@@ -200,6 +203,15 @@ function OrderCard(props: OrderCardProps) {
     showedInformation = infos;
   } else if (infos?.money) {
     const symbol = infos?.symbol || {};
+    const moneyFormat = infos.money
+      ? {
+          ...infos.money,
+          decimal_places: clampDecimalPlaces(infos.money.decimal_places),
+        }
+      : {
+          ...currencyFormatInfo(),
+          decimal_places: 2,
+        };
     showedInformation = infoKey?.map((key: string, index: number) => (
       <Fragment key={key}>
         {symbol[key] === 'grandTotal' && (
@@ -215,16 +227,10 @@ function OrderCard(props: OrderCardProps) {
           <p id="item-name-key">{key}</p>{' '}
           {displayAsNegativeNumber.includes(symbol[key]) ? (
             <p>
-              {infos?.money
-                ? `-${ordersCurrencyFormat(infos.money, infoValue[index])}`
-                : `-${currencyFormat(infoValue[index])}`}
+              {`-${ordersCurrencyFormat(moneyFormat, infoValue[index])}`}
             </p>
           ) : (
-            <p>
-              {infos?.money
-                ? ordersCurrencyFormat(infos.money, infoValue[index])
-                : currencyFormat(infoValue[index])}
-            </p>
+            <p>{ordersCurrencyFormat(moneyFormat, infoValue[index])}</p>
           )}
         </ItemContainer>
       </Fragment>
