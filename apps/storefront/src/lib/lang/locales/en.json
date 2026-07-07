@@ -588,6 +588,8 @@
   "quoteDraft.contactInfo.ccEmail": "CC email",
   "quoteDraft.quoteAddress.chooseFromSaved": "Choose from saved",
   "quoteDraft.chooseAddress.chooseFromSaved": "Choose from saved",
+  "quoteDraft.quoteAddress.chooseFromSavedAddresses": "Choose from saved addresses",
+  "quoteDraft.chooseAddress.chooseFromSavedAddresses": "Choose from saved addresses",
   "quoteDraft.chooseAddress.searchAddress": "Search address",
   "quoteDraft.addressItemCard.defaultShipping": "Default shipping",
   "quoteDraft.addressItemCard.defaultBilling": "Default billing",

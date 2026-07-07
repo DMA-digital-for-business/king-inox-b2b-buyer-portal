@@ -92,7 +92,7 @@ function ChooseAddress({
       fullWidth
       isOpen={isOpen}
       handleLeftClick={handleCancelClicked}
-      title={b3Lang('quoteDraft.chooseAddress.chooseFromSaved')}
+      title={b3Lang('quoteDraft.chooseAddress.chooseFromSavedAddresses')}
       showRightBtn={false}
       maxWidth="lg"
     >

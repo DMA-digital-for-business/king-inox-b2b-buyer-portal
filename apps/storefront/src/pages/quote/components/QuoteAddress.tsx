@@ -28,6 +28,12 @@ interface AccountFormFieldsProps extends Record<string, any> {
   options?: any[];
 }
 
+const toReadOnlyField = (field: AccountFormFieldsProps): AccountFormFieldsProps => ({
+  ...field,
+  disabled: true,
+  readOnly: true,
+});
+
 interface AddressProps {
   title: string;
   pr?: string | number;
@@ -188,13 +194,13 @@ function QuoteAddress(
               textTransform: 'uppercase',
             }}
           >
-            {b3Lang('quoteDraft.quoteAddress.chooseFromSaved')}
+            {b3Lang('quoteDraft.quoteAddress.chooseFromSavedAddresses')}
           </Typography>
         )}
       </Box>
 
       <B3CustomForm
-        formFields={quoteAddress}
+        formFields={quoteAddress.map(toReadOnlyField)}
         errors={errors}
         control={control}
         getValues={getValues}
