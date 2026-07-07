@@ -1,5 +1,7 @@
 import { Dispatch } from 'react';
 
+import { LangFormatFunction } from '@/lib/lang';
+
 type BtnKeys =
   | 'masqueradeButton'
   | 'switchAccountButton'
@@ -60,18 +62,18 @@ export interface CustomStyleButtonState extends Record<BtnKeys, Partial<BtnStyle
   globalButtonBackgroundColor: string;
 }
 
-export const defaultCreateAccountPanel = `<div class="panel">
+export const defaultCreateAccountPanel = (b3Lang: LangFormatFunction) => `<div class="panel">
 <div class="panel-header">
-    <h2 class="panel-title">New Customer?</h2>
+    <h2 class="panel-title">${b3Lang('login.createAccountPanel.title')}</h2>
 </div>
 <div class="panel-body">
-    <p class="new-customer-intro">Create an account with us and you'll be able to:</p>
+    <p class="new-customer-intro">${b3Lang('login.createAccountPanel.intro')}</p>
     <ul class="new-customer-fact-list">
-        <li class="new-customer-fact">Check out faster</li>
-        <li class="new-customer-fact">Save multiple shipping addresses</li>
-        <li class="new-customer-fact">Access your order history</li>
-        <li class="new-customer-fact">Track new orders</li>
-        <li class="new-customer-fact">Save items to your Wish List</li>
+        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.checkoutFaster')}</li>
+        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.saveShippingAddresses')}</li>
+        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.orderHistory')}</li>
+        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.trackOrders')}</li>
+        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.wishList')}</li>
     </ul>
 </div>
 </div>
@@ -155,7 +157,7 @@ export const initState = {
   loginPageHtml: {
     bottomHtmlRegionEnabled: false,
     bottomHtmlRegionHtml: '',
-    createAccountPanelHtml: defaultCreateAccountPanel,
+    createAccountPanelHtml: '',
     enabled: true,
     topHtmlRegionEnabled: false,
     topHtmlRegionHtml: '',

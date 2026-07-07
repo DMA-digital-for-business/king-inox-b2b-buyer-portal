@@ -20,7 +20,6 @@ export const useLoginInfo = () => {
   const {
     bottomHtmlRegionEnabled,
     bottomHtmlRegionHtml,
-    createAccountPanelHtml,
     topHtmlRegionEnabled,
     topHtmlRegionHtml,
   } = loginPageHtml;
@@ -30,7 +29,7 @@ export const useLoginInfo = () => {
     createAccountButtonText: createAccountButtonText || b3Lang('login.button.createAccount'),
     btnColor: primaryButtonColor || '',
     widgetHeadText: topHtmlRegionEnabled ? topHtmlRegionHtml : undefined,
-    widgetBodyText: createAccountPanelHtml || defaultCreateAccountPanel,
+    widgetBodyText: defaultCreateAccountPanel(b3Lang),
     widgetFooterText: bottomHtmlRegionEnabled ? bottomHtmlRegionHtml : undefined,
     logo: displayStoreLogo ? logo : undefined,
   };
