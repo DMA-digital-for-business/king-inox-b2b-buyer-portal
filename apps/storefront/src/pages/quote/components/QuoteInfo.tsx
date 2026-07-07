@@ -69,8 +69,16 @@ function QuoteInfoItem({ flag, title, info, status }: QuoteInfoItemProps) {
 
   const noAddressText =
     status === 'Draft'
-      ? `Please add ${flag === 'Billing' ? 'billing' : 'shipping'} address `
-      : `No ${flag === 'Billing' ? 'billing' : 'shipping'} address`;
+      ? b3Lang(
+          flag === 'Billing'
+            ? 'global.quoteInfo.addBillingAddress'
+            : 'global.quoteInfo.addShippingAddress',
+        )
+      : b3Lang(
+          flag === 'Billing'
+            ? 'global.quoteInfo.noBillingAddress'
+            : 'global.quoteInfo.noShippingAddress',
+        );
 
   const isComplete =
     flag !== 'info' ? addressVerifyKeys.some((item: string) => info && !!info[item]) : false;
