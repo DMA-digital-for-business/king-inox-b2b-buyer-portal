@@ -14,7 +14,7 @@ export const useLoginInfo = () => {
   } = useContext(CustomStyleContext);
   const b3Lang = useB3Lang();
 
-  const { createAccountButtonText, primaryButtonColor, signInButtonText } = loginPageButton;
+  const { primaryButtonColor } = loginPageButton;
   const { displayStoreLogo } = loginPageDisplay;
 
   const {
@@ -25,8 +25,8 @@ export const useLoginInfo = () => {
   } = loginPageHtml;
 
   const loginInfo = {
-    loginBtn: signInButtonText || b3Lang('login.button.signInUppercase'),
-    createAccountButtonText: createAccountButtonText || b3Lang('login.button.createAccount'),
+    loginBtn: b3Lang('login.button.signInUppercase'),
+    createAccountButtonText: b3Lang('login.button.createAccount'),
     btnColor: primaryButtonColor || '',
     widgetHeadText: topHtmlRegionEnabled ? topHtmlRegionHtml : undefined,
     widgetBodyText: defaultCreateAccountPanel(b3Lang),

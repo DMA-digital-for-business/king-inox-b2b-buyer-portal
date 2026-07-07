@@ -7,7 +7,6 @@ import { CustomStyleContext } from './shared/customStyleButton';
 export function LangWrapper({ children }: { children: React.ReactNode }) {
   const {
     state: {
-      loginPageButton: { createAccountButtonText, signInButtonText },
       loginPageDisplay: { pageTitle },
       masqueradeButton,
       addQuoteBtn,
@@ -18,8 +17,6 @@ export function LangWrapper({ children }: { children: React.ReactNode }) {
   } = useContext(CustomStyleContext);
   const [customText] = useState<Record<string, string>>(
     Object.entries({
-      'login.button.createAccount': createAccountButtonText,
-      'login.button.signInUppercase': signInButtonText,
       'login.button.signIn': pageTitle,
       'customStyles.masqueradeButton': masqueradeButton,
       'customStyles.addQuoteBtn': addQuoteBtn,
