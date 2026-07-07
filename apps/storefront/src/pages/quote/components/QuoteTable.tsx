@@ -516,6 +516,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
               }}
               sx={{
                 width: '75%',
+                minWidth: '80px',
                 '& input': {
                   paddingTop: '12px',
                   paddingRight: '6px',
