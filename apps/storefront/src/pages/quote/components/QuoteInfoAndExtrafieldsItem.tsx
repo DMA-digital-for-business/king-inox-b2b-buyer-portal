@@ -34,7 +34,7 @@ function QuoteInfoAndExtrafieldsItem({ status, quoteInfo }: QuoteInfoAndExtrafie
         sx={{
           fontWeight: 400,
           fontSize: '24px',
-          height: '32px',
+          minHeight: '32px',
         }}
       >
         {b3Lang('quoteDraft.quoteInfo.title')}

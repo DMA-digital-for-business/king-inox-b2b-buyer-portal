@@ -292,7 +292,7 @@ function ContactInfo(
             sx={{
               fontWeight: 400,
               fontSize: '24px',
-              height: '32px',
+              minHeight: '32px',
               mb: '20px',
               ...data?.style,
             }}

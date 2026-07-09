@@ -175,7 +175,7 @@ function QuoteAddress(
           sx={{
             fontWeight: 400,
             fontSize: '24px',
-            height: '32px',
+            minHeight: '32px',
             mr: '16px',
           }}
         >

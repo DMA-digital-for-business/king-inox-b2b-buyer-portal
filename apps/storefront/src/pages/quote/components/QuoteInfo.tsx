@@ -100,7 +100,7 @@ function QuoteInfoItem({ flag, title, info, status }: QuoteInfoItemProps) {
         sx={{
           fontWeight: 400,
           fontSize: '24px',
-          height: '32px',
+          minHeight: '32px',
         }}
       >
         {title}
