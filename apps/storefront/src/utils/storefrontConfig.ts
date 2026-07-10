@@ -191,7 +191,7 @@ const getStoreConfigs = async (dispatch: any, dispatchGlobal: any) => {
       if (storefrontKey.key === 'masquerade_button') {
         storefrontConfig.extraFields = {
           ...item.extraFields,
-          color: item.extraFields?.color || '#ED6C02',
+          color: item.extraFields?.color || '#3E739F',
           location: item.extraFields?.location || ' bottomLeft',
           horizontalPadding: item.extraFields?.horizontalPadding || '',
           verticalPadding: item.extraFields?.verticalPadding || '',
@@ -201,7 +201,7 @@ const getStoreConfigs = async (dispatch: any, dispatchGlobal: any) => {
       if (storefrontKey.key === 'switch_account_button') {
         storefrontConfig.extraFields = {
           ...item.extraFields,
-          color: item.extraFields?.color || '#ED6C02',
+          color: item.extraFields?.color || '#3E739F',
           location: item.extraFields?.location || ' bottomLeft',
           horizontalPadding: item.extraFields?.horizontalPadding || '',
           verticalPadding: item.extraFields?.verticalPadding || '',
@@ -211,7 +211,7 @@ const getStoreConfigs = async (dispatch: any, dispatchGlobal: any) => {
       if (storefrontKey.key === 'quote_floating_action_button') {
         storefrontConfig.extraFields = {
           ...item.extraFields,
-          color: item.extraFields?.color || '#E00F36',
+          color: item.extraFields?.color || '#0D4372',
           location: item.extraFields?.location || ' bottomRight',
           horizontalPadding: item.extraFields?.horizontalPadding || '',
           verticalPadding: item.extraFields?.verticalPadding || '',
