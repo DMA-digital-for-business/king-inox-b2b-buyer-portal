@@ -330,19 +330,12 @@ function Order({ isCompanyOrder = false }: OrderProps) {
       {
         key: 'companyName',
         title: b3Lang('orders.company'),
-        width: '10%',
+        width: '20%',
         isSortable: false,
         render: ({ companyInfo }) => {
           return <Box>{companyInfo?.companyName || '–'}</Box>;
         },
         hidden: !isB2BUser,
-      },
-      {
-        key: 'poNumber',
-        title: b3Lang('orders.poReference'),
-        render: ({ poNumber }) => <Box>{poNumber || '–'}</Box>,
-        width: '10%',
-        isSortable: true,
       },
       {
         key: 'totalIncTax',
@@ -353,13 +346,6 @@ function Order({ isCompanyOrder = false }: OrderProps) {
             : currencyFormat(totalIncTax),
         align: 'right',
         width: '8%',
-        isSortable: true,
-      },
-      {
-        key: 'status',
-        title: b3Lang('orders.orderStatus'),
-        render: ({ status, statusText }) => <OrderStatus text={statusText} code={status} />,
-        width: '10%',
         isSortable: true,
       },
       {
