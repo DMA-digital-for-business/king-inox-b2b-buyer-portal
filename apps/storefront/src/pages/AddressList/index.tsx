@@ -236,7 +236,7 @@ function Address() {
   };
 
   const addButtonConfig = {
-    isEnabled: isBCPermission || (editPermission && isCreatePermission),
+    isEnabled: false,//isBCPermission || (editPermission && isCreatePermission),
     customLabel: b3Lang('addresses.addNewAddress'),
   };
 
