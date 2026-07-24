@@ -175,7 +175,7 @@ export function OrderShipping({ isCurrentCompany }: OrderShippingProps) {
 
             {shipping.notShip.itemsInfo.length > 0 ? (
               <Fragment key={`shipment-notShip-${shipping.id}`}>
-                <Box
+                {/* <Box
                   sx={{
                     margin: '20px 0 2px',
                   }}
@@ -183,7 +183,7 @@ export function OrderShipping({ isCurrentCompany }: OrderShippingProps) {
                   <Typography variant="body1">
                     <ShipmentTitle>{b3Lang('orderDetail.shipment.notShippedYet')}</ShipmentTitle>
                   </Typography>
-                </Box>
+                </Box> */}
 
                 <B3ProductList
                   quantityKey="not_shipping_number"

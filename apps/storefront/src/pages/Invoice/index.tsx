@@ -18,7 +18,7 @@ import { CustomerRole } from '@/types';
 import { InvoiceList, InvoiceListNode } from '@/types/invoice';
 import { validatePermissionWithComparisonType } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
-import { currencyFormat, currencyFormatInfo } from '@/utils/b3CurrencyFormat';
+import { currencyFormatInfo } from '@/utils/b3CurrencyFormat';
 import { dateWithLocaleSupport, getUTCTimestamp } from '@/utils/b3DateFormat';
 import b2bLogger from '@/utils/b3Logger';
 import { snackbar } from '@/utils/b3Tip';
@@ -116,7 +116,26 @@ function Invoice() {
   const [isMobile] = useMobile();
   const paginationTableRef = useRef<PaginationTableRefProps | null>(null);
 
-  const { decimal_places: decimalPlaces = 2 } = currencyFormatInfo();
+  const moneyFormat = currencyFormatInfo();
+  const { decimal_places: decimalPlaces = 2 } = moneyFormat;
+  const invoiceDecimalPlaces = Math.min(Number(decimalPlaces), 2);
+
+  const formatInvoiceCurrency = (price: string | number) => {
+    try {
+      const [integerPart, decimalPart] = Number(price).toFixed(invoiceDecimalPlaces).split('.');
+      const formattedPrice = `${integerPart.replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        moneyFormat.thousands_token,
+      )}${decimalPart ? `${moneyFormat.decimal_token}${decimalPart}` : ''}`;
+
+      return moneyFormat.currency_location?.toLowerCase() === 'left'
+        ? `${moneyFormat.currency_token}${formattedPrice}`
+        : `${formattedPrice}${moneyFormat.currency_token}`;
+    } catch (err) {
+      b2bLogger.error(err);
+      return '';
+    }
+  };
 
   const [isRequestLoading, setIsRequestLoading] = useState<boolean>(false);
   const [isOpenHistory, setIsOpenHistory] = useState<boolean>(false);
@@ -191,14 +210,18 @@ function Invoice() {
       setIsRequestLoading(true);
       const { invoiceStats } = await getInvoiceStats(
         filterData?.status ? Number(filterData.status) : 0,
-        Number(decimalPlaces),
+        Number(invoiceDecimalPlaces),
         filterData?.companyIds || [],
       );
 
       if (invoiceStats) {
         const { overDueBalance, totalBalance } = invoiceStats;
-        setUnpaidAmount(Number(formattingNumericValues(Number(totalBalance), decimalPlaces)));
-        setOverdueAmount(Number(formattingNumericValues(Number(overDueBalance), decimalPlaces)));
+        setUnpaidAmount(
+          Number(formattingNumericValues(Number(totalBalance), invoiceDecimalPlaces)),
+        );
+        setOverdueAmount(
+          Number(formattingNumericValues(Number(overDueBalance), invoiceDecimalPlaces)),
+        );
       }
     } catch (err) {
       b2bLogger.error(err);
@@ -497,7 +520,7 @@ function Invoice() {
       item.node.disableCurrentCheckbox = false;
 
       openBalance.originValue = `${Number(openBalance.value)}`;
-      openBalance.value = formattingNumericValues(Number(openBalance.value), decimalPlaces);
+      openBalance.value = formattingNumericValues(Number(openBalance.value), invoiceDecimalPlaces);
 
       item.node.disableCurrentCheckbox = Number(openBalance.value) === 0;
 
@@ -527,17 +550,19 @@ function Invoice() {
     if (val.includes('.')) {
       const wholeDecimalNumber = val.split('.');
       const movePoint =
-        decimalPlaces === 0 ? 0 : wholeDecimalNumber[1].length - Number(decimalPlaces);
+        invoiceDecimalPlaces === 0
+          ? 0
+          : wholeDecimalNumber[1].length - Number(invoiceDecimalPlaces);
       if (wholeDecimalNumber[1] && movePoint > 0) {
         const newVal = wholeDecimalNumber[0] + wholeDecimalNumber[1];
-        result = `${newVal.slice(0, -decimalPlaces)}.${newVal.slice(-decimalPlaces)}`;
+        result = `${newVal.slice(0, -invoiceDecimalPlaces)}.${newVal.slice(-invoiceDecimalPlaces)}`;
       }
       if (wholeDecimalNumber[1] && movePoint === 0) {
-        result = formattingNumericValues(Number(val), decimalPlaces);
+        result = formattingNumericValues(Number(val), invoiceDecimalPlaces);
       }
     } else if (result.length > 1) {
       result = `${val.slice(0, 1)}.${val.slice(-1)}`;
-      if (Number(decimalPlaces) === 0) result = val;
+      if (Number(invoiceDecimalPlaces) === 0) result = val;
     } else {
       result = val;
     }
@@ -640,7 +665,7 @@ function Invoice() {
         const { originalBalance } = item;
         const originalAmount = formattingNumericValues(
           Number(originalBalance.value),
-          decimalPlaces,
+          invoiceDecimalPlaces,
         );
 
         const token = handleGetCorrespondingCurrencyToken(originalBalance.code);
@@ -656,7 +681,7 @@ function Invoice() {
       render: (item: InvoiceList) => {
         const { openBalance } = item;
 
-        const openAmount = formattingNumericValues(Number(openBalance.value), decimalPlaces);
+        const openAmount = formattingNumericValues(Number(openBalance.value), invoiceDecimalPlaces);
         const token = handleGetCorrespondingCurrencyToken(openBalance.code);
 
         return `${token}${openAmount || 0}`;
@@ -906,18 +931,18 @@ function Invoice() {
           >
             <Typography
               sx={{
-                fontSize: '24px',
+                fontSize: '20px',
                 color: '#000000',
               }}
             >
               {b3Lang('invoice.openUnpaid', {
-                unpaid: currencyFormat(unpaidAmount),
+                unpaid: formatInvoiceCurrency(unpaidAmount),
               })}
             </Typography>
             {document.body.clientWidth >= 465 && (
               <Typography
                 sx={{
-                  fontSize: '24px',
+                  fontSize: '20px',
                   margin: '0 8px',
                 }}
               >
@@ -926,12 +951,12 @@ function Invoice() {
             )}
             <Typography
               sx={{
-                fontSize: '24px',
-                color: '#D32F2F',
+                fontSize: '20px',
+                color: '#000000',
               }}
             >
               {b3Lang('invoice.overdueAmount', {
-                overdue: currencyFormat(overdueAmount),
+                overdue: formatInvoiceCurrency(overdueAmount),
               })}
             </Typography>
           </Box>
@@ -994,7 +1019,9 @@ function Invoice() {
       </Box>
       {selectedPay.length > 0 &&
         (((invoicePayPermission || invoiceSubPayPermission) && purchasabilityPermission) ||
-          isAgenting) && <InvoiceFooter selectedPay={selectedPay} decimalPlaces={decimalPlaces} />}
+          isAgenting) && (
+          <InvoiceFooter selectedPay={selectedPay} decimalPlaces={invoiceDecimalPlaces} />
+        )}
       <PaymentsHistory
         open={isOpenHistory}
         currentInvoiceId={currentInvoiceId}
