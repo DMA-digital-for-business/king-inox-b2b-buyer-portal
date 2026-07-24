@@ -18,7 +18,6 @@ function B3FilterSearch({
   handleChange,
   w = '100%',
   h,
-  searchBGColor = 'transparent',
   searchValue = '',
   ...restProps
 }: B3FilterSearchProps) {
@@ -59,10 +58,8 @@ function B3FilterSearch({
         border: 'none',
         boxShadow: 'none',
         height: h || '50px',
-        borderBottomLeftRadius: '0',
-        borderBottomRightRadius: '0',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.42)',
-        backgroundColor: searchBGColor,
+        borderRadius: '8px',
+        backgroundColor: '#FFFFFF',
       }}
     >
       <SearchIcon
