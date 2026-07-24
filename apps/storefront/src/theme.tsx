@@ -1,8 +1,7 @@
-import { ReactNode, useContext } from 'react';
+import { ReactNode } from 'react';
 import * as materialMultiLanguages from '@mui/material/locale';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
-import { CustomStyleContext } from './shared/customStyleButton';
 import { BROWSER_LANG } from './constants';
 
 type LangMapType = {
@@ -28,17 +27,11 @@ type Props = {
 };
 
 function B3ThemeProvider({ children }: Props) {
-  const {
-    state: {
-      portalStyle: { backgroundColor = '', primaryColor = '' },
-    },
-  } = useContext(CustomStyleContext);
-
-  const brandPrimary = primaryColor || '#0D4372';
+  const brandPrimary = '#052940';
   const brandPrimaryDark = '#052940';
   const brandPrimarySoft = '#EDF4FA';
   const brandAccent = '#F47B20';
-  const surfaceBase = backgroundColor || '#F5F7FB';
+  const surfaceBase = '#edeff2';
   const surfaceRaised = '#FFFFFF';
   const borderSubtle = '#D8D7DD';
   const borderStrong = '#BDC8DF';
@@ -168,9 +161,11 @@ function B3ThemeProvider({ children }: Props) {
                 color: textPrimary,
                 fontFamily: '"Space Grotesk","DM Sans","Helvetica Neue",Helvetica,Arial,sans-serif',
               },
-              '.MuiTypography-h1, .MuiTypography-h2, .MuiTypography-h3, .MuiTypography-h4, .MuiTypography-h5, .MuiTypography-h6': {
-                fontFamily: '"Space Grotesk","DM Sans","Helvetica Neue",Helvetica,Arial,sans-serif',
-              },
+              '.MuiTypography-h1, .MuiTypography-h2, .MuiTypography-h3, .MuiTypography-h4, .MuiTypography-h5, .MuiTypography-h6':
+                {
+                  fontFamily:
+                    '"Space Grotesk","DM Sans","Helvetica Neue",Helvetica,Arial,sans-serif',
+                },
               a: {
                 color: brandPrimary,
                 textDecorationThickness: '0.08em',

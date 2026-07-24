@@ -80,10 +80,10 @@ export const defaultCreateAccountPanel = (b3Lang: LangFormatFunction) => `<div c
 `;
 
 export const initState = {
-  globalButtonBackgroundColor: '#0D4372',
+  globalButtonBackgroundColor: '#052940',
   portalStyle: {
-    primaryColor: '#0D4372',
-    backgroundColor: '#F5F7FB',
+    primaryColor: '#052940',
+    backgroundColor: '#edeff2',
   },
   masqueradeButton: {
     color: '#FFFFFF',
@@ -146,7 +146,7 @@ export const initState = {
   loginPageButton: {
     createAccountButtonText: 'CREATE ACCOUNT',
     enabled: true,
-    primaryButtonColor: '#0D4372',
+    primaryButtonColor: '#052940',
     signInButtonText: 'SIGN IN',
   },
   loginPageDisplay: {
