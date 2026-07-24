@@ -119,14 +119,20 @@ function Invoice() {
   const moneyFormat = currencyFormatInfo();
   const { decimal_places: decimalPlaces = 2 } = moneyFormat;
   const invoiceDecimalPlaces = Math.min(Number(decimalPlaces), 2);
+  const invoiceDecimalToken = ',';
+  const invoiceThousandsToken =
+    moneyFormat.thousands_token === invoiceDecimalToken ? '.' : moneyFormat.thousands_token;
+
+  const formatInvoiceAmount = (price: string | number) =>
+    formattingNumericValues(Number(price), invoiceDecimalPlaces).replace('.', invoiceDecimalToken);
 
   const formatInvoiceCurrency = (price: string | number) => {
     try {
       const [integerPart, decimalPart] = Number(price).toFixed(invoiceDecimalPlaces).split('.');
       const formattedPrice = `${integerPart.replace(
         /\B(?=(\d{3})+(?!\d))/g,
-        moneyFormat.thousands_token,
-      )}${decimalPart ? `${moneyFormat.decimal_token}${decimalPart}` : ''}`;
+        invoiceThousandsToken,
+      )}${decimalPart ? `${invoiceDecimalToken}${decimalPart}` : ''}`;
 
       return moneyFormat.currency_location?.toLowerCase() === 'left'
         ? `${moneyFormat.currency_token}${formattedPrice}`
@@ -663,10 +669,7 @@ function Invoice() {
       isSortable: true,
       render: (item: InvoiceList) => {
         const { originalBalance } = item;
-        const originalAmount = formattingNumericValues(
-          Number(originalBalance.value),
-          invoiceDecimalPlaces,
-        );
+        const originalAmount = formatInvoiceAmount(originalBalance.value);
 
         const token = handleGetCorrespondingCurrencyToken(originalBalance.code);
 
@@ -681,80 +684,80 @@ function Invoice() {
       render: (item: InvoiceList) => {
         const { openBalance } = item;
 
-        const openAmount = formattingNumericValues(Number(openBalance.value), invoiceDecimalPlaces);
+        const openAmount = formatInvoiceAmount(openBalance.value);
         const token = handleGetCorrespondingCurrencyToken(openBalance.code);
 
         return `${token}${openAmount || 0}`;
       },
       width: '10%',
     },
-    {
-      key: 'openBalanceToPay',
-      title: b3Lang('invoice.headers.amountToPay'),
-      render: (item: InvoiceList) => {
-        const { openBalance, id } = item;
-        const currentCode = openBalance.code || 'USD';
-        let valuePrice = openBalance.value;
-        let disabled = true;
+    // {
+    //   key: 'openBalanceToPay',
+    //   title: b3Lang('invoice.headers.amountToPay'),
+    //   render: (item: InvoiceList) => {
+    //     const { openBalance, id } = item;
+    //     const currentCode = openBalance.code || 'USD';
+    //     let valuePrice = openBalance.value;
+    //     let disabled = true;
 
-        if (selectedPay.length > 0) {
-          const currentSelected = selectedPay.find((item: InvoiceListNode) => {
-            const {
-              node: { id: selectedId },
-            } = item;
+    //     if (selectedPay.length > 0) {
+    //       const currentSelected = selectedPay.find((item: InvoiceListNode) => {
+    //         const {
+    //           node: { id: selectedId },
+    //         } = item;
 
-            return Number(selectedId) === Number(id);
-          });
+    //         return Number(selectedId) === Number(id);
+    //       });
 
-          if (currentSelected) {
-            const {
-              node: { openBalance: selectedOpenBalance },
-            } = currentSelected;
+    //       if (currentSelected) {
+    //         const {
+    //           node: { openBalance: selectedOpenBalance },
+    //         } = currentSelected;
 
-            disabled = false;
-            valuePrice = selectedOpenBalance.value;
+    //         disabled = false;
+    //         valuePrice = selectedOpenBalance.value;
 
-            if (Number(openBalance.value) === 0) {
-              disabled = true;
-            }
-          }
-        }
+    //         if (Number(openBalance.value) === 0) {
+    //           disabled = true;
+    //         }
+    //       }
+    //     }
 
-        return (
-          <TextField
-            disabled={disabled}
-            variant="filled"
-            value={valuePrice || ''}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment
-                  position="start"
-                  sx={{ padding: '8px 0', marginTop: '0 !important' }}
-                >
-                  {handleGetCorrespondingCurrencyToken(currentCode)}
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& input': {
-                paddingTop: '8px',
-              },
-              '& input[type="number"]::-webkit-inner-spin-button, & input[type="number"]::-webkit-outer-spin-button':
-                {
-                  WebkitAppearance: 'none',
-                  margin: 0,
-                },
-            }}
-            onChange={(e: CustomFieldItems) => {
-              const val = e.target?.value;
-              handleSetSelectedInvoiceAccountNumber(val, id);
-            }}
-            type="number"
-          />
-        );
-      },
-      width: '15%',
-    },
+    //     return (
+    //       <TextField
+    //         disabled={disabled}
+    //         variant="filled"
+    //         value={valuePrice || ''}
+    //         InputProps={{
+    //           startAdornment: (
+    //             <InputAdornment
+    //               position="start"
+    //               sx={{ padding: '8px 0', marginTop: '0 !important' }}
+    //             >
+    //               {handleGetCorrespondingCurrencyToken(currentCode)}
+    //             </InputAdornment>
+    //           ),
+    //         }}
+    //         sx={{
+    //           '& input': {
+    //             paddingTop: '8px',
+    //           },
+    //           '& input[type="number"]::-webkit-inner-spin-button, & input[type="number"]::-webkit-outer-spin-button':
+    //             {
+    //               WebkitAppearance: 'none',
+    //               margin: 0,
+    //             },
+    //         }}
+    //         onChange={(e: CustomFieldItems) => {
+    //           const val = e.target?.value;
+    //           handleSetSelectedInvoiceAccountNumber(val, id);
+    //         }}
+    //         type="number"
+    //       />
+    //     );
+    //   },
+    //   width: '15%',
+    // },
     {
       key: 'status',
       title: b3Lang('invoice.headers.status'),
