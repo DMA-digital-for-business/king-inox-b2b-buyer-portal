@@ -59,19 +59,19 @@ export function OrderHistory() {
       ),
     },
   ];
-
-  return history.length > 0 ? (
-    <Card>
-      <CardContent
-        sx={{
-          paddingBottom: '50px',
-        }}
-      >
-        <Typography variant="h5">{b3Lang('orderDetail.history.title')}</Typography>
-        <HistoryListContainer>
-          <B3Table columnItems={columnItems} listItems={history} showPagination={false} />
-        </HistoryListContainer>
-      </CardContent>
-    </Card>
-  ) : null;
+  return null;
+  // return history.length > 0 ? (
+  //   <Card>
+  //     <CardContent
+  //       sx={{
+  //         paddingBottom: '50px',
+  //       }}
+  //     >
+  //       <Typography variant="h5">{b3Lang('orderDetail.history.title')}</Typography>
+  //       <HistoryListContainer>
+  //         <B3Table columnItems={columnItems} listItems={history} showPagination={false} />
+  //       </HistoryListContainer>
+  //     </CardContent>
+  //   </Card>
+  // ) : null;
 }
