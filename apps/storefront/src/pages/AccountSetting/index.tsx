@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
@@ -11,7 +11,6 @@ import B3Spin from '@/components/spin/B3Spin';
 import { useMobile } from '@/hooks/useMobile';
 import useStorageState from '@/hooks/useStorageState';
 import { useB3Lang } from '@/lib/lang';
-import { CustomStyleContext } from '@/shared/customStyleButton';
 import {
   checkUserBCEmail,
   checkUserEmail,
@@ -115,12 +114,6 @@ function AccountSetting() {
     false,
     sessionStorage,
   );
-
-  const {
-    state: {
-      portalStyle: { backgroundColor = '#FEF9F5' },
-    },
-  } = useContext(CustomStyleContext);
 
   const b3Lang = useB3Lang();
 
@@ -309,7 +302,7 @@ function AccountSetting() {
   }, [accountInfoFormFields, b3Lang]);
 
   return (
-    <B3Spin isSpinning={isLoading} background={backgroundColor}>
+    <B3Spin isSpinning={isLoading}>
       <Box>
         {isDisplayUpgradeBanner && <UpgradeBanner />}
         <Box
@@ -325,11 +318,11 @@ function AccountSetting() {
               },
             '& .MuiButtonBase-root.MuiCheckbox-root:not(.Mui-checked), & .MuiRadio-root:not(.Mui-checked)':
               {
-                color: b3HexToRgb(getContrastColor(backgroundColor), 0.6),
+                color: b3HexToRgb(getContrastColor('#EEEFF2'), 0.6),
               },
             '& .MuiTypography-root.MuiTypography-body1.MuiFormControlLabel-label, & .MuiFormControl-root .MuiFormLabel-root:not(.Mui-focused)':
               {
-                color: b3HexToRgb(getContrastColor(backgroundColor), 0.87),
+                color: b3HexToRgb(getContrastColor('#EEEFF2'), 0.87),
               },
             '& .MuiInputLabel-root.MuiInputLabel-formControl:not(.Mui-focused)': {
               color: b3HexToRgb(getContrastColor('#FFFFFF'), 0.6),
