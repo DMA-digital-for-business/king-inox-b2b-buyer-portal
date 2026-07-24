@@ -241,8 +241,8 @@ function B3ThemeProvider({ children }: Props) {
             styleOverrides: {
               root: {
                 borderRadius: 4,
-                border: `1px solid ${borderStrong}`,
-                boxShadow: '0 12px 32px rgba(5, 41, 64, 0.06)',
+                border: 'none',
+                boxShadow: 'none !important',
               },
             },
           },
@@ -332,6 +332,7 @@ function B3ThemeProvider({ children }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 minHeight: '40px',
+                marginRight: '4px',
                 padding: '8px 40px 8px 16px',
                 fontSize: '14px',
                 lineHeight: 1.4,
