@@ -352,9 +352,11 @@ function OrderDetail() {
               }}
             >
               {b3Lang('orderDetail.orderId', { orderId })}
-              {b3Lang('orderDetail.purchaseOrderNumber', {
-                purchaseOrderNumber: poNumber ?? '',
-              })}
+              {poNumber
+                ? b3Lang('orderDetail.purchaseOrderNumber', {
+                    purchaseOrderNumber: poNumber,
+                  })
+                : ''}
             </Typography>
             <OrderStatus code={status} text={getOrderStatusLabel(status)} />
           </Grid>
