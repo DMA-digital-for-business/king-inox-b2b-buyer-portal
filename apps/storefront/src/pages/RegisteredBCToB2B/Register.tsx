@@ -22,6 +22,7 @@ import { getB2BAccountFormFields, getB2BCountries } from '../../shared/service/b
 import { type PageProps } from '../PageProps';
 import { b2bAddressRequiredFields } from '../Registered/config';
 import { RegisteredContext } from '../Registered/Context';
+import { localizeRegistrationFields } from '../Registered/localizeRegistrationFields';
 import FinishStep from '../Registered/RegisterSteps/steps/FinishStep';
 import { RegisterFields } from '../Registered/types';
 
@@ -94,9 +95,11 @@ export function Register({ logo, ...props }: RegisterProps) {
       });
 
       const bcToB2BAccountFormFields = getAccountFormFields(newAccountFormFields || []);
+      const localizeFields = (fields?: RegisterFieldsItems[]) =>
+        localizeRegistrationFields((fields ?? []) as RegisterFields[], b3Lang);
       const { countries } = await getB2BCountries();
 
-      const newAddressInformationFields = (bcToB2BAccountFormFields.address ?? []).map(
+      const newAddressInformationFields = localizeFields(bcToB2BAccountFormFields.address).map(
         (addressFields: Partial<RegisterFieldsItems>): Partial<RegisterFieldsItems> => {
           if (addressFields.name === 'country') {
             return {
@@ -119,7 +122,7 @@ export function Register({ logo, ...props }: RegisterProps) {
         email: emailAddress,
       };
 
-      const newContactInformation = (bcToB2BAccountFormFields.contactInformation ?? []).map(
+      const newContactInformation = localizeFields(bcToB2BAccountFormFields.contactInformation).map(
         (contactInformationField: Partial<RegisterFieldsItems>): Partial<RegisterFieldsItems> => {
           const field = contactInformationField;
           field.disabled = true;
@@ -144,7 +147,7 @@ export function Register({ logo, ...props }: RegisterProps) {
             bcTob2bContactInformation: [...newContactInformation] as RegisterFields[],
             bcTob2bCompanyExtraFields: [],
             bcTob2bCompanyInformation: [
-              ...(bcToB2BAccountFormFields.businessDetails ?? []),
+              ...localizeFields(bcToB2BAccountFormFields.businessDetails),
             ] as RegisterFields[],
             bcTob2bAddressBasicFields: [...newAddressInformationFields] as RegisterFields[],
             countryList: [...countries],
@@ -156,7 +159,7 @@ export function Register({ logo, ...props }: RegisterProps) {
     } finally {
       showLoading(false);
     }
-  }, [dispatch, emailAddress, firstName, lastName, phoneNumber, showLoading]);
+  }, [b3Lang, dispatch, emailAddress, firstName, lastName, phoneNumber, showLoading]);
 
   useEffect(() => {
     getBCAdditionalFields();

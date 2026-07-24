@@ -16,6 +16,7 @@ import { getStoreConfigs } from '@/utils/storefrontConfig';
 
 import { b2bAddressRequiredFields, companyAttachmentsFields } from '../config';
 import { RegisteredContext } from '../Context';
+import { localizeRegistrationFields } from '../localizeRegistrationFields';
 import { RegisterFields } from '../types';
 
 import RegisterContent from './RegisterContent';
@@ -82,10 +83,13 @@ export function RegisterSteps({ backgroundColor, handleFinish }: RegisterStepsPr
         );
         const b2bAccountFormFields = getAccountFormFields(newB2bAccountFormFields || []);
 
+        const localizeFields = (fields?: RegisterFieldsItems[]) =>
+          localizeRegistrationFields((fields ?? []) as RegisterFields[], b3Lang);
+
         const { countries } = await getB2BCountries();
 
         const newAddressInformationFields =
-          b2bAccountFormFields.address?.map(
+          localizeFields(b2bAccountFormFields.address).map(
             (addressFields: Partial<RegisterFieldsItems>): Partial<RegisterFieldsItems> => {
               if (addressFields.name === 'country') {
                 return {
@@ -102,7 +106,7 @@ export function RegisterSteps({ backgroundColor, handleFinish }: RegisterStepsPr
           ) || [];
 
         const newBCAddressInformationFields =
-          bcAccountFormFields.address?.map(
+          localizeFields(bcAccountFormFields.address).map(
             (addressFields: Partial<RegisterFieldsItems>): Partial<RegisterFieldsItems> => {
               if (addressFields.name === 'country') {
                 const countryDefaultValue = countries.find(
@@ -127,27 +131,31 @@ export function RegisterSteps({ backgroundColor, handleFinish }: RegisterStepsPr
               accountType: accountB2cEnabledInfo ? '2' : '1',
               isLoading: false,
               contactInformation: [
-                ...(b2bAccountFormFields.contactInformation || []),
+                ...localizeFields(b2bAccountFormFields.contactInformation),
               ] as RegisterFields[],
               bcContactInformation: [
-                ...(bcAccountFormFields.contactInformation || []),
+                ...localizeFields(bcAccountFormFields.contactInformation),
               ] as RegisterFields[],
               additionalInformation: [
-                ...(b2bAccountFormFields.additionalInformation || []),
+                ...localizeFields(b2bAccountFormFields.additionalInformation),
               ] as RegisterFields[],
               bcAdditionalInformation: [
-                ...(bcAccountFormFields.additionalInformation || []),
+                ...localizeFields(bcAccountFormFields.additionalInformation),
               ] as RegisterFields[],
               companyExtraFields: [],
               companyInformation: [
-                ...(b2bAccountFormFields?.businessDetails || []),
+                ...localizeFields(b2bAccountFormFields.businessDetails),
               ] as RegisterFields[],
               companyAttachment: [...companyAttachmentsFields(b3Lang)],
               addressBasicFields: [...newAddressInformationFields] as RegisterFields[],
               bcAddressBasicFields: [...newBCAddressInformationFields] as RegisterFields[],
               countryList: [...countries],
-              passwordInformation: [...(b2bAccountFormFields.password || [])] as RegisterFields[],
-              bcPasswordInformation: [...(bcAccountFormFields.password || [])] as RegisterFields[],
+              passwordInformation: localizeFields(
+                b2bAccountFormFields.password,
+              ) as RegisterFields[],
+              bcPasswordInformation: localizeFields(
+                bcAccountFormFields.password,
+              ) as RegisterFields[],
             },
           });
         }
