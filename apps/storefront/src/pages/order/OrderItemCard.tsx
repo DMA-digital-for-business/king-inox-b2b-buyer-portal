@@ -6,7 +6,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 
 import { isB2BUserSelector, useAppSelector } from '@/store';
-import { currencyFormat } from '@/utils/b3CurrencyFormat';
+import { currencyFormat, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { displayFormat } from '@/utils/b3DateFormat';
 
 import OrderStatus from './components/OrderStatus';
@@ -18,6 +18,7 @@ interface ListItem {
   poNumber?: string;
   status: string;
   statusText?: string;
+  money?: string;
   totalIncTax: string;
   createdAt: string;
 }
@@ -46,6 +47,10 @@ export function OrderItemCard({ item, goToDetail }: OrderItemCardProps) {
     }
     return `by ${customer.firstName} ${customer.lastName}`;
   };
+
+  const grandTotal = item.money
+    ? ordersCurrencyFormat(JSON.parse(JSON.parse(item.money)), item.totalIncTax, true, 2)
+    : currencyFormat(item.totalIncTax, true, false, 2);
 
   return (
     <Card key={item.orderId}>
@@ -87,7 +92,7 @@ export function OrderItemCard({ item, goToDetail }: OrderItemCardProps) {
             minHeight: '1.43em',
           }}
         >
-          {currencyFormat(item.totalIncTax)}
+          {grandTotal}
         </Typography>
 
         <Box

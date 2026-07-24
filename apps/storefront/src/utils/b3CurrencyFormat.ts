@@ -46,9 +46,14 @@ export const ordersCurrencyFormat = (
   moneyFormat: MoneyFormat,
   price: string | number,
   showCurrencyToken = true,
+  maxDecimalPlaces?: number,
 ) => {
   try {
-    const [integerPart, decimalPart] = Number(price).toFixed(moneyFormat.decimal_places).split('.');
+    const decimalPlaces =
+      maxDecimalPlaces === undefined
+        ? moneyFormat.decimal_places
+        : Math.min(moneyFormat.decimal_places, maxDecimalPlaces);
+    const [integerPart, decimalPart] = Number(price).toFixed(decimalPlaces).split('.');
     const newPrice = `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, moneyFormat.thousands_token)}${
       decimalPart ? `${moneyFormat.decimal_token}${decimalPart}` : ''
     }`;
@@ -129,13 +134,18 @@ export const currencyFormat = (
   price: string | number,
   showCurrencyToken = true,
   isConversionRate = false,
+  maxDecimalPlaces?: number,
 ) => {
   const moneyFormat = currencyFormatInfo();
   try {
+    const decimalPlaces =
+      maxDecimalPlaces === undefined
+        ? moneyFormat.decimal_places
+        : Math.min(moneyFormat.decimal_places, maxDecimalPlaces);
     const [integerPart, decimalPart] = (
       isConversionRate ? Number(price) * Number(moneyFormat.currency_exchange_rate) : Number(price)
     )
-      .toFixed(moneyFormat.decimal_places)
+      .toFixed(decimalPlaces)
       .split('.');
     const newPrice = `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, moneyFormat.thousands_token)}${
       decimalPart ? `${moneyFormat.decimal_token}${decimalPart}` : ''

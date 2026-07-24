@@ -24,7 +24,6 @@ import { displayFormat } from '@/utils/b3DateFormat';
 
 import { type CursorLocationState } from '../OrderDetail/components/CursorDetailPagination';
 
-import OrderStatus from './components/OrderStatus';
 import { B3Table, PossibleNodeWrapper, TableColumnItem } from './table/B3Table';
 import {
   adaptCompanyUnifiedToLegacyFilterParams,
@@ -342,8 +341,8 @@ function Order({ isCompanyOrder = false }: OrderProps) {
         title: b3Lang('orders.grandTotal'),
         render: ({ money, totalIncTax }) =>
           money
-            ? ordersCurrencyFormat(JSON.parse(JSON.parse(money)), totalIncTax)
-            : currencyFormat(totalIncTax),
+            ? ordersCurrencyFormat(JSON.parse(JSON.parse(money)), totalIncTax, true, 2)
+            : currencyFormat(totalIncTax, true, false, 2),
         align: 'right',
         width: '8%',
         isSortable: true,
@@ -486,7 +485,7 @@ function Order({ isCompanyOrder = false }: OrderProps) {
           />
         </Box>
 
-        <B3Table  
+        <B3Table
           columnItems={columnItems}
           listItems={listItems}
           pagination={
