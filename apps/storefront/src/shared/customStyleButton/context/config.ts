@@ -83,7 +83,7 @@ export const initState = {
   globalButtonBackgroundColor: '#052940',
   portalStyle: {
     primaryColor: '#052940',
-    backgroundColor: '#edeff2',
+    backgroundColor: '#FFFFFF',
   },
   masqueradeButton: {
     color: '#FFFFFF',

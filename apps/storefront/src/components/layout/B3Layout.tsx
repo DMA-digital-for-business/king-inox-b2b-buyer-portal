@@ -154,6 +154,9 @@ export default function B3Layout({ children }: { children: ReactNode }) {
               component="main"
               sx={{
                 mt: !isMobile && !title ? '24px' : '0',
+                backgroundColor: '#EEEFF2',
+                p: '8px',
+                borderRadius: '8px',
               }}
             >
               {children}

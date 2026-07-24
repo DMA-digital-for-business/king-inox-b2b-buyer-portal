@@ -31,7 +31,7 @@ function B3ThemeProvider({ children }: Props) {
   const brandPrimaryDark = '#052940';
   const brandPrimarySoft = '#EDF4FA';
   const brandAccent = '#F47B20';
-  const surfaceBase = '#edeff2';
+  const surfaceBase = '#FFFFFF';
   const surfaceRaised = '#FFFFFF';
   const borderSubtle = '#D8D7DD';
   const borderStrong = '#BDC8DF';
