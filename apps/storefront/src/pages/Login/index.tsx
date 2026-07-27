@@ -296,6 +296,8 @@ function Login(props: PageProps) {
                     >
                       <LoginPanel
                         createAccountButtonText={loginInfo.createAccountButtonText}
+                        joinCompanyPrompt={loginInfo.joinCompanyPrompt}
+                        joinCompanyLinkText={loginInfo.joinCompanyLinkText}
                         widgetBodyText={loginInfo.widgetBodyText}
                       />
                     </Box>

@@ -68,11 +68,6 @@ export const defaultCreateAccountPanel = (b3Lang: LangFormatFunction) => `<div c
 </div>
 <div class="panel-body">
     <p class="new-customer-intro">${b3Lang('login.createAccountPanel.intro')}</p>
-    <ul class="new-customer-fact-list">
-        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.checkoutFaster')}</li>
-        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.saveShippingAddresses')}</li>
-        <li class="new-customer-fact">${b3Lang('login.createAccountPanel.fact.orderHistory')}</li>
-    </ul>
 </div>
 </div>
 `;

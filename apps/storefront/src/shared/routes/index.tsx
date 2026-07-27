@@ -29,6 +29,7 @@ const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const Invoice = lazy(() => import('@/pages/Invoice'));
 const InvoicePayment = lazy(() => import('@/pages/InvoicePayment'));
+const JoinCompany = lazy(() => import('@/pages/JoinCompany'));
 const Login = lazy(() => import('@/pages/Login'));
 const OrderDetail = lazy(() => import('@/pages/OrderDetail'));
 const MyOrders = lazy(() => import('@/pages/MyOrders'));
@@ -90,6 +91,12 @@ const firstLevelRouting: RouteItemBasic[] = [
     path: '/login',
     name: 'Login',
     component: Login,
+    permissions: allLegacyPermission,
+  },
+  {
+    path: '/join-company',
+    name: 'joinCompany',
+    component: JoinCompany,
     permissions: allLegacyPermission,
   },
   {

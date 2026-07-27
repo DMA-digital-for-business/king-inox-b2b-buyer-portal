@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Box, Button, useTheme } from '@mui/material';
+import { Box, Button, Link as MuiLink, Typography, useTheme } from '@mui/material';
 
 import { useMobile } from '@/hooks/useMobile';
 
@@ -8,10 +8,12 @@ import LoginWidget from './component/LoginWidget';
 interface LoginPanelProps {
   widgetBodyText: string;
   createAccountButtonText: string;
+  joinCompanyPrompt: string;
+  joinCompanyLinkText: string;
 }
 
 function LoginPanel(props: LoginPanelProps) {
-  const { widgetBodyText, createAccountButtonText } = props;
+  const { widgetBodyText, createAccountButtonText, joinCompanyPrompt, joinCompanyLinkText } = props;
 
   const theme = useTheme();
   const [isMobile] = useMobile();
@@ -43,6 +45,10 @@ function LoginPanel(props: LoginPanelProps) {
       <Box
         sx={{
           marginTop: '5px',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          gap: 2,
         }}
       >
         <Button
@@ -52,10 +58,17 @@ function LoginPanel(props: LoginPanelProps) {
           sx={{
             ml: isMobile ? 0 : 1,
             backgroundColor: theme.palette.primary.main,
+            flexShrink: 0,
           }}
         >
           {createAccountButtonText}
         </Button>
+        <Typography variant="body2">
+          {joinCompanyPrompt}{' '}
+          <MuiLink component={Link} color="#000000" to="/join-company" fontWeight={600}>
+            {joinCompanyLinkText}
+          </MuiLink>
+        </Typography>
       </Box>
     </Box>
   );
