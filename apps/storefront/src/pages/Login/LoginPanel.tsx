@@ -26,7 +26,7 @@ function LoginPanel(props: LoginPanelProps) {
     >
       <LoginWidget
         sx={{
-          minHeight: '250px',
+          // minHeight: '250px',
           '& .panel': {
             '.panel-title': {
               display: 'flex',
