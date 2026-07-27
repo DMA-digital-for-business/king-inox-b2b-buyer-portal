@@ -343,6 +343,10 @@ function AccountSetting() {
               mb: isMobile ? '20px' : '0',
               width: '100%',
               visibility: isVisible ? 'visible' : 'hidden',
+              backgroundColor: '#ff7a1a',
+              '&:hover': {
+                backgroundColor: '#ff7a1a',
+              },
             }}
             onClick={handleAddUserClick}
             variant="contained"

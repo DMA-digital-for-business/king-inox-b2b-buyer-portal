@@ -670,6 +670,7 @@
   "quoteDetail.header.issuedOn": "Issued on:",
   "quoteDetail.header.expirationDate": "Expiration date:",
   "quoteDetail.header.print": "Print",
+  "quoteDetail.header.download": "Download",
   "quoteDetail.header.downloadPDF": "Download pdf",
   "quoteDetail.summary.quoteSummary": "Quote summary",
   "quoteDetail.summary.quoteCheckout": "Customer choice at checkout",

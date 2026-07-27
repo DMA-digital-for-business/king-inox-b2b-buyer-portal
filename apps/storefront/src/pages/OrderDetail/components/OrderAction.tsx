@@ -21,6 +21,8 @@ import { OrderDetailsContext, OrderDetailsState } from '../context/OrderDetailsC
 
 import OrderDialog from './OrderDialog';
 
+const CTA_BUTTON_COLOR = '#ff7a1a';
+
 const OrderActionContainer = styled('div')(() => ({}));
 
 interface StyledCardActionsProps {
@@ -272,7 +274,17 @@ function OrderCard(props: OrderCardProps) {
                   value={button.value}
                   key={button.key}
                   name={button.name}
-                  variant={button.variant}
+                  variant={button.name === 'viewInvoice' ? 'contained' : button.variant}
+                  sx={
+                    button.name === 'viewInvoice'
+                      ? {
+                          backgroundColor: CTA_BUTTON_COLOR,
+                          '&:hover': {
+                            backgroundColor: CTA_BUTTON_COLOR,
+                          },
+                        }
+                      : undefined
+                  }
                   onClick={throttle(() => {
                     handleOpenDialog(button.name);
                   }, 2000)}

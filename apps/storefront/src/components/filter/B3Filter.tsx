@@ -44,7 +44,9 @@ type DeepPartial<T> = {
 interface CustomButtonProps {
   isEnabled: boolean;
   customLabel: string;
-  customButtonStyle?: { [key: string]: string };
+  customButtonStyle?: {
+    [key: string]: string | { [nestedKey: string]: string };
+  };
 }
 
 interface B3FilterProps<T, Y> {

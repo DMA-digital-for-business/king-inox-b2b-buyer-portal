@@ -62,7 +62,7 @@ export default function B3Nav({ closeSidebar }: B3NavProps) {
 
   const theme = useTheme();
   const primaryColor = theme.palette.primary.main;
-  console.log({theme});
+
   const jumpRegister = () => {
     navigate('/register');
     dispatch({

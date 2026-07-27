@@ -74,6 +74,12 @@ function UserManagement() {
     return {
       isEnabled: isEnableBtnPermissions && isCreatePermission,
       customLabel: b3Lang('userManagement.addUser'),
+      customButtonStyle: {
+        backgroundColor: '#ff7a1a',
+        '&:hover': {
+          backgroundColor: '#ff7a1a',
+        },
+      },
     };
 
     // ignore b3Lang due it's function that doesn't not depend on any reactive value
