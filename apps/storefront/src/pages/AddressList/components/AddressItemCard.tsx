@@ -107,7 +107,7 @@ export function AddressItemCard({
 
         {hasPermission && (
           <Flex>
-            {onSetDefault && (
+            {/* {onSetDefault && (
               <CustomButton
                 variant="text"
                 sx={{
@@ -117,7 +117,7 @@ export function AddressItemCard({
               >
                 {b3Lang('addresses.addressItemCard.setAsDefault')}
               </CustomButton>
-            )}
+            )} */}
             <Box
               sx={{
                 flex: 1,
@@ -126,11 +126,11 @@ export function AddressItemCard({
                 gap: '8px',
               }}
             >
-              {onEdit && (
+              {/* {onEdit && (
                 <IconButton aria-label="edit" size="small" onClick={onEdit}>
                   <EditIcon fontSize="inherit" />
                 </IconButton>
-              )}
+              )} */}
 
               {onDelete && (
                 <IconButton aria-label="delete" size="small" onClick={onDelete}>
