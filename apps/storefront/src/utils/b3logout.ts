@@ -3,10 +3,12 @@ import b2bLogger from './b3Logger';
 import { logoutSession } from './logoutSession';
 
 export const isB2bTokenPage = (gotoUrl?: string) => {
-  const noB2bTokenPages = ['quoteDraft', 'quoteDetail', 'register', 'login', 'forgotpassword'];
+  const noB2bTokenPages = ['quotedraft', 'quotedetail', 'register', 'login', 'forgotpassword'];
 
   if (gotoUrl) {
-    return !noB2bTokenPages.some((item: string) => gotoUrl.includes(item));
+    const normalizedGotoUrl = gotoUrl.toLowerCase();
+
+    return !noB2bTokenPages.some((item: string) => normalizedGotoUrl.includes(item));
   }
 
   const { hash = '' } = window.location;
@@ -15,7 +17,9 @@ export const isB2bTokenPage = (gotoUrl?: string) => {
     return false;
   }
 
-  return !noB2bTokenPages.some((item: string) => hash.includes(item));
+  const normalizedHash = hash.toLowerCase();
+
+  return !noB2bTokenPages.some((item: string) => normalizedHash.includes(item));
 };
 
 export const isUserGotoLogin = async (gotoUrl: string) => {

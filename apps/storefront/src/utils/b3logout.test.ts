@@ -46,7 +46,8 @@ describe('b3logout utilities', () => {
       expect(isB2bTokenPage('/quoteDetail/123')).toBe(false);
     });
 
-    it('returns false for forgotpassword page URL', () => {
+    it('returns false for forgotPassword page URL regardless of casing', () => {
+      expect(isB2bTokenPage('/forgotPassword')).toBe(false);
       expect(isB2bTokenPage('/forgotpassword')).toBe(false);
     });
 
@@ -79,7 +80,7 @@ describe('b3logout utilities', () => {
 
       it('returns false when hash includes a non-B2B token page', () => {
         Object.defineProperty(window, 'location', {
-          value: { hash: '#/login' },
+          value: { hash: '#/forgotPassword' },
           writable: true,
         });
 
