@@ -128,32 +128,33 @@ function section(title: string, lines: string[]): ContentStack {
 }
 
 function buildProductCell(line: QuotePdfLine, productImage?: string): Content {
-  const details = [line.name, line.sku, ...line.options, ...line.packaging];
+  const attributes = compactLines([...line.options, ...line.packaging]).join('; ');
+  const details: Content[] = [
+    { text: line.name, bold: true, color: COLORS.primary, fontSize: 9 },
+    ...(line.sku
+      ? [{ text: line.sku, color: COLORS.primary, fontSize: 9, margin: [0, 2, 0, 0] } as Content]
+      : []),
+    ...(attributes
+      ? [
+          {
+            text: attributes,
+            color: COLORS.secondary,
+            fontSize: 8,
+            lineHeight: 1.15,
+            margin: [0, 2, 0, 0],
+          } as Content,
+        ]
+      : []),
+  ];
 
   if (!productImage) {
-    return {
-      stack: details.map((text, index) => ({
-        text,
-        bold: index === 0,
-        color: index > 1 ? COLORS.secondary : COLORS.primary,
-        fontSize: index > 1 ? 8 : 9,
-        margin: [0, index === 0 ? 0 : 2, 0, 0],
-      })),
-    };
+    return { stack: details };
   }
 
   return {
     columns: [
       { image: productImage, fit: [42, 42], width: 48, margin: [0, 0, 6, 0] },
-      {
-        stack: details.map((text, index) => ({
-          text,
-          bold: index === 0,
-          color: index > 1 ? COLORS.secondary : COLORS.primary,
-          fontSize: index > 1 ? 8 : 9,
-          margin: [0, index === 0 ? 0 : 2, 0, 0],
-        })),
-      },
+      { stack: details },
     ],
     columnGap: 2,
   };

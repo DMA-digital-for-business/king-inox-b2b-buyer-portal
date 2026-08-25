@@ -127,6 +127,9 @@ describe('quote PDF document', () => {
     expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].name));
     expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].options[0]));
     expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].packaging[0]));
+    expect(serializedDocument).toEqual(
+      expect.stringContaining([...data.lines[0].options, ...data.lines[0].packaging].join('; ')),
+    );
     expect(serializedDocument).toEqual(expect.stringContaining(productImage));
     expect(serializedDocument).toEqual(expect.stringContaining(data.summary.grandTotal));
     expect(serializedDocument).not.toContain(excludedMessage);
