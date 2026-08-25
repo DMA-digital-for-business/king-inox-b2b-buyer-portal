@@ -5,6 +5,7 @@ import {
   buildQuotePdfFileName,
   imageUrlToDataUrl,
   QuotePdfData,
+  resolvePdfMakeVirtualFileSystem,
 } from './quotePdf';
 
 const buildLabelsWith = builder<QuotePdfData['labels']>(() => ({
@@ -86,6 +87,30 @@ const buildQuotePdfDataWith = builder<QuotePdfData>(() => ({
 }));
 
 describe('quote PDF document', () => {
+  it('resolves the bundled Roboto fonts from dynamically imported and named modules', async () => {
+    const [pdfMake, fontsModule] = await Promise.all([
+      import('pdfmake/build/pdfmake'),
+      import('pdfmake/build/vfs_fonts'),
+    ]);
+    const virtualFileSystem = resolvePdfMakeVirtualFileSystem(fontsModule);
+
+    expect(Object.keys(virtualFileSystem)).toEqual([
+      'Roboto-Italic.ttf',
+      'Roboto-Medium.ttf',
+      'Roboto-MediumItalic.ttf',
+      'Roboto-Regular.ttf',
+    ]);
+    expect(resolvePdfMakeVirtualFileSystem({ vfs: virtualFileSystem })).toBe(virtualFileSystem);
+
+    const pdfLength = await new Promise<number>((resolve) => {
+      pdfMake
+        .createPdf({ content: [faker.lorem.sentence()] }, undefined, undefined, virtualFileSystem)
+        .getBuffer((buffer) => resolve(buffer.length));
+    });
+
+    expect(pdfLength).toBeGreaterThan(0);
+  });
+
   it('contains quote, buyer, address, product and summary data without messages or attachments', () => {
     const excludedMessage = faker.lorem.sentence();
     const excludedAttachment = faker.system.fileName();

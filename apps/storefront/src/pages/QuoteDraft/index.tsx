@@ -87,6 +87,9 @@ import getQuoteDraftShowPriceTBD from '../quote/shared/utils';
 import Container from '../quote/style';
 import getB2BQuoteExtraFields from '../quote/utils/getQuoteExtraFields';
 
+const quotePdfLogoUrl = new URL('../../../../../public/images/logo-king-inox.png', import.meta.url)
+  .href;
+
 type BCAddress = {
   node: BCAddressItemType;
 };
@@ -153,7 +156,7 @@ const billingAddress = {
 
 function QuoteDraft({ setOpenPage }: PageProps) {
   const {
-    state: { countriesList, logo, openAPPParams, storeName },
+    state: { countriesList, openAPPParams, storeName },
   } = useContext(GlobalContext);
   const dispatch = useAppDispatch();
 
@@ -576,7 +579,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       const pdfData: QuotePdfData = {
         storeName,
-        logoUrl: logo,
+        logoUrl: quotePdfLogoUrl,
         quoteTitle: info.contactInfo?.quoteTitle || '',
         referenceNumber: info.referenceNumber || '',
         contactInfo: info.contactInfo || {},

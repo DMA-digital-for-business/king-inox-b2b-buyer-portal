@@ -40,4 +40,4 @@ slack-message.json
 supergraph.graphql
 
 # PDF
-apps/storefront/tmp/pdfs/*.png
+apps/storefront/tmp/pdfs/*

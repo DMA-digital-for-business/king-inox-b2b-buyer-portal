@@ -441,6 +441,34 @@ async function prepareEmbeddedImages(data: QuotePdfData): Promise<EmbeddedImages
   };
 }
 
+type PdfMakeVirtualFileSystem = Record<string, string>;
+
+function isPdfMakeVirtualFileSystem(value: unknown): value is PdfMakeVirtualFileSystem {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'Roboto-Regular.ttf' in value &&
+    typeof value['Roboto-Regular.ttf'] === 'string'
+  );
+}
+
+export function resolvePdfMakeVirtualFileSystem(fontsModule: unknown): PdfMakeVirtualFileSystem {
+  if (typeof fontsModule !== 'object' || fontsModule === null) {
+    throw new Error('pdfmake virtual file system is unavailable');
+  }
+
+  const module = fontsModule as { default?: unknown; vfs?: unknown };
+  const virtualFileSystem = [module.default, module.vfs, fontsModule].find(
+    isPdfMakeVirtualFileSystem,
+  );
+
+  if (!virtualFileSystem) {
+    throw new Error('pdfmake virtual file system is unavailable');
+  }
+
+  return virtualFileSystem;
+}
+
 export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
   const [pdfMake, pdfFonts, images] = await Promise.all([
     import('pdfmake/build/pdfmake'),
@@ -449,8 +477,11 @@ export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
   ]);
   const definition = buildQuotePdfDocument(data, images);
   const fileName = buildQuotePdfFileName(data.filePrefix, data.referenceNumber || data.quoteTitle);
+  const virtualFileSystem = resolvePdfMakeVirtualFileSystem(pdfFonts);
 
   await new Promise<void>((resolve) => {
-    pdfMake.createPdf(definition, undefined, undefined, pdfFonts.vfs).download(fileName, resolve);
+    pdfMake
+      .createPdf(definition, undefined, undefined, virtualFileSystem)
+      .download(fileName, resolve);
   });
 }

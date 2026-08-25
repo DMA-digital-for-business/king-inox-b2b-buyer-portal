@@ -476,7 +476,10 @@ it('downloads one PDF with the current unsaved quote information', async () => {
 
   expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
   expect(downloadQuotePdf).toHaveBeenCalledWith(
-    expect.objectContaining({ quoteTitle: editedTitle }),
+    expect.objectContaining({
+      logoUrl: expect.stringContaining('logo-king-inox'),
+      quoteTitle: editedTitle,
+    }),
   );
 
   const generatingButton = screen.getByRole('button', { name: 'Creating PDF...' });
