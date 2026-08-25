@@ -58,7 +58,7 @@ const StyledQuoteTableContainer = styled('div')(() => ({
       '& #shoppingList-actionList': {
         opacity: 1,
       },
-      '& #shoppingList-actionList > svg:first-child': {
+      '& #shoppingList-actionList > svg:first-of-type': {
         display: 'none',
       },
     },
