@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowBackIosNew } from '@mui/icons-material';
+import { ArrowBackIosNew, Download } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
@@ -42,7 +42,12 @@ import {
 import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import b2bLogger from '@/utils/b3Logger';
-import { addQuoteDraftProducts, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
+import {
+  addQuoteDraftProducts,
+  getBCPrice,
+  getDisplayPrice,
+  getVariantInfoOOSAndPurchase,
+} from '@/utils/b3Product/b3Product';
 import { B3LStorage } from '@/utils/b3Storage';
 import { snackbar } from '@/utils/b3Tip';
 import { channelId, storeHash } from '@/utils/basicConfig';
@@ -59,20 +64,26 @@ import { getProductOptionsFields } from '../../utils/b3Product/shared/config';
 import { convertBCToB2BAddress } from '../AddressList/shared/config';
 import { type PageProps } from '../PageProps';
 import AddToQuote from '../quote/components/AddToQuote';
-import ContactInfo from '../quote/components/ContactInfo';
+import { calculateQuoteSummary } from '../quote/components/calculateQuoteSummary';
+import ContactInfo, { ContactInfoRef } from '../quote/components/ContactInfo';
 import QuoteAddress from '../quote/components/QuoteAddress';
 import QuoteAttachment from '../quote/components/QuoteAttachment';
 import QuoteInfo from '../quote/components/QuoteInfo';
 import QuoteNote from '../quote/components/QuoteNote';
+import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
+import { downloadQuotePdf, QuotePdfData } from '../quote/components/quotePdf';
+import { formatQuotePrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
 import QuoteSubmissionResponse from '../quote/components/QuoteSubmissionResponse';
 import QuoteSummary from '../quote/components/QuoteSummary';
 import QuoteTable from '../quote/components/QuoteTable';
+import { useQuotePackagingMetafields } from '../quote/components/useQuotePackagingMetafields';
 import getAccountFormFields from '../quote/config';
 import {
   getQuoteValidationErrorMessage,
   QUOTE_VALIDATION_ERROR_CODES,
 } from '../quote/shared/getQuoteValidationErrorMessage';
+import getQuoteDraftShowPriceTBD from '../quote/shared/utils';
 import Container from '../quote/style';
 import getB2BQuoteExtraFields from '../quote/utils/getQuoteExtraFields';
 
@@ -95,7 +106,7 @@ type AddressWithMasterCopy = (ShippingAddress | BillingAddress) & {
   masterCopy?: Partial<AddressItemType>;
 };
 
-interface InfoRefProps extends HTMLInputElement {
+interface AddressRefProps extends HTMLInputElement {
   getContactInfoValue: () => any;
   setShippingInfoValue: (address: any) => void;
 }
@@ -142,7 +153,7 @@ const billingAddress = {
 
 function QuoteDraft({ setOpenPage }: PageProps) {
   const {
-    state: { countriesList, openAPPParams },
+    state: { countriesList, logo, openAPPParams, storeName },
   } = useContext(GlobalContext);
   const dispatch = useAppDispatch();
 
@@ -154,7 +165,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const enteredInclusiveTax = useAppSelector(
     ({ storeConfigs }) => storeConfigs.currencies.enteredInclusiveTax,
   );
+  const showInclusiveTaxPrice = useAppSelector(({ global }) => global.showInclusiveTaxPrice);
   const draftQuoteList = useAppSelector(({ quoteInfo }) => quoteInfo.draftQuoteList);
+  const packagingByVariantId = useQuotePackagingMetafields(draftQuoteList);
   const salesRepCompanyId = useAppSelector(({ b2bFeatures }) => b2bFeatures.masqueradeCompany.id);
   const salesRepCompanyName = useAppSelector(
     ({ b2bFeatures }) => b2bFeatures.masqueradeCompany.companyName,
@@ -198,6 +211,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const [isMobile] = useMobile();
 
   const [loading, setLoading] = useState<boolean>(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [isEdit, setEdit] = useState<boolean>(false);
 
@@ -219,9 +233,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
   useSetCountry();
 
-  const contactInfoRef = useRef<InfoRefProps | null>(null);
-  const billingRef = useRef<InfoRefProps | null>(null);
-  const shippingRef = useRef<InfoRefProps | null>(null);
+  const contactInfoRef = useRef<ContactInfoRef | null>(null);
+  const billingRef = useRef<AddressRefProps | null>(null);
+  const shippingRef = useRef<AddressRefProps | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -463,6 +477,155 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
   const updateSummary = () => {
     quoteSummaryRef.current?.refreshSummary();
+  };
+
+  const getCurrentQuoteInfoForPdf = (): QuoteInfoType => {
+    const info = cloneDeep(quoteInfoOrigin);
+
+    if (isEdit && contactInfoRef.current) {
+      const values = contactInfoRef.current.getCurrentValues();
+      const stringValue = (value: unknown) =>
+        value === undefined || value === null ? '' : String(value);
+
+      info.contactInfo = {
+        name: stringValue(values.name),
+        email: stringValue(values.email),
+        companyName: stringValue(values.companyName),
+        phoneNumber: stringValue(values.phoneNumber),
+        quoteTitle: stringValue(values.quoteTitle),
+      };
+      info.referenceNumber = stringValue(values.referenceNumber);
+      info.extraFields = extraFields.map((field) => ({
+        id: Number(field.id),
+        fieldName: field.name,
+        value: field.name ? stringValue(values[field.name]) : '',
+      }));
+
+      let pendingRecipients: string[] = [];
+      if (Array.isArray(values.ccEmail)) {
+        pendingRecipients = values.ccEmail.filter(
+          (recipient): recipient is string => typeof recipient === 'string',
+        );
+      } else if (typeof values.ccEmail === 'string' && values.ccEmail.trim()) {
+        pendingRecipients = [values.ccEmail.trim()];
+      }
+
+      info.recipients = uniq([...(info.recipients || []), ...pendingRecipients]);
+    }
+
+    if (isEdit) {
+      const currentAddresses = getAddress();
+      info.billingAddress = currentAddresses.billingAddress;
+      info.shippingAddress = currentAddresses.shippingAddress;
+    }
+
+    return info;
+  };
+
+  const handleDownloadPdf = async () => {
+    if (isGeneratingPdf) return;
+
+    setIsGeneratingPdf(true);
+
+    try {
+      const info = getCurrentQuoteInfoForPdf();
+      const hidePrices = getQuoteDraftShowPriceTBD(draftQuoteList);
+      const summary = calculateQuoteSummary(draftQuoteList, showInclusiveTaxPrice);
+      const tbd = b3Lang('quoteDraft.quoteSummary.tbd');
+      const formatSummaryPrice = (price: number) => (hidePrices ? tbd : formatQuotePrice(price));
+
+      const lines = draftQuoteList.map(({ node }) => {
+        const price = getBCPrice(Number(node.basePrice), Number(node.taxPrice || 0));
+        const total = price * Number(node.quantity);
+        const productFields = getProductOptionsFields(
+          { ...node.productsSearch, selectOptions: node.optionList },
+          {},
+        ) as Array<{ valueLabel?: string; valueText?: string }>;
+        const options = productFields
+          .filter(({ valueText }) => Boolean(valueText))
+          .map(({ valueLabel, valueText }) => `${valueLabel || ''}: ${valueText || ''}`);
+        const packaging = packagingColumns.map(
+          ({ key, title }) =>
+            `${title}: ${getPackagingMetafieldValue(node, key, packagingByVariantId)}`,
+        );
+
+        return {
+          id: node.id,
+          imageUrl: node.primaryImage,
+          name: node.productName || '',
+          sku: node.variantSku || '',
+          options,
+          packaging,
+          unitPrice: String(
+            getDisplayPrice({
+              price: formatQuotePrice(price),
+              productInfo: node,
+              showText: tbd,
+            }),
+          ),
+          quantity: Number(node.quantity),
+          totalPrice: String(
+            getDisplayPrice({
+              price: formatQuotePrice(total),
+              productInfo: node,
+              showText: tbd,
+            }),
+          ),
+        };
+      });
+
+      const pdfData: QuotePdfData = {
+        storeName,
+        logoUrl: logo,
+        quoteTitle: info.contactInfo?.quoteTitle || '',
+        referenceNumber: info.referenceNumber || '',
+        contactInfo: info.contactInfo || {},
+        billingAddress: info.billingAddress || {},
+        shippingAddress: info.shippingAddress || {},
+        extraFields: info.extraFields || [],
+        recipients: info.recipients || [],
+        lines,
+        packagingByVariantId,
+        summary: {
+          subtotal: formatSummaryPrice(summary.subtotal),
+          shipping: tbd,
+          tax: formatSummaryPrice(summary.tax),
+          grandTotal: formatSummaryPrice(summary.grandTotal),
+        },
+        labels: {
+          quote: b3Lang('quoteDraft.title.Quote'),
+          draft: b3Lang('global.quoteStatusCode.draft'),
+          buyerInfo: b3Lang('quoteDraft.contactInfo.contact'),
+          quoteInfo: b3Lang('quoteDraft.quoteInfo.title'),
+          billing: b3Lang('global.quoteInfo.billing'),
+          shipping: b3Lang('global.quoteInfo.shipping'),
+          title: b3Lang('quoteDraft.contactInfo.quoteTitle'),
+          reference: b3Lang('quoteDraft.contactInfo.referenceNumber'),
+          cc: b3Lang('quoteDraft.contactInfo.ccEmail'),
+          products: b3Lang('quoteDraft.pdf.products'),
+          product: b3Lang('quoteDraft.quoteTable.product'),
+          price: b3Lang('quoteDraft.quoteTable.price'),
+          quantity: b3Lang('quoteDraft.quoteTable.qty'),
+          total: b3Lang('quoteDraft.quoteTable.total'),
+          noProducts: b3Lang('quoteDraft.quoteTable.noProducts'),
+          summary: b3Lang('quoteDraft.quoteSummary.summary'),
+          subtotal: b3Lang('quoteDraft.quoteSummary.subTotal'),
+          tax: b3Lang('quoteDraft.quoteSummary.tax'),
+          grandTotal: b3Lang('quoteDraft.quoteSummary.grandTotal'),
+          page: b3Lang('quoteDraft.pdf.page'),
+          of: b3Lang('quoteDraft.pdf.of'),
+        },
+        filePrefix: b3Lang('quoteDraft.pdf.filePrefix'),
+        draftLabel: b3Lang('global.quoteStatusCode.draft'),
+      };
+
+      await downloadQuotePdf(pdfData);
+    } catch (error) {
+      b2bLogger.error(error);
+      snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const addToQuote = async (products: CustomFieldItems[]) => {
@@ -889,18 +1052,34 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                     background: '#FFF',
                     width: '100%',
                     display: 'flex',
-                    p: '8px 0',
+                    gap: '8px',
+                    p: '8px 5%',
                     zIndex: 100,
                     justifyContent: 'center',
                   }}
                 >
+                  <CustomButton
+                    variant="outlined"
+                    size="small"
+                    disabled={loading || isGeneratingPdf}
+                    startIcon={<Download />}
+                    sx={{
+                      height: '38px',
+                      flex: 1,
+                    }}
+                    onClick={handleDownloadPdf}
+                  >
+                    {isGeneratingPdf
+                      ? b3Lang('quoteDraft.pdf.generating')
+                      : b3Lang('quoteDraft.button.downloadPDF')}
+                  </CustomButton>
                   <CustomButton
                     variant="contained"
                     size="small"
                     disabled={loading}
                     sx={{
                       height: '38px',
-                      width: '90%',
+                      flex: 1,
                     }}
                     onClick={handleSubmit}
                   >
@@ -908,19 +1087,29 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                   </CustomButton>
                 </Box>
               ) : (
-                <CustomButton
-                  variant="contained"
-                  size="small"
-                  disabled={loading}
-                  sx={{
-                    padding: '8px 22px',
-                    alignSelf: 'center',
-                    marginBottom: '24px',
-                  }}
-                  onClick={handleSubmit}
-                >
-                  {b3Lang('quoteDraft.button.submit')}
-                </CustomButton>
+                <Box sx={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                  <CustomButton
+                    variant="outlined"
+                    size="small"
+                    disabled={loading || isGeneratingPdf}
+                    startIcon={<Download />}
+                    sx={{ padding: '8px 22px', alignSelf: 'center' }}
+                    onClick={handleDownloadPdf}
+                  >
+                    {isGeneratingPdf
+                      ? b3Lang('quoteDraft.pdf.generating')
+                      : b3Lang('quoteDraft.button.downloadPDF')}
+                  </CustomButton>
+                  <CustomButton
+                    variant="contained"
+                    size="small"
+                    disabled={loading}
+                    sx={{ padding: '8px 22px', alignSelf: 'center' }}
+                    onClick={handleSubmit}
+                  >
+                    {b3Lang('quoteDraft.button.submit')}
+                  </CustomButton>
+                </Box>
               )}
             </Box>
           )}
@@ -1039,6 +1228,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
               updateSummary={updateSummary}
               total={draftQuoteList.length}
               items={draftQuoteList}
+              packagingByVariantId={packagingByVariantId}
             />
           </Container>
 

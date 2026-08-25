@@ -19,7 +19,7 @@ interface VariantPackagingNode {
   } | null;
 }
 
-type PackagingByVariantId = Record<number, PackagingMetafieldNode[]>;
+export type PackagingByVariantId = Record<number, PackagingMetafieldNode[]>;
 
 function buildQuotePackagingQuery(items: Array<{ productId: number; variantId: number }>) {
   const selections = items.map(

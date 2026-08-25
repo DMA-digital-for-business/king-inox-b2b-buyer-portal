@@ -142,6 +142,22 @@ interface ContactInfoProps {
   handleSaveCCEmail: (ccEmail: string[]) => void;
 }
 
+export interface ContactInfoFormValues {
+  [key: string]: unknown;
+  name: string;
+  email: string;
+  companyName: string;
+  phoneNumber: string;
+  quoteTitle: string;
+  referenceNumber: string;
+  ccEmail: string | string[];
+}
+
+export interface ContactInfoRef {
+  getContactInfoValue: () => Promise<CustomFieldItems | false>;
+  getCurrentValues: () => ContactInfoFormValues;
+}
+
 function ContactInfo(
   {
     info,
@@ -253,11 +269,12 @@ function ContactInfo(
       isValid = await validateQuoteExtraFieldsInfo();
     }
 
-    return isValid ? getValues() : isValid;
+    return isValid ? (getValues() as CustomFieldItems) : isValid;
   };
 
   useImperativeHandle(ref, () => ({
     getContactInfoValue,
+    getCurrentValues: () => getValues() as ContactInfoFormValues,
   }));
 
   const contactInfo = getContactInfo(isMobile, b3Lang, isGuest);

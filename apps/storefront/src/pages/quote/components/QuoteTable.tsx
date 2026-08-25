@@ -30,15 +30,15 @@ import {
   getQuoteItemBackendAvailability,
 } from '../utils/getDraftBackorderDisplayFields';
 
-import { formatQuotePrice } from './quotePriceFormat';
 import {
   getPackagingMetafieldValue,
   normalizeQuantityToBoxMultiple,
   normalizeQuantityToBoxStep,
   packagingColumns,
 } from './quotePackaging';
+import { formatQuotePrice } from './quotePriceFormat';
 import QuoteTableCard from './QuoteTableCard';
-import { useQuotePackagingMetafields } from './useQuotePackagingMetafields';
+import { PackagingByVariantId } from './useQuotePackagingMetafields';
 
 const StyledQuoteTableContainer = styled('div')(() => ({
   backgroundColor: '#FFFFFF',
@@ -58,9 +58,9 @@ const StyledQuoteTableContainer = styled('div')(() => ({
       '& #shoppingList-actionList': {
         opacity: 1,
       },
-      '& #shoppingList-actionList > svg:first-child':{
-        display: "none"
-      }
+      '& #shoppingList-actionList > svg:first-child': {
+        display: 'none',
+      },
     },
   },
 }));
@@ -169,12 +169,12 @@ interface QuoteTableProps {
   total: number;
   items: QuoteItem[];
   updateSummary: () => void;
+  packagingByVariantId?: PackagingByVariantId;
 }
 
-function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
+function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: QuoteTableProps) {
   const b3Lang = useB3Lang();
   const dispatch = useAppDispatch();
-  const packagingByVariantId = useQuotePackagingMetafields(items);
   const {
     isBackorderEnabled,
     isBackorderMessagingEnabled,
@@ -228,12 +228,7 @@ function QuoteTable({ total, items, updateSummary }: QuoteTableProps) {
       newQty = QUOTE_PRODUCT_QTY_MAX;
     }
 
-    newQty = normalizeQuantityToBoxStep(
-      item,
-      newQty,
-      Number(item.quantity),
-      packagingByVariantId,
-    );
+    newQty = normalizeQuantityToBoxStep(item, newQty, Number(item.quantity), packagingByVariantId);
 
     if (newQty > QUOTE_PRODUCT_QTY_MAX) {
       newQty = QUOTE_PRODUCT_QTY_MAX;

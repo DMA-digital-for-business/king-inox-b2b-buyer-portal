@@ -38,3 +38,6 @@ slack-message.json
 
 # generated graphql POC schema
 supergraph.graphql
+
+# PDF
+apps/storefront/tmp/pdfs/*.png

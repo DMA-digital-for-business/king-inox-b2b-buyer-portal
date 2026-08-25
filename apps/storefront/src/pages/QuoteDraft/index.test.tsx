@@ -31,7 +31,13 @@ import { QuoteInfoState } from '@/store/slices/quoteInfo';
 import { CompanyStatus, CustomerRole, UserTypes } from '@/types';
 import { CreateQuoteResponse, QuoteInfo, QuoteItem } from '@/types/quotes';
 
+import { downloadQuotePdf } from '../quote/components/quotePdf';
+
 import QuoteDraft from '.';
+
+vi.mock('../quote/components/quotePdf', () => ({
+  downloadQuotePdf: vi.fn(),
+}));
 
 interface VariantInfoResponse {
   data: {
@@ -421,6 +427,66 @@ it('displays a page title of "Quote" and label "Draft"', async () => {
 
   expect(await screen.findByRole('heading', { name: 'Quote' })).toBeInTheDocument();
   expect(screen.getByText('Draft')).toBeInTheDocument();
+});
+
+it('downloads one PDF with the current unsaved quote information', async () => {
+  server.use(
+    graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
+    graphql.query('Addresses', () =>
+      HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
+    ),
+    graphql.query('getQuoteExtraFields', () =>
+      HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
+    ),
+  );
+
+  const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteInfo: {
+      billingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
+      shippingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
+    },
+  });
+  const company = buildCompanyStateWith({
+    companyInfo: { status: CompanyStatus.APPROVED },
+    customer: {
+      userType: UserTypes.MULTIPLE_B2C,
+      role: CustomerRole.SENIOR_BUYER,
+      emailAddress: customerEmail,
+    },
+    permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+  });
+  const editedTitle = faker.commerce.productName();
+  let finishDownload: (() => void) | undefined;
+  vi.mocked(downloadQuotePdf).mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finishDownload = resolve;
+      }),
+  );
+
+  renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+    preloadedState: { ...preloadedState, company, quoteInfo },
+  });
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit info' }));
+  const titleInput = screen.getByRole('textbox', { name: 'Quote Title' });
+  await userEvent.clear(titleInput);
+  await userEvent.type(titleInput, editedTitle);
+  await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+  expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
+  expect(downloadQuotePdf).toHaveBeenCalledWith(
+    expect.objectContaining({ quoteTitle: editedTitle }),
+  );
+
+  const generatingButton = screen.getByRole('button', { name: 'Creating PDF...' });
+  expect(generatingButton).toBeDisabled();
+  expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
+
+  finishDownload?.();
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  });
 });
 
 it('displays a summary of the products within the quote draft', async () => {

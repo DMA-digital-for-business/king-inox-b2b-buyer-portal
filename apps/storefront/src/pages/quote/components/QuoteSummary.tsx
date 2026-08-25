@@ -15,31 +15,22 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
-import { getBCPrice } from '@/utils/b3Product/b3Product';
 
 import getQuoteDraftShowPriceTBD from '../shared/utils';
 import { draftQuoteListHasBackorderedItemsForDisplay } from '../utils/getDraftBackorderDisplayFields';
+
+import {
+  calculateQuoteSummary,
+  emptyQuoteSummary,
+  QuoteSummaryData,
+} from './calculateQuoteSummary';
 import { formatQuotePrice } from './quotePriceFormat';
-
-interface Summary {
-  subtotal: number;
-  shipping: number;
-  tax: number;
-  grandTotal: number;
-}
-
-const defaultSummary: Summary = {
-  subtotal: 0,
-  shipping: 0,
-  tax: 0,
-  grandTotal: 0,
-};
 
 const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
   const b3Lang = useB3Lang();
 
-  const [quoteSummary, setQuoteSummary] = useState<Summary>({
-    ...defaultSummary,
+  const [quoteSummary, setQuoteSummary] = useState<QuoteSummaryData>({
+    ...emptyQuoteSummary,
   });
 
   const [isHideQuoteDraftPrice, setHideQuoteDraftPrice] = useState<boolean>(false);
@@ -60,43 +51,12 @@ const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
     return draftQuoteListHasBackorderedItemsForDisplay(draftQuoteList);
   }, [draftQuoteList, isBackorderMessagingEnabled]);
 
-  const priceCalc = (price: number) => parseFloat(String(price));
-
   const getSummary = useCallback(() => {
     const isHidePrice = getQuoteDraftShowPriceTBD(draftQuoteList);
 
     setHideQuoteDraftPrice(isHidePrice);
 
-    const newQuoteSummary = draftQuoteList.reduce(
-      (summary: Summary, product: CustomFieldItems) => {
-        const { basePrice, taxPrice: productTax = 0, quantity } = product.node;
-
-        let { subtotal, grandTotal, tax } = summary;
-
-        const { shipping } = summary;
-
-        const price = getBCPrice(Number(basePrice), Number(productTax));
-
-        subtotal += priceCalc(price * quantity);
-        tax += priceCalc(Number(productTax) * Number(quantity));
-
-        const totalPrice = showInclusiveTaxPrice ? subtotal : subtotal + tax;
-
-        grandTotal = totalPrice + shipping;
-
-        return {
-          grandTotal,
-          shipping,
-          tax,
-          subtotal,
-        };
-      },
-      {
-        ...defaultSummary,
-      },
-    );
-
-    setQuoteSummary(newQuoteSummary);
+    setQuoteSummary(calculateQuoteSummary(draftQuoteList, showInclusiveTaxPrice));
   }, [showInclusiveTaxPrice, draftQuoteList]);
 
   useEffect(() => {
