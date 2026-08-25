@@ -11,12 +11,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
-import {
-  exportQuotePdf,
-  getB2BQuoteDetail,
-  getBcQuoteDetail,
-  searchProducts,
-} from '@/shared/service/b2b';
+import { getB2BQuoteDetail, getBcQuoteDetail, searchProducts } from '@/shared/service/b2b';
 import type { ProductValidationError } from '@/shared/service/request/b3Fetch';
 import {
   activeCurrencyInfoSelector,
@@ -27,7 +22,7 @@ import {
 import { QuoteExtraFieldsData } from '@/types/quotes';
 import { verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
-import { getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
+import { getBCPrice, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
 import { conversionProductsList } from '@/utils/b3Product/shared/config';
 import { snackbar } from '@/utils/b3Tip';
 import { buildCurrenciesMap } from '@/utils/currencyUtils';
@@ -46,6 +41,14 @@ import QuoteDetailSummary from '../quote/components/QuoteDetailSummary';
 import QuoteDetailTable from '../quote/components/QuoteDetailTable';
 import QuoteInfo from '../quote/components/QuoteInfo';
 import QuoteNote from '../quote/components/QuoteNote';
+import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
+import {
+  downloadQuotePdf,
+  printQuotePdf,
+  QUOTE_PDF_LOGO_URL,
+  QuotePdfData,
+} from '../quote/components/quotePdf';
+import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import QuoteTermsAndConditions from '../quote/components/QuoteTermsAndConditions';
 import {
   getQuoteValidationErrorMessage,
@@ -76,6 +79,8 @@ interface ProductInfoProps {
   optionList: string;
   options?: ProductOption[];
   primaryImage: string;
+  imageUrl?: string;
+  notes?: string;
   productId: number;
   productName: string;
   productUrl: string;
@@ -84,6 +89,7 @@ interface ProductInfoProps {
   updatedAt: number;
   variantId: number;
   variantSku: string;
+  sku?: string;
   productsSearch: CustomFieldItems;
   backorderMessage?: string;
   totalOnHand?: number;
@@ -110,7 +116,7 @@ function useData() {
   const [searchParams] = useSearchParams();
   const uuid = searchParams.get('uuid') || undefined;
   const {
-    state: { bcLanguage, quoteConfig },
+    state: { quoteConfig, storeName },
   } = useContext(GlobalContext);
   const companyId = useAppSelector(({ company }) => company.companyInfo.id);
   const emailAddress = useAppSelector(({ company }) => company.customer.emailAddress);
@@ -178,8 +184,8 @@ function useData() {
   return {
     id,
     uuid,
-    bcLanguage,
     quoteConfig,
+    storeName,
     role,
     emailAddress,
     isB2BUser,
@@ -256,8 +262,8 @@ function QuoteDetail() {
   const {
     id,
     uuid,
-    bcLanguage,
     quoteConfig,
+    storeName,
     role,
     emailAddress,
     isB2BUser,
@@ -315,6 +321,7 @@ function QuoteDetail() {
   const [quoteCheckoutLoading, setQuoteCheckoutLoading] = useState<boolean>(false);
 
   const [shouldHidePrices, setShouldHidePrices] = useState<boolean>(true);
+  const showInclusiveTaxPrice = useAppSelector(({ global }) => global.showInclusiveTaxPrice);
 
   const location = useLocation();
 
@@ -620,67 +627,175 @@ function QuoteDetail() {
     }
   };
 
-  const fetchPdfUrl = async (bool: boolean) => {
-    setIsRequestLoading(true);
-    const { id, createdAt } = quoteDetail;
-    try {
-      const data = {
-        quoteId: Number(id),
-        createdAt,
-        isPreview: bool,
-        lang: bcLanguage,
-      };
+  const quoteAndExtraFieldsInfo = useMemo(() => {
+    const currentExtraFields = quoteDetail?.extraFields?.map(
+      (field: { fieldName: string; fieldValue: string | number }) => ({
+        fieldName: field.fieldName,
+        value: field.fieldValue,
+      }),
+    );
 
-      const quotePdf = await exportQuotePdf(data);
-
-      if (quotePdf) {
-        return {
-          url: quotePdf.quoteFrontendPdf.url,
-          content: quotePdf.quoteFrontendPdf.content,
-        };
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        snackbar.error(error.message);
-      }
-    }
     return {
-      url: '',
-      content: '',
+      info: {
+        quoteTitle: quoteDetail?.quoteTitle || '',
+        referenceNumber: quoteDetail?.referenceNumber || '',
+      },
+      extraFields: currentExtraFields || [],
+      recipients: quoteDetail?.recipients || [],
+    };
+  }, [quoteDetail]);
+
+  const displayCurrency = useMemo(() => {
+    if (isCurrencySymbolPlacementFixEnabled && quoteDetail.currency?.currencyCode) {
+      const currencySnapshot = currenciesMap[quoteDetail.currency.currencyCode];
+      if (currencySnapshot) return currencySnapshot;
+    }
+    return quoteDetail.currency;
+  }, [isCurrencySymbolPlacementFixEnabled, quoteDetail.currency, currenciesMap]);
+
+  const shouldHidePrice = isBackorderEnabled ? shouldHidePrices : isHideQuoteCheckout;
+
+  const buildCurrentQuotePdfData = (): QuotePdfData => {
+    const tbd = b3Lang('quoteDetail.summary.tbd');
+    const formatPdfPrice = (price: number) =>
+      shouldHidePrice
+        ? tbd
+        : formatQuoteConvertedPrice(price, {
+            currency: displayCurrency,
+            isConversionRate: false,
+            useCurrentCurrency: !!displayCurrency,
+          });
+    const lines = productList.map((product) => {
+      const variants = product.productsSearch?.variants || [];
+      const offeredPrice = Number(product.offeredPrice);
+      const taxRate = getTaxRate(variants);
+      const offeredTax = enteredInclusiveTax
+        ? (offeredPrice * taxRate) / (1 + taxRate)
+        : offeredPrice * taxRate;
+      const unitPrice = getBCPrice(offeredPrice, offeredTax);
+      const options = (product.options || [])
+        .filter(({ optionName, optionLabel }) => Boolean(optionName && optionLabel))
+        .map(({ optionName, optionLabel }) => `${optionName}: ${optionLabel}`);
+
+      if (product.notes) {
+        options.push(`${b3Lang('global.quoteNote.notes')}: ${product.notes}`);
+      }
+
+      return {
+        id: String(product.itemId || product.id || product.variantId),
+        imageUrl: product.imageUrl || product.primaryImage,
+        name: product.productName || '',
+        sku: product.sku || product.variantSku || product.baseSku || '',
+        options,
+        packaging: packagingColumns.map(
+          ({ key, title }) =>
+            `${title}: ${getPackagingMetafieldValue(
+              { ...product, variantSku: product.variantSku || product.sku },
+              key,
+            )}`,
+        ),
+        unitPrice: formatPdfPrice(unitPrice),
+        quantity: Number(product.quantity),
+        totalPrice: formatPdfPrice(unitPrice * Number(product.quantity)),
+      };
+    });
+    const statusLabelKeys: Record<string, string> = {
+      '0': 'global.quoteStatusCode.draft',
+      '1': 'global.quoteStatusCode.open',
+      '4': 'global.quoteStatusCode.ordered',
+      '5': 'global.quoteStatusCode.expired',
+    };
+    const statusLabel = b3Lang(
+      statusLabelKeys[String(quoteDetail.status)] || 'global.quoteStatusCode.open',
+    );
+    const quotedSubtotal = Number(quoteSummary.originalSubtotal) - Number(quoteSummary.discount);
+    let visibleSubtotal = quotedSubtotal;
+    if (enteredInclusiveTax && !showInclusiveTaxPrice) {
+      visibleSubtotal -= quoteDetailTax;
+    } else if (!enteredInclusiveTax && showInclusiveTaxPrice) {
+      visibleSubtotal += quoteDetailTax;
+    }
+    const shippingIsTbd =
+      !quoteDetail?.shippingMethod?.id &&
+      ((!quoteDetail?.salesRepEmail && Number(quoteDetail.status) === 1) ||
+        (quoteDetail?.salesRepEmail && [1, 5].includes(Number(quoteDetail.status))));
+    const taxIsTbd =
+      quoteDetail?.salesRepEmail &&
+      !quoteDetail?.shippingMethod?.id &&
+      [1, 5].includes(Number(quoteDetail.status));
+
+    return {
+      storeName,
+      logoUrl: QUOTE_PDF_LOGO_URL,
+      quoteTitle: quoteDetail.quoteTitle || '',
+      referenceNumber: quoteDetail.referenceNumber || quoteDetail.quoteNumber || '',
+      contactInfo: quoteDetail.contactInfo || {},
+      billingAddress: quoteDetail.billingAddress || {},
+      shippingAddress: quoteDetail.shippingAddress || {},
+      extraFields: quoteAndExtraFieldsInfo.extraFields,
+      recipients: quoteDetail.recipients || [],
+      lines,
+      packagingByVariantId: {},
+      summary: {
+        subtotal: formatPdfPrice(visibleSubtotal),
+        shipping: shippingIsTbd ? tbd : formatPdfPrice(Number(quoteSummary.shipping)),
+        tax: taxIsTbd ? tbd : formatPdfPrice(Number(quoteSummary.tax)),
+        grandTotal: formatPdfPrice(Number(quoteSummary.totalAmount)),
+      },
+      labels: {
+        quote: b3Lang('quoteDraft.title.Quote'),
+        draft: statusLabel,
+        buyerInfo: b3Lang('quoteDraft.contactInfo.contact'),
+        quoteInfo: b3Lang('quoteDraft.quoteInfo.title'),
+        billing: b3Lang('global.quoteInfo.billing'),
+        shipping: b3Lang('global.quoteInfo.shipping'),
+        title: b3Lang('quoteDraft.contactInfo.quoteTitle'),
+        reference: b3Lang('quoteDraft.contactInfo.referenceNumber'),
+        cc: b3Lang('quoteDraft.contactInfo.ccEmail'),
+        products: b3Lang('quoteDraft.pdf.products'),
+        product: b3Lang('quoteDetail.table.product'),
+        price: b3Lang('quoteDetail.table.price'),
+        quantity: b3Lang('quoteDetail.table.qty'),
+        total: b3Lang('quoteDetail.table.total'),
+        noProducts: b3Lang('quoteDraft.quoteTable.noProducts'),
+        summary: b3Lang('quoteDetail.summary.quoteSummary'),
+        subtotal: b3Lang('quoteDetail.summary.quotedSubtotal'),
+        tax: b3Lang('quoteDetail.summary.tax'),
+        grandTotal: b3Lang('quoteDetail.summary.grandTotal'),
+        page: b3Lang('quoteDraft.pdf.page'),
+        of: b3Lang('quoteDraft.pdf.of'),
+      },
+      filePrefix: b3Lang('quoteDraft.pdf.filePrefix'),
+      draftLabel: statusLabel,
     };
   };
 
   const exportPdf = async () => {
+    setIsRequestLoading(true);
     try {
-      const { url: quotePdfUrl } = await fetchPdfUrl(false);
-      if (quotePdfUrl) {
-        window.open(`${quotePdfUrl}`, '_blank');
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        snackbar.error(error.message);
-      }
+      await downloadQuotePdf(buildCurrentQuotePdfData());
+    } catch {
+      snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
     } finally {
       setIsRequestLoading(false);
     }
   };
 
   const printQuote = async () => {
-    try {
-      const { content } = await fetchPdfUrl(true);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
+      return;
+    }
 
-      const iframe = document.createElement('iframe');
-      iframe.setAttribute('style', 'display:none;');
-      document.getElementById('bundle-container')?.appendChild(iframe);
-      iframe.contentDocument?.open();
-      iframe.contentDocument?.write(content);
-      iframe.contentDocument?.close();
+    setIsRequestLoading(true);
+    try {
+      await printQuotePdf(buildCurrentQuotePdfData(), printWindow);
+    } catch {
+      printWindow.close();
+      snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
+    } finally {
       setIsRequestLoading(false);
-      iframe.contentWindow?.print();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        snackbar.error(error.message);
-      }
     }
   };
 
@@ -806,38 +921,10 @@ function QuoteDetail() {
     ? isEnableProductShowCheckoutBackendFlow
     : isEnableProductShowCheckoutFrontendFlow;
 
-  const quoteAndExtraFieldsInfo = useMemo(() => {
-    const currentExtraFields = quoteDetail?.extraFields?.map(
-      (field: { fieldName: string; fieldValue: string | number }) => ({
-        fieldName: field.fieldName,
-        value: field.fieldValue,
-      }),
-    );
-
-    return {
-      info: {
-        quoteTitle: quoteDetail?.quoteTitle || '',
-        referenceNumber: quoteDetail?.referenceNumber || '',
-      },
-      extraFields: currentExtraFields || [],
-      recipients: quoteDetail?.recipients || [],
-    };
-  }, [quoteDetail]);
-
-  const displayCurrency = useMemo(() => {
-    if (isCurrencySymbolPlacementFixEnabled && quoteDetail.currency?.currencyCode) {
-      const currencySnapshot = currenciesMap[quoteDetail.currency.currencyCode];
-      if (currencySnapshot) return currencySnapshot;
-    }
-    return quoteDetail.currency;
-  }, [isCurrencySymbolPlacementFixEnabled, quoteDetail.currency, currenciesMap]);
-
   useScrollBar(false);
 
   const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
     quotePurchasabilityPermissionInfo;
-
-  const shouldHidePrice = isBackorderEnabled ? shouldHidePrices : isHideQuoteCheckout;
 
   return (
     <B3Spin isSpinning={isRequestLoading || quoteCheckoutLoading}>

@@ -35,7 +35,8 @@ import { downloadQuotePdf } from '../quote/components/quotePdf';
 
 import QuoteDraft from '.';
 
-vi.mock('../quote/components/quotePdf', () => ({
+vi.mock('../quote/components/quotePdf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../quote/components/quotePdf')>()),
   downloadQuotePdf: vi.fn(),
 }));
 
@@ -472,7 +473,9 @@ it('downloads one PDF with the current unsaved quote information', async () => {
   const titleInput = screen.getByRole('textbox', { name: 'Quote Title' });
   await userEvent.clear(titleInput);
   await userEvent.type(titleInput, editedTitle);
-  await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+  const downloadButton = screen.getByRole('button', { name: 'Download PDF' });
+  expect(downloadButton).toHaveStyle({ color: '#ff7a1a', borderColor: '#ff7a1a' });
+  await userEvent.click(downloadButton);
 
   expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
   expect(downloadQuotePdf).toHaveBeenCalledWith(

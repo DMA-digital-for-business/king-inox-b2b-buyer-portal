@@ -71,7 +71,7 @@ import QuoteAttachment from '../quote/components/QuoteAttachment';
 import QuoteInfo from '../quote/components/QuoteInfo';
 import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
-import { downloadQuotePdf, QuotePdfData } from '../quote/components/quotePdf';
+import { downloadQuotePdf, QUOTE_PDF_LOGO_URL, QuotePdfData } from '../quote/components/quotePdf';
 import { formatQuotePrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
 import QuoteSubmissionResponse from '../quote/components/QuoteSubmissionResponse';
@@ -86,9 +86,6 @@ import {
 import getQuoteDraftShowPriceTBD from '../quote/shared/utils';
 import Container from '../quote/style';
 import getB2BQuoteExtraFields from '../quote/utils/getQuoteExtraFields';
-
-const quotePdfLogoUrl = new URL('../../../../../public/images/logo-king-inox.png', import.meta.url)
-  .href;
 
 type BCAddress = {
   node: BCAddressItemType;
@@ -579,7 +576,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       const pdfData: QuotePdfData = {
         storeName,
-        logoUrl: quotePdfLogoUrl,
+        logoUrl: QUOTE_PDF_LOGO_URL,
         quoteTitle: info.contactInfo?.quoteTitle || '',
         referenceNumber: info.referenceNumber || '',
         contactInfo: info.contactInfo || {},
@@ -1069,6 +1066,14 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                     sx={{
                       height: '38px',
                       flex: 1,
+                      color: '#ff7a1a',
+                      borderColor: '#ff7a1a',
+                      backgroundColor: '#ffffff',
+                      '&:hover': {
+                        color: '#ff7a1a',
+                        borderColor: '#ff7a1a',
+                        backgroundColor: '#ffffff',
+                      },
                     }}
                     onClick={handleDownloadPdf}
                   >
@@ -1096,7 +1101,18 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                     size="small"
                     disabled={loading || isGeneratingPdf}
                     startIcon={<Download />}
-                    sx={{ padding: '8px 22px', alignSelf: 'center' }}
+                    sx={{
+                      padding: '8px 22px',
+                      alignSelf: 'center',
+                      color: '#ff7a1a',
+                      borderColor: '#ff7a1a',
+                      backgroundColor: '#ffffff',
+                      '&:hover': {
+                        color: '#ff7a1a',
+                        borderColor: '#ff7a1a',
+                        backgroundColor: '#ffffff',
+                      },
+                    }}
                     onClick={handleDownloadPdf}
                   >
                     {isGeneratingPdf

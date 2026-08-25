@@ -14,6 +14,7 @@ import {
   screen,
   startMockServer,
   userEvent,
+  waitFor,
   waitForElementToBeRemoved,
   within,
 } from 'tests/test-utils';
@@ -21,13 +22,21 @@ import { when } from 'vitest-when';
 
 import { B2BProducts, ProductSearch } from '@/shared/service/b2b/graphql/product';
 import { B2BQuoteDetail, QuoteExtraFieldsConfig } from '@/shared/service/b2b/graphql/quote';
-import { CompanyStatus, UserTypes } from '@/types';
+import { CompanyStatus, CustomerRole, UserTypes } from '@/types';
+
+import { downloadQuotePdf, printQuotePdf } from '../quote/components/quotePdf';
 
 import QuoteDetail from './index';
 
 vitest.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useParams: vitest.fn(),
+}));
+
+vitest.mock('../quote/components/quotePdf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../quote/components/quotePdf')>()),
+  downloadQuotePdf: vitest.fn(),
+  printQuotePdf: vitest.fn(),
 }));
 
 const { server } = startMockServer();
@@ -172,6 +181,70 @@ describe('when the user is a B2B customer', () => {
     renderWithProviders(<QuoteDetail />, { preloadedState });
 
     expect(await screen.findByText('Quote #911911')).toBeInTheDocument();
+  });
+
+  it('downloads and prints the quote with the client-side PDF generator', async () => {
+    const product = buildQuoteProductWith('WHATEVER_VALUES');
+    const quote = buildQuoteWith({
+      data: {
+        quote: {
+          id: '272989',
+          quoteNumber: faker.string.numeric(),
+          quoteTitle: faker.commerce.productName(),
+          productsList: [product],
+        },
+      },
+    });
+    const printWindow = { close: vitest.fn() } as unknown as Window;
+    const openWindow = vitest.spyOn(window, 'open').mockReturnValue(printWindow);
+    vitest.mocked(downloadQuotePdf).mockResolvedValue();
+    vitest.mocked(printQuotePdf).mockResolvedValue();
+
+    server.use(
+      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+      graphql.query('SearchProducts', () =>
+        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+      ),
+      graphql.query('getQuoteExtraFields', () =>
+        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+      ),
+    );
+
+    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+
+    renderWithProviders(<QuoteDetail />, {
+      preloadedState: {
+        ...preloadedState,
+        company: buildCompanyStateWith({
+          companyInfo: { status: CompanyStatus.APPROVED },
+          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+        }),
+      },
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: /Download/ }));
+
+    await waitFor(() => {
+      expect(downloadQuotePdf).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quoteTitle: quote.data.quote.quoteTitle,
+          referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
+          lines: expect.arrayContaining([expect.objectContaining({ name: product.productName })]),
+        }),
+      );
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Print' }));
+
+    await waitFor(() => {
+      expect(printQuotePdf).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
+        }),
+        printWindow,
+      );
+    });
+    expect(openWindow).toHaveBeenCalledWith('', '_blank');
   });
 
   it('displays the quote status, issue and expiration dates', async () => {

@@ -82,6 +82,11 @@ interface EmbeddedImages {
   products: Record<string, string>;
 }
 
+export const QUOTE_PDF_LOGO_URL = new URL(
+  '../../../../../../public/images/logo-king-inox.png',
+  import.meta.url,
+).href;
+
 const COLORS = {
   primary: '#263238',
   secondary: '#607D8B',
@@ -470,19 +475,29 @@ export function resolvePdfMakeVirtualFileSystem(fontsModule: unknown): PdfMakeVi
   return virtualFileSystem;
 }
 
-export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
+async function createQuotePdf(data: QuotePdfData) {
   const [pdfMake, pdfFonts, images] = await Promise.all([
     import('pdfmake/build/pdfmake'),
     import('pdfmake/build/vfs_fonts'),
     prepareEmbeddedImages(data),
   ]);
   const definition = buildQuotePdfDocument(data, images);
-  const fileName = buildQuotePdfFileName(data.filePrefix, data.referenceNumber || data.quoteTitle);
   const virtualFileSystem = resolvePdfMakeVirtualFileSystem(pdfFonts);
 
+  return pdfMake.createPdf(definition, undefined, undefined, virtualFileSystem);
+}
+
+export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
+  const pdf = await createQuotePdf(data);
+  const fileName = buildQuotePdfFileName(data.filePrefix, data.referenceNumber || data.quoteTitle);
+
   await new Promise<void>((resolve) => {
-    pdfMake
-      .createPdf(definition, undefined, undefined, virtualFileSystem)
-      .download(fileName, resolve);
+    pdf.download(fileName, resolve);
   });
+}
+
+export async function printQuotePdf(data: QuotePdfData, printWindow: Window): Promise<void> {
+  const pdf = await createQuotePdf(data);
+
+  pdf.print(undefined, printWindow);
 }

@@ -1,6 +1,17 @@
-import type { QuoteItem } from '@/types/quotes';
-
 export type PackagingMetafieldKey = 'SCATOLA' | 'MASTER_CARTON' | 'PALLET';
+
+interface PackagingRow {
+  variantId?: number | string;
+  variantSku?: string;
+  productsSearch?: {
+    variants?: Array<{
+      sku?: string;
+      packagingMetafields?: {
+        edges?: Array<{ node: { key: string; value: string } }>;
+      };
+    }>;
+  };
+}
 
 export const packagingColumns: Array<{ key: PackagingMetafieldKey; title: string }> = [
   { key: 'SCATOLA', title: 'Box' },
@@ -9,20 +20,27 @@ export const packagingColumns: Array<{ key: PackagingMetafieldKey; title: string
 ];
 
 export function getPackagingMetafieldValue(
-  row: QuoteItem['node'],
+  row: PackagingRow,
   metafieldKey: PackagingMetafieldKey,
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
 ) {
-  const packagingFromMap =
-    packagingByVariantId?.[Number(row.variantId)]?.find((node) => node.key === metafieldKey)?.value;
-  const variantFromProduct = row.productsSearch?.variants?.find(({ sku }) => sku === row.variantSku);
+  const packagingFromMap = packagingByVariantId?.[Number(row.variantId)]?.find(
+    (node) => node.key === metafieldKey,
+  )?.value;
+  const variantFromProduct = row.productsSearch?.variants?.find(
+    ({ sku }) => sku === row.variantSku,
+  );
   const packagingMetafields = variantFromProduct?.packagingMetafields?.edges || [];
 
-  return packagingFromMap || packagingMetafields.find(({ node }) => node.key === metafieldKey)?.node.value || '-';
+  return (
+    packagingFromMap ||
+    packagingMetafields.find(({ node }) => node.key === metafieldKey)?.node.value ||
+    '-'
+  );
 }
 
 export function getBoxQuantity(
-  row: QuoteItem['node'],
+  row: PackagingRow,
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
 ) {
   const boxQuantity = Number(getPackagingMetafieldValue(row, 'SCATOLA', packagingByVariantId));
@@ -35,7 +53,7 @@ export function getBoxQuantity(
 }
 
 export function normalizeQuantityToBoxMultiple(
-  row: QuoteItem['node'],
+  row: PackagingRow,
   quantity: number,
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
 ) {
@@ -49,7 +67,7 @@ export function normalizeQuantityToBoxMultiple(
 }
 
 export function normalizeQuantityToBoxStep(
-  row: QuoteItem['node'],
+  row: PackagingRow,
   quantity: number,
   currentQuantity: number,
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
