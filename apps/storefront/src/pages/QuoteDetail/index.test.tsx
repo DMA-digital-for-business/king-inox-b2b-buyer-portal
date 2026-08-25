@@ -185,10 +185,15 @@ describe('when the user is a B2B customer', () => {
 
   it('downloads and prints the quote with the client-side PDF generator', async () => {
     const product = buildQuoteProductWith('WHATEVER_VALUES');
+    const issuedAt = faker.date.past();
+    const expirationDate = faker.date.future();
     const quote = buildQuoteWith({
       data: {
         quote: {
           id: '272989',
+          status: 1,
+          createdAt: getUnixTime(issuedAt),
+          expiredAt: getUnixTime(expirationDate),
           quoteNumber: faker.string.numeric(),
           quoteTitle: faker.commerce.productName(),
           productsList: [product],
@@ -229,6 +234,8 @@ describe('when the user is a B2B customer', () => {
         expect.objectContaining({
           quoteTitle: quote.data.quote.quoteTitle,
           referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
+          issuedAt: expect.any(String),
+          expirationDate: expect.any(String),
           lines: expect.arrayContaining([expect.objectContaining({ name: product.productName })]),
         }),
       );

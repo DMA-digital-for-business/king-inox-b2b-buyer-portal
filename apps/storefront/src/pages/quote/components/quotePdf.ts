@@ -37,6 +37,8 @@ export interface QuotePdfLabels {
   shipping: string;
   title: string;
   reference: string;
+  issuedOn?: string;
+  expirationDate?: string;
   cc: string;
   products: string;
   product: string;
@@ -64,6 +66,8 @@ export interface QuotePdfData {
   logoUrl?: string;
   quoteTitle: string;
   referenceNumber: string;
+  issuedAt?: string;
+  expirationDate?: string;
   contactInfo: Partial<ContactInfo>;
   billingAddress: Partial<BillingAddress>;
   shippingAddress: Partial<ShippingAddress>;
@@ -98,6 +102,10 @@ const COLORS = {
 function displayValue(value: unknown): string {
   if (value === undefined || value === null || value === '') return '-';
   return String(value);
+}
+
+function labeledValue(label: string, value: string): string {
+  return `${label.replace(/:\s*$/, '')}: ${value}`;
 }
 
 function compactLines(values: unknown[]): string[] {
@@ -217,6 +225,10 @@ export function buildQuotePdfDocument(
   const quoteInfoLines = [
     `${labels.title}: ${displayValue(data.quoteTitle)}`,
     `${labels.reference}: ${displayValue(data.referenceNumber)}`,
+    ...(data.issuedAt && labels.issuedOn ? [labeledValue(labels.issuedOn, data.issuedAt)] : []),
+    ...(data.expirationDate && labels.expirationDate
+      ? [labeledValue(labels.expirationDate, data.expirationDate)]
+      : []),
     ...data.recipients.map((recipient) => `${labels.cc}: ${recipient}`),
     ...data.extraFields.map(
       (field) => `${displayValue(field.fieldName)}: ${displayValue(field.value)}`,

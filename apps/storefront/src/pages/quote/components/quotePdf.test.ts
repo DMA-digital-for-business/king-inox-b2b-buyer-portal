@@ -136,6 +136,42 @@ describe('quote PDF document', () => {
     expect(serializedDocument).not.toContain(excludedAttachment);
   });
 
+  it('includes issued and expiration dates without duplicating label colons', () => {
+    const issuedAt = faker.date.past().toLocaleDateString();
+    const expirationDate = faker.date.future().toLocaleDateString();
+    const issuedOnLabel = `${faker.lorem.words()}:`;
+    const expirationDateLabel = `${faker.lorem.words()}:`;
+    const data = buildQuotePdfDataWith({
+      issuedAt,
+      expirationDate,
+      labels: buildLabelsWith({
+        issuedOn: issuedOnLabel,
+        expirationDate: expirationDateLabel,
+      }),
+    });
+    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
+
+    expect(serializedDocument).toContain(`${issuedOnLabel} ${issuedAt}`);
+    expect(serializedDocument).toContain(`${expirationDateLabel} ${expirationDate}`);
+    expect(serializedDocument).not.toContain(`${issuedOnLabel}:`);
+    expect(serializedDocument).not.toContain(`${expirationDateLabel}:`);
+  });
+
+  it('omits issued and expiration labels when the quote has no date data', () => {
+    const issuedOnLabel = faker.lorem.words();
+    const expirationDateLabel = faker.lorem.words();
+    const data = buildQuotePdfDataWith({
+      labels: buildLabelsWith({
+        issuedOn: issuedOnLabel,
+        expirationDate: expirationDateLabel,
+      }),
+    });
+    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
+
+    expect(serializedDocument).not.toContain(issuedOnLabel);
+    expect(serializedDocument).not.toContain(expirationDateLabel);
+  });
+
   it('uses the store name when the logo is unavailable and renders an empty-products row', () => {
     const data = buildQuotePdfDataWith({ lines: [] });
     const document = buildQuotePdfDocument(data);

@@ -22,6 +22,7 @@ import {
 import { QuoteExtraFieldsData } from '@/types/quotes';
 import { verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
+import { displayFormat } from '@/utils/b3DateFormat';
 import { getBCPrice, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
 import { conversionProductsList } from '@/utils/b3Product/shared/config';
 import { snackbar } from '@/utils/b3Tip';
@@ -656,6 +657,7 @@ function QuoteDetail() {
   const shouldHidePrice = isBackorderEnabled ? shouldHidePrices : isHideQuoteCheckout;
 
   const buildCurrentQuotePdfData = (): QuotePdfData => {
+    const isOpened = Number(quoteDetail.status) === 1;
     const tbd = b3Lang('quoteDetail.summary.tbd');
     const formatPdfPrice = (price: number) =>
       shouldHidePrice
@@ -729,6 +731,14 @@ function QuoteDetail() {
       logoUrl: QUOTE_PDF_LOGO_URL,
       quoteTitle: quoteDetail.quoteTitle || '',
       referenceNumber: quoteDetail.referenceNumber || quoteDetail.quoteNumber || '',
+      issuedAt:
+        isOpened && quoteDetail.createdAt
+          ? String(displayFormat(Number(quoteDetail.createdAt)))
+          : undefined,
+      expirationDate:
+        isOpened && quoteDetail.expiredAt
+          ? String(displayFormat(Number(quoteDetail.expiredAt)))
+          : undefined,
       contactInfo: quoteDetail.contactInfo || {},
       billingAddress: quoteDetail.billingAddress || {},
       shippingAddress: quoteDetail.shippingAddress || {},
@@ -751,6 +761,8 @@ function QuoteDetail() {
         shipping: b3Lang('global.quoteInfo.shipping'),
         title: b3Lang('quoteDraft.contactInfo.quoteTitle'),
         reference: b3Lang('quoteDraft.contactInfo.referenceNumber'),
+        issuedOn: b3Lang('quoteDetail.header.issuedOn'),
+        expirationDate: b3Lang('quoteDetail.header.expirationDate'),
         cc: b3Lang('quoteDraft.contactInfo.ccEmail'),
         products: b3Lang('quoteDraft.pdf.products'),
         product: b3Lang('quoteDetail.table.product'),
