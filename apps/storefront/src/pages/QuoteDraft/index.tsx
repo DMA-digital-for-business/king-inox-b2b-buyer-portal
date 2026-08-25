@@ -151,6 +151,9 @@ const billingAddress = {
   companyName: '',
 };
 
+const hasShippingAddress = (address: Partial<ShippingAddress> | undefined): boolean =>
+  typeof address?.address === 'string' && address.address.trim().length > 0;
+
 function QuoteDraft({ setOpenPage }: PageProps) {
   const {
     state: { countriesList, openAPPParams, storeName },
@@ -734,6 +737,13 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         if (!data) return;
       }
 
+      const currentAddresses = billingRef?.current ? getAddress() : info;
+
+      if (!hasShippingAddress(currentAddresses.shippingAddress)) {
+        snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequired'));
+        return;
+      }
+
       const contactInfo = info?.contactInfo || {};
 
       const quoteTitle = contactInfo?.quoteTitle || '';
@@ -792,7 +802,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       };
 
       const { shippingAddress: editShippingAddress, billingAddress: editBillingAddress } =
-        billingRef?.current ? getAddress() : info;
+        currentAddresses;
 
       const shippingAddress = editShippingAddress ? perfectAddress(editShippingAddress) : {};
 

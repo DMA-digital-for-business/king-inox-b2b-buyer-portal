@@ -572,6 +572,7 @@
   "quoteDraft.notification.errorRangeProducts": "La quantità di ciascun prodotto nel preventivo deve essere compresa tra 1 e 1.000.000.",
   "quoteDraft.notification.businessAccountPendingActivation": "Il tuo account aziendale è in attesa di approvazione. Questa funzione è attualmente disattivata.",
   "quoteDraft.notification.openQuote": "Apri preventivo",
+  "quoteDraft.notification.shippingAddressRequired": "È necessario inserire un indirizzo di spedizione prima di inviare il preventivo.",
   "quoteDraft.notification.productCannotBeAddedToQuote": "Il prodotto {productId} è esaurito o non disponibile per l'acquisto. Rimuovi il prodotto o modificane la quantità",
   "quoteDraft.collapseTitle.addToQuote": "Aggiungi al preventivo",
   "quoteDraft.modalTitle.addToQuote": "Aggiungi al preventivo",

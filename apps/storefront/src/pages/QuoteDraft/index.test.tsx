@@ -2131,12 +2131,13 @@ describe('when the user is a B2B customer', () => {
           }),
         },
       });
+      const requiredShippingAddress = buildAddressWith('WHATEVER_VALUES');
 
       const quoteInfo = buildQuoteInfoStateWith({
         draftQuoteInfo: {
           contactInfo: { email: customerEmail },
           billingAddress: noAddress,
-          shippingAddress: noAddress,
+          shippingAddress: requiredShippingAddress,
           referenceNumber: '123',
           note: 'meow',
         },
@@ -2205,7 +2206,7 @@ describe('when the user is a B2B customer', () => {
         extraFields: [],
         fileList: [],
         legalTerms: '',
-        shippingAddress: noAddress,
+        shippingAddress: requiredShippingAddress,
         billingAddress: noAddress,
         referenceNumber: '123',
         currency: {
@@ -2278,12 +2279,13 @@ describe('when the user is a B2B customer', () => {
           }),
         },
       });
+      const requiredShippingAddress = buildAddressWith('WHATEVER_VALUES');
 
       const quoteInfo = buildQuoteInfoStateWith({
         draftQuoteInfo: {
           contactInfo: { email: customerEmail },
           billingAddress: noAddress,
-          shippingAddress: noAddress,
+          shippingAddress: requiredShippingAddress,
           referenceNumber: '123',
           note: 'meow',
         },
@@ -2393,12 +2395,13 @@ describe('when the user is a B2B customer', () => {
           }),
         },
       });
+      const requiredShippingAddress = buildAddressWith('WHATEVER_VALUES');
 
       const quoteInfo = buildQuoteInfoStateWith({
         draftQuoteInfo: {
           contactInfo: { email: customerEmail },
           billingAddress: noAddress,
-          shippingAddress: noAddress,
+          shippingAddress: requiredShippingAddress,
           referenceNumber: '123',
           note: 'meow',
         },
@@ -2481,7 +2484,7 @@ describe('when the user is a B2B customer', () => {
         extraFields: [],
         fileList: [],
         legalTerms: '',
-        shippingAddress: noAddress,
+        shippingAddress: requiredShippingAddress,
         billingAddress: noAddress,
         referenceNumber: '123',
         currency: {
@@ -4734,8 +4737,36 @@ describe('when the user is a B2B customer', () => {
       );
     });
 
+    it('shows a warning and does not submit when the shipping address is missing', async () => {
+      server.use(
+        graphql.query('Addresses', () =>
+          HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
+        ),
+      );
+
+      renderWithProviders(
+        <QuoteDraft setOpenPage={vi.fn()} />,
+        getPreloadedState(emptyAddress, emptyAddress),
+      );
+
+      await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+
+      expect(
+        await screen.findByText('A shipping address is required before submitting the quote.'),
+      ).toBeInTheDocument();
+      expect(createQuoteMutation).not.toHaveBeenCalled();
+    });
+
     it('should submit the quote with the correct default addresses', async () => {
-      renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, getPreloadedState());
+      renderWithProviders(
+        <QuoteDraft setOpenPage={vi.fn()} />,
+        getPreloadedState(
+          buildAddressWith({ addressId: DEFAULT_BILLING_ADDRESS_ID }),
+          buildAddressWith({ addressId: DEFAULT_SHIPPING_ADDRESS_ID }),
+        ),
+      );
+      await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
       await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
