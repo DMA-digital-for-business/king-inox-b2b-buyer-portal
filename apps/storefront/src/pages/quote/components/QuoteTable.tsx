@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Delete, Edit, Warning as WarningIcon } from '@mui/icons-material';
+import { Delete, Warning as WarningIcon } from '@mui/icons-material';
 import { Box, FormControlLabel, styled, Switch, TextField, Typography } from '@mui/material';
 import ceil from 'lodash-es/ceil';
 
@@ -37,6 +37,7 @@ import {
   packagingColumns,
 } from './quotePackaging';
 import { formatQuotePrice } from './quotePriceFormat';
+import { isYourCodeLabel } from './quoteProductOptions';
 import QuoteTableCard from './QuoteTableCard';
 import { PackagingByVariantId } from './useQuotePackagingMetafields';
 
@@ -50,16 +51,13 @@ const StyledQuoteTableContainer = styled('div')(() => ({
       '& td': {
         verticalAlign: 'top',
       },
-      '& td: first-of-type': {
-        verticalAlign: 'inherit',
+      '& td:first-of-type': {
+        verticalAlign: 'top',
       },
     },
-    '& tr: hover': {
+    '& tr:hover': {
       '& #shoppingList-actionList': {
         opacity: 1,
-      },
-      '& #shoppingList-actionList > svg:first-of-type': {
-        display: 'none',
       },
     },
   },
@@ -366,6 +364,12 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
           ? availabilityWarning.warningMessage
           : thresholdWarning;
         const productOptionsValues = getProductOptionsValues(row);
+        const yourCodeOption = productOptionsValues.find(({ valueLabel }) =>
+          isYourCodeLabel(valueLabel),
+        );
+        const displayedProductOptions = productOptionsValues.filter(
+          ({ valueLabel }) => !isYourCodeLabel(valueLabel),
+        );
         const productUrl = row.productsSearch?.productUrl;
 
         return (
@@ -375,11 +379,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
               alignItems: 'flex-start',
             }}
           >
-            <StyledImage
-              src={row.primaryImage || PRODUCT_DEFAULT_IMAGE}
-              alt="Product-img"
-              loading="lazy"
-            />
             <Box>
               <Typography
                 variant="body1"
@@ -395,12 +394,10 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
               >
                 {row.productName}
               </Typography>
-              <Typography variant="body1" color="#616161">
-                {row.variantSku}
-              </Typography>
-              {productOptionsValues.length > 0 && (
+
+              {displayedProductOptions.length > 0 && (
                 <Box>
-                  {productOptionsValues.map((option: any) => (
+                  {displayedProductOptions.map((option) => (
                     <Typography
                       sx={{
                         fontSize: '0.75rem',
@@ -544,7 +541,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
 
         const inTaxPrice = getBCPrice(Number(basePrice), Number(taxPrice));
         const total = inTaxPrice * Number(quantity);
-        const optionList = JSON.parse(row.optionList);
 
         return (
           <Box>
@@ -567,27 +563,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
               }}
               id="shoppingList-actionList"
             >
-              {optionList.length > 0 && (
-                <Edit
-                  sx={{
-                    marginRight: '0.5rem',
-                    cursor: 'pointer',
-                    color: 'rgba(0, 0, 0, 0.54)',
-                  }}
-                  onClick={() => {
-                    const { productsSearch, id, optionList, quantity } = row;
-
-                    handleOpenProductEdit(
-                      {
-                        ...productsSearch,
-                        quantity,
-                        selectOptions: optionList,
-                      },
-                      id,
-                    );
-                  }}
-                />
-              )}
               <Delete
                 sx={{ cursor: 'pointer', color: 'rgba(0, 0, 0, 0.54)' }}
                 onClick={() => {

@@ -441,7 +441,31 @@ it('downloads one PDF with the current unsaved quote information', async () => {
     ),
   );
 
+  const yourCodeOptionId = faker.number.int();
+  const yourCode = faker.string.alphanumeric();
+  const draftProduct = buildDraftQuoteItemWith({
+    node: {
+      optionList: JSON.stringify([
+        { optionId: `attribute[${yourCodeOptionId}]`, optionValue: yourCode },
+      ]),
+      productsSearch: buildProductWith({
+        allOptions: [
+          {
+            id: yourCodeOptionId,
+            name: faker.lorem.word(),
+            display_name: 'Il vostro codice',
+            type: 'text',
+            sort_order: faker.number.int(),
+            option_values: [],
+            required: false,
+            isVariantOption: false,
+          },
+        ],
+      }),
+    },
+  });
   const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteList: [draftProduct],
     draftQuoteInfo: {
       billingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
       shippingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
@@ -482,6 +506,7 @@ it('downloads one PDF with the current unsaved quote information', async () => {
     expect.objectContaining({
       logoUrl: expect.stringContaining('logo-king-inox'),
       quoteTitle: editedTitle,
+      lines: [expect.objectContaining({ yourCode })],
     }),
   );
 

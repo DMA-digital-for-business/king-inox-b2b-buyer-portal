@@ -110,6 +110,16 @@ const withBackorderContextAndMessaging = (featureEnabled: boolean) => ({
 });
 
 describe('QuoteTable backorder messaging', () => {
+  it('does not display an edit action for product rows', () => {
+    renderWithProviders(
+      <QuoteTable total={1} items={[lineItemWithBackorder]} updateSummary={vi.fn()} />,
+      withBackorderContextAndMessaging(false),
+    );
+
+    expect(screen.queryByTestId('EditIcon')).not.toBeInTheDocument();
+    expect(screen.getByTestId('DeleteIcon')).toBeInTheDocument();
+  });
+
   it('shows the backorder details toggle when items are backordered for display and messaging is enabled', () => {
     const updateSummary = vi.fn();
     renderWithProviders(

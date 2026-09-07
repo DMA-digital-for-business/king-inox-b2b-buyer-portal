@@ -45,9 +45,11 @@ import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
 import {
   downloadQuotePdf,
+  extractQuotePdfProductOptions,
   printQuotePdf,
   QUOTE_PDF_LOGO_URL,
   QuotePdfData,
+  resolveQuotePdfProductUrl,
 } from '../quote/components/quotePdf';
 import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import QuoteTermsAndConditions from '../quote/components/QuoteTermsAndConditions';
@@ -675,26 +677,31 @@ function QuoteDetail() {
         ? (offeredPrice * taxRate) / (1 + taxRate)
         : offeredPrice * taxRate;
       const unitPrice = getBCPrice(offeredPrice, offeredTax);
-      const options = (product.options || [])
-        .filter(({ optionName, optionLabel }) => Boolean(optionName && optionLabel))
-        .map(({ optionName, optionLabel }) => `${optionName}: ${optionLabel}`);
-
-      if (product.notes) {
-        options.push(`${b3Lang('global.quoteNote.notes')}: ${product.notes}`);
-      }
+      const { dimensions, yourCode, notes } = extractQuotePdfProductOptions(
+        (product.options || []).map(({ optionName, optionLabel }) => ({
+          label: optionName,
+          value: optionLabel,
+        })),
+      );
 
       return {
         id: String(product.itemId || product.id || product.variantId),
-        name: product.productName || '',
-        sku: product.sku || product.variantSku || product.baseSku || '',
-        options,
-        packaging: packagingColumns.map(
-          ({ key, title }) =>
-            `${title}: ${getPackagingMetafieldValue(
-              { ...product, variantSku: product.variantSku || product.sku },
-              key,
-            )}`,
+        articleCode: product.productName || '',
+        productUrl: resolveQuotePdfProductUrl(
+          product.productsSearch?.productUrl || product.productUrl,
+          window.location.origin,
         ),
+        dimensions,
+        yourCode,
+        packaging: packagingColumns.map(({ key, title }) => {
+          const pdfTitle = key === 'MASTER_CARTON' ? 'Mastercarton' : title;
+
+          return `${pdfTitle}: ${getPackagingMetafieldValue(
+            { ...product, variantSku: product.variantSku || product.sku },
+            key,
+          )}`;
+        }),
+        notes: notes || product.notes || undefined,
         unitPrice: formatPdfPrice(unitPrice),
         quantity: Number(product.quantity),
         totalPrice: formatPdfPrice(unitPrice * Number(product.quantity)),

@@ -3,9 +3,11 @@ import { builder, faker } from 'tests/test-utils';
 import {
   buildQuotePdfDocument,
   buildQuotePdfFileName,
+  extractQuotePdfProductOptions,
   imageUrlToDataUrl,
   QuotePdfData,
   resolvePdfMakeVirtualFileSystem,
+  resolveQuotePdfProductUrl,
 } from './quotePdf';
 
 const buildLabelsWith = builder<QuotePdfData['labels']>(() => ({
@@ -64,10 +66,16 @@ const buildQuotePdfDataWith = builder<QuotePdfData>(() => ({
   lines: [
     {
       id: faker.string.uuid(),
-      name: faker.commerce.productName(),
-      sku: faker.string.alphanumeric(),
-      options: [faker.lorem.words()],
-      packaging: [faker.lorem.words()],
+      articleCode: faker.string.alphanumeric(),
+      productUrl: faker.internet.url(),
+      dimensions: [faker.number.int().toString(), faker.number.int().toString()],
+      yourCode: faker.string.alphanumeric(),
+      packaging: [
+        `Box: ${faker.number.int()}`,
+        `Mastercarton: ${faker.number.int()}`,
+        `Pallet: ${faker.number.int()}`,
+      ],
+      notes: faker.lorem.sentence(),
       unitPrice: faker.commerce.price(),
       quantity: faker.number.int({ min: 1, max: 100 }),
       totalPrice: faker.commerce.price(),
@@ -123,12 +131,12 @@ describe('quote PDF document', () => {
     expect(serializedDocument).toEqual(expect.stringContaining(data.contactInfo.name as string));
     expect(serializedDocument).toEqual(expect.stringContaining(data.billingAddress.address!));
     expect(serializedDocument).toEqual(expect.stringContaining(data.shippingAddress.address!));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].name));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].options[0]));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].packaging[0]));
-    expect(serializedDocument).toEqual(
-      expect.stringContaining([...data.lines[0].options, ...data.lines[0].packaging].join('; ')),
+    expect(serializedDocument).toContain(
+      `"text":[{"text":"${data.lines[0].articleCode}","link":"${data.lines[0].productUrl}"},{"text":" - ${data.lines[0].dimensions.join('X')}"},{"text":" - ${data.lines[0].notes}"}]`,
     );
+    expect(serializedDocument).toContain(`Il vostro codice: ${data.lines[0].yourCode}`);
+    expect(serializedDocument).toContain(`"link":"${data.lines[0].productUrl}"`);
+    expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].packaging.join('; ')));
     expect(serializedDocument.match(/"image":/g)).toHaveLength(1);
     expect(serializedDocument).toContain(logoImage);
     expect(serializedDocument).toEqual(expect.stringContaining(data.summary.grandTotal));
@@ -179,6 +187,66 @@ describe('quote PDF document', () => {
 
     expect(serializedDocument).toEqual(expect.stringContaining(data.storeName));
     expect(serializedDocument).toEqual(expect.stringContaining(data.labels.noProducts));
+  });
+
+  it('does not add a separator for missing product notes', () => {
+    const line = {
+      ...buildQuotePdfDataWith('WHATEVER_VALUES').lines[0],
+      productUrl: undefined,
+      notes: undefined,
+    };
+    const data = buildQuotePdfDataWith({ lines: [line] });
+    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
+
+    expect(serializedDocument).toContain(
+      `"text":[{"text":"${line.articleCode}"},{"text":" - ${line.dimensions.join('X')}"}]`,
+    );
+  });
+});
+
+describe('quote PDF product options', () => {
+  it('separates "Vostro codice" from the dimensions', () => {
+    const firstDimension = faker.number.int().toString();
+    const secondDimension = faker.number.int().toString();
+    const yourCode = faker.string.alphanumeric();
+    const notes = faker.lorem.words();
+
+    expect(
+      extractQuotePdfProductOptions([
+        { label: faker.lorem.word(), value: firstDimension },
+        { label: 'Il Vostro Codice', value: yourCode },
+        { label: faker.lorem.word(), value: secondDimension },
+        { label: 'NOTE', value: notes },
+      ]),
+    ).toEqual({ dimensions: [firstDimension, secondDimension], yourCode, notes });
+  });
+
+  it('omits "Vostro codice" when the option is empty', () => {
+    const dimension = faker.number.int().toString();
+
+    expect(
+      extractQuotePdfProductOptions([
+        { label: faker.lorem.word(), value: dimension },
+        { label: 'Vostro codice', value: ' ' },
+      ]),
+    ).toEqual({ dimensions: [dimension], yourCode: undefined, notes: undefined });
+  });
+});
+
+describe('quote PDF product URL', () => {
+  it('resolves a relative catalog URL against the storefront origin', () => {
+    const storefrontOrigin = faker.internet.url();
+    const productPath = `/${faker.lorem.slug()}/`;
+
+    expect(resolveQuotePdfProductUrl(productPath, storefrontOrigin)).toBe(
+      new URL(productPath, storefrontOrigin).href,
+    );
+  });
+
+  it('rejects links that do not use HTTP or HTTPS', () => {
+    expect(
+      resolveQuotePdfProductUrl(`mailto:${faker.internet.email()}`, faker.internet.url()),
+    ).toBeUndefined();
   });
 });
 

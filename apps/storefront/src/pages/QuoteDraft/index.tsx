@@ -71,7 +71,13 @@ import QuoteAttachment from '../quote/components/QuoteAttachment';
 import QuoteInfo from '../quote/components/QuoteInfo';
 import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
-import { downloadQuotePdf, QUOTE_PDF_LOGO_URL, QuotePdfData } from '../quote/components/quotePdf';
+import {
+  downloadQuotePdf,
+  extractQuotePdfProductOptions,
+  QUOTE_PDF_LOGO_URL,
+  QuotePdfData,
+  resolveQuotePdfProductUrl,
+} from '../quote/components/quotePdf';
 import { formatQuotePrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
 import QuoteSubmissionResponse from '../quote/components/QuoteSubmissionResponse';
@@ -544,20 +550,29 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           { ...node.productsSearch, selectOptions: node.optionList },
           {},
         ) as Array<{ valueLabel?: string; valueText?: string }>;
-        const options = productFields
-          .filter(({ valueText }) => Boolean(valueText))
-          .map(({ valueLabel, valueText }) => `${valueLabel || ''}: ${valueText || ''}`);
-        const packaging = packagingColumns.map(
-          ({ key, title }) =>
-            `${title}: ${getPackagingMetafieldValue(node, key, packagingByVariantId)}`,
+        const { dimensions, yourCode, notes } = extractQuotePdfProductOptions(
+          productFields.map(({ valueLabel, valueText }) => ({
+            label: valueLabel,
+            value: valueText,
+          })),
         );
+        const packaging = packagingColumns.map(({ key, title }) => {
+          const pdfTitle = key === 'MASTER_CARTON' ? 'Mastercarton' : title;
+
+          return `${pdfTitle}: ${getPackagingMetafieldValue(node, key, packagingByVariantId)}`;
+        });
 
         return {
           id: node.id,
-          name: node.productName || '',
-          sku: node.variantSku || '',
-          options,
+          articleCode: node.productName || '',
+          productUrl: resolveQuotePdfProductUrl(
+            node.productsSearch?.productUrl,
+            window.location.origin,
+          ),
+          dimensions,
+          yourCode,
           packaging,
+          notes,
           unitPrice: String(
             getDisplayPrice({
               price: formatQuotePrice(price),

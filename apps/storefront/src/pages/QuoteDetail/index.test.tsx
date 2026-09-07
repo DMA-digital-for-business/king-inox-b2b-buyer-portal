@@ -184,7 +184,33 @@ describe('when the user is a B2B customer', () => {
   });
 
   it('downloads and prints the quote with the client-side PDF generator', async () => {
-    const product = buildQuoteProductWith('WHATEVER_VALUES');
+    const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
+    const yourCode = faker.string.alphanumeric();
+    const product = buildQuoteProductWith({
+      options: [
+        {
+          type: faker.lorem.word(),
+          optionId: faker.number.int(),
+          optionName: faker.lorem.word(),
+          optionLabel: dimensions[0],
+          optionValue: faker.lorem.word(),
+        },
+        {
+          type: faker.lorem.word(),
+          optionId: faker.number.int(),
+          optionName: 'Vostro codice',
+          optionLabel: yourCode,
+          optionValue: faker.lorem.word(),
+        },
+        {
+          type: faker.lorem.word(),
+          optionId: faker.number.int(),
+          optionName: faker.lorem.word(),
+          optionLabel: dimensions[1],
+          optionValue: faker.lorem.word(),
+        },
+      ],
+    });
     const issuedAt = faker.date.past();
     const expirationDate = faker.date.future();
     const quote = buildQuoteWith({
@@ -236,7 +262,18 @@ describe('when the user is a B2B customer', () => {
           referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
           issuedAt: expect.any(String),
           expirationDate: expect.any(String),
-          lines: expect.arrayContaining([expect.objectContaining({ name: product.productName })]),
+          lines: expect.arrayContaining([
+            expect.objectContaining({
+              articleCode: product.productName,
+              dimensions,
+              yourCode,
+              packaging: expect.arrayContaining([
+                expect.stringContaining('Box:'),
+                expect.stringContaining('Mastercarton:'),
+                expect.stringContaining('Pallet:'),
+              ]),
+            }),
+          ]),
         }),
       );
     });

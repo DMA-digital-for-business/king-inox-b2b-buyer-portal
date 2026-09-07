@@ -14,14 +14,17 @@ import type {
   ShippingAddress,
 } from '@/types/quotes';
 
+import { isNotesLabel, isYourCodeLabel } from './quoteProductOptions';
 import type { PackagingByVariantId } from './useQuotePackagingMetafields';
 
 export interface QuotePdfLine {
   id: string;
-  name: string;
-  sku: string;
-  options: string[];
+  articleCode: string;
+  productUrl?: string;
+  dimensions: string[];
+  yourCode?: string;
   packaging: string[];
+  notes?: string;
   unitPrice: string;
   quantity: number;
   totalPrice: string;
@@ -84,6 +87,11 @@ interface EmbeddedImages {
   logo?: string;
 }
 
+interface QuotePdfProductOption {
+  label?: string;
+  value?: string;
+}
+
 export const QUOTE_PDF_LOGO_URL = new URL(
   '../../../../../../public/images/logo-king-inox.png',
   import.meta.url,
@@ -110,6 +118,40 @@ function compactLines(values: unknown[]): string[] {
   return values
     .map((value) => (value === undefined || value === null ? '' : String(value).trim()))
     .filter(Boolean);
+}
+
+export function extractQuotePdfProductOptions(options: QuotePdfProductOption[]): {
+  dimensions: string[];
+  yourCode?: string;
+  notes?: string;
+} {
+  const populatedOptions = options.flatMap(({ label, value }) => {
+    const normalizedValue = value?.trim();
+
+    return normalizedValue ? [{ label, value: normalizedValue }] : [];
+  });
+  const yourCode = populatedOptions.find(({ label }) => isYourCodeLabel(label))?.value;
+  const notes = populatedOptions.find(({ label }) => isNotesLabel(label))?.value;
+  const dimensions = populatedOptions
+    .filter(({ label }) => !isYourCodeLabel(label) && !isNotesLabel(label))
+    .map(({ value }) => value);
+
+  return { dimensions, yourCode, notes };
+}
+
+export function resolveQuotePdfProductUrl(
+  productUrl: string | undefined,
+  storefrontOrigin: string,
+): string | undefined {
+  if (!productUrl) return undefined;
+
+  try {
+    const resolvedUrl = new URL(productUrl, storefrontOrigin);
+
+    return ['http:', 'https:'].includes(resolvedUrl.protocol) ? resolvedUrl.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function addressLines(address: Partial<BillingAddress> | Partial<ShippingAddress>): string[] {
@@ -139,16 +181,32 @@ function section(title: string, lines: string[]): ContentStack {
 }
 
 function buildProductCell(line: QuotePdfLine): Content {
-  const attributes = compactLines([...line.options, ...line.packaging]).join('; ');
+  const dimensions = compactLines(line.dimensions).join('X');
+  const productDetails = [
+    {
+      text: line.articleCode,
+      ...(line.productUrl ? { link: line.productUrl } : {}),
+    },
+    ...(dimensions ? [{ text: ` - ${dimensions}` }] : []),
+    ...(line.notes ? [{ text: ` - ${line.notes}` }] : []),
+  ];
+  const packaging = compactLines(line.packaging).join('; ');
   const details: Content[] = [
-    { text: line.name, bold: true, color: COLORS.primary, fontSize: 9 },
-    ...(line.sku
-      ? [{ text: line.sku, color: COLORS.primary, fontSize: 9, margin: [0, 2, 0, 0] } as Content]
-      : []),
-    ...(attributes
+    { text: productDetails, bold: true, color: COLORS.primary, fontSize: 9 },
+    ...(line.yourCode
       ? [
           {
-            text: attributes,
+            text: `Il vostro codice: ${line.yourCode}`,
+            color: COLORS.primary,
+            fontSize: 9,
+            margin: [0, 2, 0, 0],
+          } as Content,
+        ]
+      : []),
+    ...(packaging
+      ? [
+          {
+            text: packaging,
             color: COLORS.secondary,
             fontSize: 8,
             lineHeight: 1.15,
