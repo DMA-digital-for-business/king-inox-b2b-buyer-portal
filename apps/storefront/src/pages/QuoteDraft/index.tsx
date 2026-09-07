@@ -554,7 +554,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
         return {
           id: node.id,
-          imageUrl: node.primaryImage,
           name: node.productName || '',
           sku: node.variantSku || '',
           options,

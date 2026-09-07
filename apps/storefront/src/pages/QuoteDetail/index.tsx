@@ -685,7 +685,6 @@ function QuoteDetail() {
 
       return {
         id: String(product.itemId || product.id || product.variantId),
-        imageUrl: product.imageUrl || product.primaryImage,
         name: product.productName || '',
         sku: product.sku || product.variantSku || product.baseSku || '',
         options,

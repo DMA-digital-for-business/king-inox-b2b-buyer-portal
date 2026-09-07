@@ -64,7 +64,6 @@ const buildQuotePdfDataWith = builder<QuotePdfData>(() => ({
   lines: [
     {
       id: faker.string.uuid(),
-      imageUrl: faker.image.url(),
       name: faker.commerce.productName(),
       sku: faker.string.alphanumeric(),
       options: [faker.lorem.words()],
@@ -111,13 +110,13 @@ describe('quote PDF document', () => {
     expect(pdfLength).toBeGreaterThan(0);
   });
 
-  it('contains quote, buyer, address, product and summary data without messages or attachments', () => {
+  it('contains quote, buyer, address, product and summary data with only the logo image', () => {
     const excludedMessage = faker.lorem.sentence();
     const excludedAttachment = faker.system.fileName();
     const data = buildQuotePdfDataWith('WHATEVER_VALUES');
-    const productImage = `data:image/jpeg;base64,${faker.string.alphanumeric()}`;
+    const logoImage = `data:image/jpeg;base64,${faker.string.alphanumeric()}`;
     const document = buildQuotePdfDocument(data, {
-      products: { [data.lines[0].id]: productImage },
+      logo: logoImage,
     });
     const serializedDocument = JSON.stringify(document.content);
 
@@ -130,7 +129,8 @@ describe('quote PDF document', () => {
     expect(serializedDocument).toEqual(
       expect.stringContaining([...data.lines[0].options, ...data.lines[0].packaging].join('; ')),
     );
-    expect(serializedDocument).toEqual(expect.stringContaining(productImage));
+    expect(serializedDocument.match(/"image":/g)).toHaveLength(1);
+    expect(serializedDocument).toContain(logoImage);
     expect(serializedDocument).toEqual(expect.stringContaining(data.summary.grandTotal));
     expect(serializedDocument).not.toContain(excludedMessage);
     expect(serializedDocument).not.toContain(excludedAttachment);

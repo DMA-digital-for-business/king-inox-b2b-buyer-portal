@@ -18,7 +18,6 @@ import type { PackagingByVariantId } from './useQuotePackagingMetafields';
 
 export interface QuotePdfLine {
   id: string;
-  imageUrl?: string;
   name: string;
   sku: string;
   options: string[];
@@ -83,7 +82,6 @@ export interface QuotePdfData {
 
 interface EmbeddedImages {
   logo?: string;
-  products: Record<string, string>;
 }
 
 export const QUOTE_PDF_LOGO_URL = new URL(
@@ -140,7 +138,7 @@ function section(title: string, lines: string[]): ContentStack {
   };
 }
 
-function buildProductCell(line: QuotePdfLine, productImage?: string): Content {
+function buildProductCell(line: QuotePdfLine): Content {
   const attributes = compactLines([...line.options, ...line.packaging]).join('; ');
   const details: Content[] = [
     { text: line.name, bold: true, color: COLORS.primary, fontSize: 9 },
@@ -160,20 +158,10 @@ function buildProductCell(line: QuotePdfLine, productImage?: string): Content {
       : []),
   ];
 
-  if (!productImage) {
-    return { stack: details };
-  }
-
-  return {
-    columns: [
-      { image: productImage, fit: [42, 42], width: 48, margin: [0, 0, 6, 0] },
-      { stack: details },
-    ],
-    columnGap: 2,
-  };
+  return { stack: details };
 }
 
-function buildProductsTable(data: QuotePdfData, images: EmbeddedImages): ContentTable {
+function buildProductsTable(data: QuotePdfData): ContentTable {
   const { labels } = data;
   const header: TableCell[] = [
     { text: labels.product, style: 'tableHeader' },
@@ -189,7 +177,7 @@ function buildProductsTable(data: QuotePdfData, images: EmbeddedImages): Content
   } else {
     data.lines.forEach((line) => {
       body.push([
-        buildProductCell(line, images.products[line.id]),
+        buildProductCell(line),
         { text: line.unitPrice, alignment: 'right', margin: [0, 4, 0, 0] },
         { text: String(line.quantity), alignment: 'right', margin: [0, 4, 0, 0] },
         { text: line.totalPrice, alignment: 'right', bold: true, margin: [0, 4, 0, 0] },
@@ -219,7 +207,7 @@ function buildProductsTable(data: QuotePdfData, images: EmbeddedImages): Content
 
 export function buildQuotePdfDocument(
   data: QuotePdfData,
-  images: EmbeddedImages = { products: {} },
+  images: EmbeddedImages = {},
 ): TDocumentDefinitions {
   const { labels } = data;
   const quoteInfoLines = [
@@ -328,7 +316,7 @@ export function buildQuotePdfDocument(
         margin: [0, 0, 0, 22],
       },
       { text: labels.products, style: 'sectionHeading', margin: [0, 0, 0, 9] },
-      buildProductsTable(data, images),
+      buildProductsTable(data),
       {
         columns: [
           { text: '', width: '*' },
@@ -442,20 +430,10 @@ export function buildQuotePdfFileName(
 }
 
 async function prepareEmbeddedImages(data: QuotePdfData): Promise<EmbeddedImages> {
-  const [logo, productEntries] = await Promise.all([
-    imageUrlToDataUrl(data.logoUrl, 640),
-    Promise.all(
-      data.lines.map(
-        async (line) => [line.id, await imageUrlToDataUrl(line.imageUrl, 240)] as const,
-      ),
-    ),
-  ]);
+  const logo = await imageUrlToDataUrl(data.logoUrl, 640);
 
   return {
     logo,
-    products: Object.fromEntries(
-      productEntries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
-    ),
   };
 }
 

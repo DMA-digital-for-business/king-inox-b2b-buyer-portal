@@ -80,7 +80,7 @@ removeCart()
 
 **Location**: All pages
 
-**Placement**: Footer
+**Placement**: Footer (Replace <BRANCH> with the name of the branch)
 
 ```js
 <script>
@@ -107,17 +107,17 @@ removeCart()
 <script
   type="module"
   crossorigin=""
-  src="https://main.d3ioasbw4fm7q5.amplifyapp.com/index.js"
+  src="https://<BRANCH>.d3ioasbw4fm7q5.amplifyapp.com/index.js"
 ></script>
 <script
   nomodule=""
   crossorigin=""
-  src="https://main.d3ioasbw4fm7q5.amplifyapp.com/polyfills-legacy.js"
+  src="https://<BRANCH>.d3ioasbw4fm7q5.amplifyapp.com/polyfills-legacy.js"
 ></script>
 <script
   nomodule=""
   crossorigin=""
-  src="https://main.d3ioasbw4fm7q5.amplifyapp.com/index-legacy.js"
+  src="https://<BRANCH>.d3ioasbw4fm7q5.amplifyapp.com/index-legacy.js"
 ></script>
 ```
 
