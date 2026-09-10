@@ -25,6 +25,7 @@ const buildDocumentWith = builder<DocumentItem>(() => ({
   fileName: faker.system.fileName(),
   documentType: 3,
   documentTypeLabel: faker.commerce.department(),
+  registrationDate: faker.date.past().toISOString(),
 }));
 
 const buildDocumentsResponseWith = builder<DocumentsResponse>(() => ({
@@ -66,6 +67,16 @@ describe('Documents page', () => {
     const row = await screen.findByRole('row', { name: new RegExp(document.fileName, 'i') });
     expect(within(row).getByText('Invoices')).toBeInTheDocument();
     expect(within(row).queryByText(document.documentTypeLabel)).not.toBeInTheDocument();
+    expect(
+      within(row).getByText(
+        new Intl.DateTimeFormat('en', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }).format(new Date(document.registrationDate)),
+      ),
+    ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Document type' }));
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
@@ -80,8 +91,8 @@ describe('Documents page', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       offset: '0',
       limit: '10',
-      sortBy: 'filename',
-      sortDir: 'asc',
+      sortBy: 'datareg',
+      sortDir: 'desc',
     });
     expect(url.searchParams.has('tipoDoc')).toBe(false);
   });
@@ -115,6 +126,36 @@ describe('Documents page', () => {
     });
   });
 
+  it('shows a PDF icon and hides only the PDF extension from the displayed filename', async () => {
+    const pdfDisplayName = faker.system.fileName();
+    const pdfDocument = buildDocumentWith({ fileName: `${pdfDisplayName}.PDF` });
+    const otherDocument = buildDocumentWith({ fileName: `${faker.system.fileName()}.xml` });
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json(
+          buildDocumentsResponseWith({
+            data: [pdfDocument, otherDocument],
+            paging: { total: 2, offset: 0, limit: 10 },
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    const pdfButton = await screen.findByRole('button', {
+      name: `Download ${pdfDocument.fileName}`,
+    });
+    const otherFileButton = screen.getByRole('button', {
+      name: `Download ${otherDocument.fileName}`,
+    });
+    expect(pdfButton).toHaveTextContent(pdfDisplayName);
+    expect(pdfButton).not.toHaveTextContent('.PDF');
+    expect(within(pdfButton).getByTitle('PDF')).toBeInTheDocument();
+    expect(otherFileButton).toHaveTextContent(otherDocument.fileName);
+    expect(within(otherFileButton).queryByTitle('PDF')).not.toBeInTheDocument();
+  });
+
   it('restores pagination and document type from the URL', async () => {
     const requestSpy = vi.fn();
     server.use(
@@ -127,7 +168,7 @@ describe('Documents page', () => {
     );
 
     renderWithProviders(<Documents />, {
-      initialEntries: ['/documents?offset=20&limit=20&tipoDoc=orders'],
+      initialEntries: ['/documents?offset=20&limit=20&tipoDoc=orders&sortBy=filename&sortDir=asc'],
     });
 
     await screen.findByText('No documents');
@@ -136,7 +177,33 @@ describe('Documents page', () => {
     expect(url.searchParams.get('offset')).toBe('20');
     expect(url.searchParams.get('limit')).toBe('20');
     expect(url.searchParams.getAll('tipoDoc')).toEqual(['23', '27']);
+    expect(url.searchParams.get('sortBy')).toBe('filename');
+    expect(url.searchParams.get('sortDir')).toBe('asc');
     expect(screen.getByRole('combobox', { name: 'Document type' })).toHaveTextContent('Orders');
+  });
+
+  it('changes server-side sorting and resets the offset', async () => {
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json(
+          buildDocumentsResponseWith({ paging: { total: 30, offset: 20, limit: 10 } }),
+        ),
+      ),
+    );
+
+    const { navigation } = renderWithProviders(<Documents />, {
+      initialEntries: [
+        '/documents?offset=20&limit=10&tipoDoc=all&sortBy=datareg&sortDir=desc',
+      ],
+    });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'File name' }));
+
+    await waitFor(() => {
+      expect(navigation).toHaveBeenLastCalledWith(
+        '/documents?offset=0&limit=10&tipoDoc=all&sortBy=filename&sortDir=asc',
+      );
+    });
   });
 
   it('changes the document type and resets the offset', async () => {
@@ -157,7 +224,9 @@ describe('Documents page', () => {
     await userEvent.click(screen.getByRole('option', { name: 'Offers' }));
 
     await waitFor(() => {
-      expect(navigation).toHaveBeenLastCalledWith('/documents?offset=0&limit=10&tipoDoc=offers');
+      expect(navigation).toHaveBeenLastCalledWith(
+        '/documents?offset=0&limit=10&tipoDoc=offers&sortBy=datareg&sortDir=desc',
+      );
     });
   });
 
@@ -176,7 +245,9 @@ describe('Documents page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
 
     await waitFor(() => {
-      expect(navigation).toHaveBeenLastCalledWith('/documents?offset=10&limit=10&tipoDoc=all');
+      expect(navigation).toHaveBeenLastCalledWith(
+        '/documents?offset=10&limit=10&tipoDoc=all&sortBy=datareg&sortDir=desc',
+      );
     });
   });
 
@@ -198,7 +269,9 @@ describe('Documents page', () => {
     await userEvent.click(screen.getByRole('option', { name: '20' }));
 
     await waitFor(() => {
-      expect(navigation).toHaveBeenLastCalledWith('/documents?offset=0&limit=20&tipoDoc=ddt');
+      expect(navigation).toHaveBeenLastCalledWith(
+        '/documents?offset=0&limit=20&tipoDoc=ddt&sortBy=datareg&sortDir=desc',
+      );
     });
   });
 
@@ -206,15 +279,19 @@ describe('Documents page', () => {
     const document = buildDocumentWith('WHATEVER_VALUES');
     const downloadFileName = faker.system.fileName();
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    let finishDownload: (() => void) | undefined;
     server.use(
       http.get(`${API_URL}/api/v1/documents`, () =>
         HttpResponse.json(buildDocumentsResponseWith({ data: [document] })),
       ),
-      http.get(`${API_URL}/api/v1/documents/${document.documentId}`, () =>
-        HttpResponse.arrayBuffer(new ArrayBuffer(2), {
+      http.get(`${API_URL}/api/v1/documents/${document.documentId}`, async () => {
+        await new Promise<void>((resolve) => {
+          finishDownload = resolve;
+        });
+        return HttpResponse.arrayBuffer(new ArrayBuffer(2), {
           headers: { 'Content-Disposition': `attachment; filename="${downloadFileName}"` },
-        }),
-      ),
+        });
+      }),
     );
 
     renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
@@ -223,7 +300,13 @@ describe('Documents page', () => {
       await screen.findByRole('button', { name: `Download ${document.fileName}` }),
     );
 
+    expect(
+      await screen.findByRole('progressbar', { name: `Download ${document.fileName}` }),
+    ).toBeInTheDocument();
+    finishDownload?.();
+
     await waitFor(() => expect(anchorClick).toHaveBeenCalled());
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     expect(window.URL.revokeObjectURL).toHaveBeenCalledWith('blob:document');
   });

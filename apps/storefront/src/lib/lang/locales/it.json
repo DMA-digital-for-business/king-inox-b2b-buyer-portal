@@ -84,6 +84,7 @@
   "global.navMenu.companyHierarchy": "Gerarchia aziendale",
   "documents.fileName": "Nome file",
   "documents.documentType": "Tipo documento",
+  "documents.registrationDate": "Data registrazione",
   "documents.filterLabel": "Tipo documento",
   "documents.typeAll": "Tutti",
   "documents.typeOffers": "Offerte",

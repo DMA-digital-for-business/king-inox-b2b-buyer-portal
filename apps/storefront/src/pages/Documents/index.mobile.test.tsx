@@ -20,12 +20,14 @@ const buildDocumentWith = builder<DocumentItem>(() => ({
   fileName: faker.system.fileName(),
   documentType: 23,
   documentTypeLabel: faker.commerce.department(),
+  registrationDate: faker.date.past().toISOString(),
 }));
 
 it('displays documents as cards on mobile', async () => {
   vi.spyOn(document.body, 'clientWidth', 'get').mockReturnValue(500);
   window.B3.setting.environment = Environment.Staging;
-  const documentItem = buildDocumentWith('WHATEVER_VALUES');
+  const displayFileName = faker.system.fileName();
+  const documentItem = buildDocumentWith({ fileName: `${displayFileName}.pdf` });
 
   server.use(
     http.get(`${window.origin}/customer/current.jwt`, () => HttpResponse.text(faker.string.uuid())),
@@ -41,8 +43,18 @@ it('displays documents as cards on mobile', async () => {
 
   renderWithProviders(<Documents />, { initialEntries: ['/documents?tipoDoc=orders'] });
 
-  expect(await screen.findByText(documentItem.fileName)).toBeInTheDocument();
+  expect(await screen.findByText(displayFileName)).toBeInTheDocument();
+  expect(screen.queryByText(documentItem.fileName)).not.toBeInTheDocument();
+  expect(screen.getByTitle('PDF')).toBeInTheDocument();
   expect(screen.getByText(/Document type: Orders/)).toBeInTheDocument();
+  expect(screen.getByText(/Registration date:/)).toHaveTextContent(
+    new Intl.DateTimeFormat('en', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(documentItem.registrationDate)),
+  );
   expect(screen.queryByText(new RegExp(documentItem.documentTypeLabel))).not.toBeInTheDocument();
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });

@@ -2,6 +2,7 @@
   "global.navMenu.documents": "文档",
   "documents.fileName": "文件名",
   "documents.documentType": "文档类型",
+  "documents.registrationDate": "登记日期",
   "documents.filterLabel": "文档类型",
   "documents.typeAll": "全部",
   "documents.typeOffers": "报价",

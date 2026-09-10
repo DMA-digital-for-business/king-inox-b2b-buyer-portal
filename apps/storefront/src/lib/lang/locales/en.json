@@ -84,6 +84,7 @@
   "global.navMenu.companyHierarchy": "Company hierarchy",
   "documents.fileName": "File name",
   "documents.documentType": "Document type",
+  "documents.registrationDate": "Registration date",
   "documents.filterLabel": "Document type",
   "documents.typeAll": "All",
   "documents.typeOffers": "Offers",

@@ -2,6 +2,7 @@
   "global.navMenu.documents": "Documenten",
   "documents.fileName": "Bestandsnaam",
   "documents.documentType": "Documenttype",
+  "documents.registrationDate": "Registratiedatum",
   "documents.filterLabel": "Documenttype",
   "documents.typeAll": "Alle",
   "documents.typeOffers": "Offertes",

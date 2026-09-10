@@ -2,6 +2,7 @@
   "global.navMenu.documents": "Documentos",
   "documents.fileName": "Nombre del archivo",
   "documents.documentType": "Tipo de documento",
+  "documents.registrationDate": "Fecha de registro",
   "documents.filterLabel": "Tipo de documento",
   "documents.typeAll": "Todos",
   "documents.typeOffers": "Ofertas",

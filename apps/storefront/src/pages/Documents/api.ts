@@ -79,12 +79,14 @@ export async function getDocuments({
   offset,
   limit,
   documentTypes,
+  sortBy,
+  sortDir,
 }: DocumentsRequestParams): Promise<DocumentsResponse> {
   const searchParams = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
-    sortBy: 'filename',
-    sortDir: 'asc',
+    sortBy,
+    sortDir,
   });
   documentTypes.forEach((documentType) => {
     searchParams.append('tipoDoc', documentType.toString());

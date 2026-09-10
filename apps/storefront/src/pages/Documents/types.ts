@@ -10,6 +10,10 @@ export type DocumentTypeFilter = keyof typeof DOCUMENT_TYPE_FILTERS;
 
 export type DocumentTypeCategory = Exclude<DocumentTypeFilter, 'all'>;
 
+export type DocumentSortBy = 'filename' | 'datareg';
+
+export type DocumentSortDirection = 'asc' | 'desc';
+
 export function getDocumentTypeCategory(documentType: number): DocumentTypeCategory | undefined {
   return (Object.keys(DOCUMENT_TYPE_FILTERS) as DocumentTypeFilter[]).find(
     (filter): filter is DocumentTypeCategory =>
@@ -22,6 +26,7 @@ export interface DocumentItem {
   fileName: string;
   documentType: number;
   documentTypeLabel: string;
+  registrationDate: string;
 }
 
 interface DocumentsPaging {
@@ -40,6 +45,8 @@ export interface DocumentsRequestParams {
   offset: number;
   limit: number;
   documentTypes: readonly number[];
+  sortBy: DocumentSortBy;
+  sortDir: DocumentSortDirection;
 }
 
 export interface DocumentDownload {

@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useSearchParams } from 'react-router-dom';
+import { PictureAsPdf } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   FormControl,
   InputLabel,
   MenuItem,
@@ -21,9 +24,12 @@ import { snackbar } from '@/utils/b3Tip';
 
 import { getDocument, getDocuments } from './api';
 import { DocumentCard } from './DocumentCard';
+import { getDisplayedFileName, isPdfFile } from './fileName';
 import {
   DOCUMENT_TYPE_FILTERS,
   DocumentItem,
+  DocumentSortBy,
+  DocumentSortDirection,
   DocumentTypeCategory,
   DocumentTypeFilter,
   getDocumentTypeCategory,
@@ -32,7 +38,10 @@ import {
 const DEFAULT_OFFSET = 0;
 const DEFAULT_LIMIT = 10;
 const DEFAULT_DOCUMENT_TYPE_FILTER: DocumentTypeFilter = 'all';
+const DEFAULT_SORT_BY: DocumentSortBy = 'datareg';
+const DEFAULT_SORT_DIRECTION: DocumentSortDirection = 'desc';
 const ROWS_PER_PAGE = [10, 20, 30];
+const SORTABLE_COLUMNS: DocumentSortBy[] = ['filename', 'datareg'];
 const DOCUMENT_TYPE_LABEL_KEYS: Record<DocumentTypeCategory, string> = {
   offers: 'documents.typeOffers',
   orders: 'documents.typeOrders',
@@ -58,12 +67,23 @@ function parseDocumentTypeFilter(value: string | null): DocumentTypeFilter {
   return DEFAULT_DOCUMENT_TYPE_FILTER;
 }
 
+function parseSortBy(value: string | null): DocumentSortBy {
+  return SORTABLE_COLUMNS.includes(value as DocumentSortBy)
+    ? (value as DocumentSortBy)
+    : DEFAULT_SORT_BY;
+}
+
+function parseSortDirection(value: string | null): DocumentSortDirection {
+  return value === 'asc' || value === 'desc' ? value : DEFAULT_SORT_DIRECTION;
+}
+
 function sanitizeFileName(fileName: string): string {
   return fileName.split(/[\\/]/).pop() || 'document';
 }
 
 export default function Documents() {
   const b3Lang = useB3Lang();
+  const intl = useIntl();
   const [isMobile] = useMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<number>();
@@ -71,19 +91,35 @@ export default function Documents() {
   const offset = parseOffset(searchParams.get('offset'));
   const limit = parseLimit(searchParams.get('limit'));
   const documentTypeFilter = parseDocumentTypeFilter(searchParams.get('tipoDoc'));
+  const sortBy = parseSortBy(searchParams.get('sortBy'));
+  const sortDir = parseSortDirection(searchParams.get('sortDir'));
 
   const getDocumentTypeLabel = (documentType: number) => {
     const category = getDocumentTypeCategory(documentType);
     return category ? b3Lang(DOCUMENT_TYPE_LABEL_KEYS[category]) : '—';
   };
 
+  const formatRegistrationDate = (registrationDate: string) => {
+    const date = new Date(registrationDate);
+    return Number.isNaN(date.getTime())
+      ? '—'
+      : intl.formatDate(date, {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'UTC',
+        });
+  };
+
   const documentsQuery = useQuery({
-    queryKey: ['documents', offset, limit, documentTypeFilter],
+    queryKey: ['documents', offset, limit, documentTypeFilter, sortBy, sortDir],
     queryFn: () =>
       getDocuments({
         offset,
         limit,
         documentTypes: DOCUMENT_TYPE_FILTERS[documentTypeFilter],
+        sortBy,
+        sortDir,
       }),
   });
 
@@ -100,6 +136,20 @@ export default function Documents() {
       tipoDoc: parseDocumentTypeFilter(event.target.value),
       offset: DEFAULT_OFFSET,
       limit,
+      sortBy,
+      sortDir,
+    });
+  };
+
+  const handleSortChange = ({ key }: { key: string }) => {
+    const nextSortBy = parseSortBy(key);
+    const nextSortDir = sortBy === nextSortBy && sortDir === 'asc' ? 'desc' : 'asc';
+    updateSearchParams({
+      offset: DEFAULT_OFFSET,
+      limit,
+      tipoDoc: documentTypeFilter,
+      sortBy: nextSortBy,
+      sortDir: nextSortDir,
     });
   };
 
@@ -122,15 +172,31 @@ export default function Documents() {
 
   const columns: TableColumnItem<DocumentItem>[] = [
     {
-      key: 'fileName',
+      key: 'filename',
       title: b3Lang('documents.fileName'),
+      isSortable: true,
       render: (document) => (
         <Button
           type="button"
           variant="text"
           disabled={downloadingDocumentId === document.documentId}
+          aria-busy={downloadingDocumentId === document.documentId}
           onClick={() => handleDownload(document)}
           aria-label={b3Lang('documents.download', { fileName: document.fileName })}
+          startIcon={
+            isPdfFile(document.fileName) ? (
+              <PictureAsPdf color="error" fontSize="small" titleAccess="PDF" />
+            ) : undefined
+          }
+          endIcon={
+            downloadingDocumentId === document.documentId ? (
+              <CircularProgress
+                size={16}
+                color="inherit"
+                aria-label={b3Lang('documents.download', { fileName: document.fileName })}
+              />
+            ) : undefined
+          }
           sx={{
             justifyContent: 'flex-start',
             minWidth: 0,
@@ -140,7 +206,7 @@ export default function Documents() {
             textTransform: 'none',
           }}
         >
-          {document.fileName}
+          {getDisplayedFileName(document.fileName)}
         </Button>
       ),
     },
@@ -148,6 +214,12 @@ export default function Documents() {
       key: 'documentType',
       title: b3Lang('documents.documentType'),
       render: (document) => getDocumentTypeLabel(document.documentType),
+    },
+    {
+      key: 'datareg',
+      title: b3Lang('documents.registrationDate'),
+      isSortable: true,
+      render: (document) => formatRegistrationDate(document.registrationDate),
     },
   ];
 
@@ -195,6 +267,8 @@ export default function Documents() {
                 offset: nextLimit === limit ? nextOffset : DEFAULT_OFFSET,
                 limit: nextLimit,
                 tipoDoc: documentTypeFilter,
+                sortBy,
+                sortDir,
               });
             }}
             rowsPerPageOptions={ROWS_PER_PAGE}
@@ -202,11 +276,15 @@ export default function Documents() {
             isCustomRender={isMobile}
             itemXs={12}
             tableKey="documentId"
+            orderBy={sortBy}
+            sortDirection={sortDir}
+            sortByFn={handleSortChange}
             noDataText={b3Lang('documents.noData')}
             renderItem={(document) => (
               <DocumentCard
                 document={document}
                 documentTypeLabel={getDocumentTypeLabel(document.documentType)}
+                registrationDate={formatRegistrationDate(document.registrationDate)}
                 isDownloading={downloadingDocumentId === document.documentId}
                 onDownload={handleDownload}
               />

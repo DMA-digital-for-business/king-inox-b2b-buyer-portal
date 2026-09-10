@@ -33,7 +33,13 @@ describe('documents API', () => {
       }),
     );
 
-    await getDocuments({ offset: 20, limit: 20, documentTypes: [23, 27] });
+    await getDocuments({
+      offset: 20,
+      limit: 20,
+      documentTypes: [23, 27],
+      sortBy: 'filename',
+      sortDir: 'asc',
+    });
 
     const request = requestSpy.mock.calls[0][0] as Request;
     const url = new URL(request.url);
@@ -60,7 +66,15 @@ describe('documents API', () => {
       ),
     );
 
-    await expect(getDocuments({ offset: 0, limit: 10, documentTypes: [] })).resolves.toEqual({
+    await expect(
+      getDocuments({
+        offset: 0,
+        limit: 10,
+        documentTypes: [],
+        sortBy: 'datareg',
+        sortDir: 'desc',
+      }),
+    ).resolves.toEqual({
       data: [],
       paging: { total: 0, offset: 0, limit: 10 },
     });
@@ -102,9 +116,15 @@ describe('documents API', () => {
       ),
     );
 
-    await expect(getDocuments({ offset: 0, limit: 10, documentTypes: [] })).rejects.toEqual(
-      expect.objectContaining<Partial<DocumentsApiError>>({ status: 401 }),
-    );
+    await expect(
+      getDocuments({
+        offset: 0,
+        limit: 10,
+        documentTypes: [],
+        sortBy: 'datareg',
+        sortDir: 'desc',
+      }),
+    ).rejects.toEqual(expect.objectContaining<Partial<DocumentsApiError>>({ status: 401 }));
   });
 
   it('reports document service HTTP errors', async () => {
@@ -115,8 +135,14 @@ describe('documents API', () => {
       http.get(`${API_URL}/api/v1/documents`, () => HttpResponse.json({}, { status: 503 })),
     );
 
-    await expect(getDocuments({ offset: 0, limit: 10, documentTypes: [] })).rejects.toEqual(
-      expect.objectContaining<Partial<DocumentsApiError>>({ status: 503 }),
-    );
+    await expect(
+      getDocuments({
+        offset: 0,
+        limit: 10,
+        documentTypes: [],
+        sortBy: 'datareg',
+        sortDir: 'desc',
+      }),
+    ).rejects.toEqual(expect.objectContaining<Partial<DocumentsApiError>>({ status: 503 }));
   });
 });
