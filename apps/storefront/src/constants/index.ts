@@ -40,6 +40,7 @@ export enum HeadlessRoutes {
   ACCOUNT_SETTINGS = '/accountSettings',
   COMPANY_HIERARCHY = '/company-hierarchy',
   INVOICE = '/invoice',
+  DOCUMENTS = '/documents',
   CLOSE = 'close',
 }
 

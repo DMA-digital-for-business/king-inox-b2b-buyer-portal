@@ -27,7 +27,7 @@ function isEnvironment(value?: string): value is Environment {
   return Object.values<string>(Environment).includes(value);
 }
 
-const getEnvironment = (environment?: Environment): Environment => {
+export const getEnvironment = (environment?: Environment): Environment => {
   if (environment) {
     return environment;
   }

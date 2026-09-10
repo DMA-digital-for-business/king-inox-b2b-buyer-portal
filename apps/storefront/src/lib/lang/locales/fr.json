@@ -1,0 +1,16 @@
+{
+  "global.navMenu.documents": "Documents",
+  "documents.fileName": "Nom du fichier",
+  "documents.documentType": "Type de document",
+  "documents.filterLabel": "Type de document",
+  "documents.typeAll": "Tous",
+  "documents.typeOffers": "Offres",
+  "documents.typeOrders": "Commandes",
+  "documents.typeDdt": "Bons de livraison",
+  "documents.typeInvoices": "Factures",
+  "documents.noData": "Aucun document",
+  "documents.loadError": "Impossible de charger les documents.",
+  "documents.retry": "Réessayer",
+  "documents.download": "Télécharger {fileName}",
+  "documents.downloadError": "Impossible de télécharger le document."
+}

@@ -3,12 +3,14 @@ import { FC, LazyExoticComponent, ReactElement } from 'react';
 import { PAGES_SUBSIDIARIES_PERMISSION_KEYS } from '@/constants';
 import { PageProps } from '@/pages/PageProps';
 import { GlobalState, QuoteConfigProps } from '@/shared/global/context/config';
+import { getEnvironment } from '@/shared/service/request/base';
 import { store } from '@/store';
-import { CompanyStatus, CustomerRole, UserTypes } from '@/types';
+import { CompanyStatus, CustomerRole, Environment, UserTypes } from '@/types';
 import {
   checkEveryPermissionsCode,
   validatePermissionWithComparisonType,
 } from '@/utils/b3CheckPermissions/check';
+import { platform } from '@/utils/basicConfig';
 
 import { legacyPermissions, newPermissions } from './routes/config';
 
@@ -16,6 +18,8 @@ export interface BuyerPortalRoute {
   path: string;
   name: string;
   isMenuItem?: boolean;
+  environments?: Environment[];
+  platforms?: ChannelPlatform[];
 }
 
 export interface RouteItemBasic extends BuyerPortalRoute {
@@ -99,17 +103,31 @@ export const routeList: (BuyerPortalRoute | RouteItem)[] = [
     isTokenLogin: true,
     idLang: 'global.navMenu.companyOrders',
   },
+  // {
+  //   path: '/invoice',
+  //   name: 'Invoice',
+  //   subsidiariesCompanyKey: 'invoice',
+  //   wsKey: 'invoice',
+  //   isMenuItem: true,
+  //   configKey: 'invoice',
+  //   permissions: invoicePermissions,
+  //   permissionCodes: invoicePermissionCodes,
+  //   isTokenLogin: true,
+  //   idLang: 'global.navMenu.invoice',
+  // },
   {
-    path: '/invoice',
-    name: 'Invoice',
+    path: '/documents',
+    name: 'Documents',
     subsidiariesCompanyKey: 'invoice',
-    wsKey: 'invoice',
+    wsKey: 'documents',
     isMenuItem: true,
     configKey: 'invoice',
     permissions: invoicePermissions,
     permissionCodes: invoicePermissionCodes,
     isTokenLogin: true,
-    idLang: 'global.navMenu.invoice',
+    idLang: 'global.navMenu.documents',
+    environments: [Environment.Local, Environment.Staging],
+    platforms: ['bigcommerce'],
   },
   {
     path: '/quotes',
@@ -256,6 +274,14 @@ export const getAllowedRoutesWithoutComponent = (globalState: GlobalState): Buye
 
   return routeList.filter((item: Partial<RouteItem>) => {
     const { permissions = [], permissionCodes, path } = item;
+
+    if (item.environments && !item.environments.includes(getEnvironment())) {
+      return false;
+    }
+
+    if (item.platforms && !item.platforms.includes(platform)) {
+      return false;
+    }
 
     if (role === CustomerRole.SUPER_ADMIN && !isAgenting) {
       return permissions.includes(4);

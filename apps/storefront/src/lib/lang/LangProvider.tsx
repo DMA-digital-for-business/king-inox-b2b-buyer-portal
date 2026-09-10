@@ -53,8 +53,8 @@ function LangProvider({ children, customText = {} }: LangProviderProps) {
   const availableLocales = useSelector<RootState, Locales>(({ global }) => global.locales);
   const activeLocaleCode = getActiveLocaleCode(availableLocales) ?? bcLanguage ?? 'en';
   const normalizedLocaleCode = activeLocaleCode.split('-')[0];
-  const localeMessages =
-    normalizedLocaleCode === 'it' ? { ...locales.en, ...locales.it } : locales.en;
+  const localizedMessages = locales[normalizedLocaleCode as keyof typeof locales] ?? {};
+  const localeMessages = { ...locales.en, ...localizedMessages };
 
   return (
     <IntlProvider

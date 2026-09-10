@@ -1,0 +1,16 @@
+{
+  "global.navMenu.documents": "Documentos",
+  "documents.fileName": "Nombre del archivo",
+  "documents.documentType": "Tipo de documento",
+  "documents.filterLabel": "Tipo de documento",
+  "documents.typeAll": "Todos",
+  "documents.typeOffers": "Ofertas",
+  "documents.typeOrders": "Pedidos",
+  "documents.typeDdt": "Albaranes",
+  "documents.typeInvoices": "Facturas",
+  "documents.noData": "No hay documentos",
+  "documents.loadError": "No se pudieron cargar los documentos.",
+  "documents.retry": "Reintentar",
+  "documents.download": "Descargar {fileName}",
+  "documents.downloadError": "No se pudo descargar el documento."
+}

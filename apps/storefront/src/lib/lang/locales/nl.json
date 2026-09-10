@@ -1,0 +1,16 @@
+{
+  "global.navMenu.documents": "Documenten",
+  "documents.fileName": "Bestandsnaam",
+  "documents.documentType": "Documenttype",
+  "documents.filterLabel": "Documenttype",
+  "documents.typeAll": "Alle",
+  "documents.typeOffers": "Offertes",
+  "documents.typeOrders": "Bestellingen",
+  "documents.typeDdt": "Leveringsbonnen",
+  "documents.typeInvoices": "Facturen",
+  "documents.noData": "Geen documenten",
+  "documents.loadError": "De documenten konden niet worden geladen.",
+  "documents.retry": "Opnieuw proberen",
+  "documents.download": "{fileName} downloaden",
+  "documents.downloadError": "Het document kon niet worden gedownload."
+}

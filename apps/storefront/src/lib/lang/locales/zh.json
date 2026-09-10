@@ -1,0 +1,16 @@
+{
+  "global.navMenu.documents": "文档",
+  "documents.fileName": "文件名",
+  "documents.documentType": "文档类型",
+  "documents.filterLabel": "文档类型",
+  "documents.typeAll": "全部",
+  "documents.typeOffers": "报价",
+  "documents.typeOrders": "订单",
+  "documents.typeDdt": "送货单",
+  "documents.typeInvoices": "发票",
+  "documents.noData": "暂无文档",
+  "documents.loadError": "无法加载文档。",
+  "documents.retry": "重试",
+  "documents.download": "下载 {fileName}",
+  "documents.downloadError": "无法下载文档。"
+}
