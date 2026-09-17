@@ -18,6 +18,7 @@ export interface BuyerPortalRoute {
   path: string;
   name: string;
   isMenuItem?: boolean;
+  isAlwaysAvailable?: boolean;
   environments?: Environment[];
   platforms?: ChannelPlatform[];
 }
@@ -41,7 +42,6 @@ const {
   dashboardPermissions,
   ordersPermissions,
   companyOrdersPermissions,
-  invoicePermissions,
   quotesPermissions,
   shoppingListsPermissions,
   quickOrderPermissions,
@@ -58,7 +58,6 @@ const {
 const {
   ordersPermissionCodes,
   companyOrdersPermissionCodes,
-  invoicePermissionCodes,
   quotesPermissionCodes,
   shoppingListsPermissionCodes,
   orderDetailPerPermissionCodes,
@@ -118,16 +117,12 @@ export const routeList: (BuyerPortalRoute | RouteItem)[] = [
   {
     path: '/documents',
     name: 'Documents',
-    subsidiariesCompanyKey: 'invoice',
     wsKey: 'documents',
     isMenuItem: true,
-    configKey: 'invoice',
-    permissions: invoicePermissions,
-    permissionCodes: invoicePermissionCodes,
+    isAlwaysAvailable: true,
+    permissions: [],
     isTokenLogin: true,
     idLang: 'global.navMenu.documents',
-    environments: [Environment.Local, Environment.Staging],
-    platforms: ['bigcommerce'],
   },
   {
     path: '/quotes',
@@ -274,6 +269,10 @@ export const getAllowedRoutesWithoutComponent = (globalState: GlobalState): Buye
 
   return routeList.filter((item: Partial<RouteItem>) => {
     const { permissions = [], permissionCodes, path } = item;
+
+    if (item.isAlwaysAvailable) {
+      return true;
+    }
 
     if (item.environments && !item.environments.includes(getEnvironment())) {
       return false;

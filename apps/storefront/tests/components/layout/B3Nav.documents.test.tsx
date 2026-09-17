@@ -1,5 +1,5 @@
 import { buildCompanyStateWith } from 'tests/storeStateBuilders/companyStateBuilder';
-import { renderWithProviders, screen, waitFor } from 'tests/test-utils';
+import { renderWithProviders, screen } from 'tests/test-utils';
 
 import B3Nav from '@/components/layout/B3Nav';
 import { newPermissions } from '@/shared/routes/config';
@@ -26,7 +26,7 @@ const companyWithInvoicePermission = buildCompanyStateWith({
 });
 
 describe('Documents navigation item', () => {
-  it('is available in staging to a B2B user with invoice access', async () => {
+  it('is available in staging', async () => {
     window.B3.setting.environment = Environment.Staging;
 
     renderWithProviders(<B3Nav />, {
@@ -37,7 +37,7 @@ describe('Documents navigation item', () => {
     expect(await screen.findByText('Documents')).toBeInTheDocument();
   });
 
-  it('is available locally to allow development against staging', async () => {
+  it('is available locally', async () => {
     window.B3.setting.environment = Environment.Local;
 
     renderWithProviders(<B3Nav />, {
@@ -48,7 +48,7 @@ describe('Documents navigation item', () => {
     expect(await screen.findByText('Documents')).toBeInTheDocument();
   });
 
-  it('is hidden in production', async () => {
+  it('is available in production', async () => {
     window.B3.setting.environment = Environment.Production;
 
     renderWithProviders(<B3Nav />, {
@@ -56,10 +56,10 @@ describe('Documents navigation item', () => {
       initialGlobalContext: documentsEnabledContext,
     });
 
-    await waitFor(() => expect(screen.queryByText('Documents')).not.toBeInTheDocument());
+    expect(await screen.findByText('Documents')).toBeInTheDocument();
   });
 
-  it('is hidden when the user lacks invoice access', async () => {
+  it('is available when the user lacks invoice access', async () => {
     window.B3.setting.environment = Environment.Staging;
     const companyWithoutInvoicePermission = buildCompanyStateWith({
       ...companyWithInvoicePermission,
@@ -71,10 +71,10 @@ describe('Documents navigation item', () => {
       initialGlobalContext: documentsEnabledContext,
     });
 
-    await waitFor(() => expect(screen.queryByText('Documents')).not.toBeInTheDocument());
+    expect(await screen.findByText('Documents')).toBeInTheDocument();
   });
 
-  it('is hidden when invoices are disabled', async () => {
+  it('is available when invoices are disabled', async () => {
     window.B3.setting.environment = Environment.Staging;
 
     renderWithProviders(<B3Nav />, {
@@ -87,6 +87,6 @@ describe('Documents navigation item', () => {
       },
     });
 
-    await waitFor(() => expect(screen.queryByText('Documents')).not.toBeInTheDocument());
+    expect(await screen.findByText('Documents')).toBeInTheDocument();
   });
 });
