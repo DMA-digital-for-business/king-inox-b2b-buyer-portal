@@ -13,6 +13,10 @@ describe('documents API', () => {
     window.B3.setting.environment = Environment.Staging;
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('gets a customer JWT and requests a sorted page of documents', async () => {
     const token = faker.string.uuid();
     const requestSpy = vi.fn();
@@ -56,6 +60,34 @@ describe('documents API', () => {
 
   it('uses the staging service configuration during local development', async () => {
     window.B3.setting.environment = Environment.Local;
+
+    server.use(
+      http.get(`${window.origin}/customer/current.jwt`, () =>
+        HttpResponse.text(faker.string.uuid()),
+      ),
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json({ data: [], paging: { total: 0, offset: 0, limit: 10 } }),
+      ),
+    );
+
+    await expect(
+      getDocuments({
+        offset: 0,
+        limit: 10,
+        documentType: undefined,
+        sortBy: 'datareg',
+        sortDir: 'desc',
+      }),
+    ).resolves.toEqual({
+      data: [],
+      paging: { total: 0, offset: 0, limit: 10 },
+    });
+  });
+
+  it('uses an explicitly configured documents service when the runtime environment is missing', async () => {
+    window.B3.setting.environment = '';
+    vi.stubEnv('VITE_DOCUMENTS_API_URL', API_URL);
+    vi.stubEnv('VITE_DOCUMENTS_APP_CLIENT_ID', faker.string.alphanumeric());
 
     server.use(
       http.get(`${window.origin}/customer/current.jwt`, () =>

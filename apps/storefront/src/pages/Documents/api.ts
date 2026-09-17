@@ -34,16 +34,27 @@ export class DocumentsApiError extends Error {
 
 function getDocumentsServiceConfig(): DocumentsServiceConfig {
   const environment = getEnvironment();
+  const hasExplicitServiceConfig = Boolean(
+    import.meta.env.VITE_DOCUMENTS_API_URL && import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID,
+  );
 
   logDocumentsDiagnostic('Resolving service configuration', {
     environment,
     runtimeEnvironment: window.B3?.setting?.environment,
     platform: window.B3?.setting?.platform,
+    hasExplicitServiceConfig,
     apiUrl: STAGING_DOCUMENTS_API_URL,
   });
 
-  if (environment === Environment.Local || environment === Environment.Staging) {
-    logDocumentsDiagnostic('Service configuration accepted', { environment });
+  if (
+    environment === Environment.Local ||
+    environment === Environment.Staging ||
+    hasExplicitServiceConfig
+  ) {
+    logDocumentsDiagnostic('Service configuration accepted', {
+      environment,
+      hasExplicitServiceConfig,
+    });
     return {
       apiUrl: STAGING_DOCUMENTS_API_URL,
       appClientId: STAGING_DOCUMENTS_APP_CLIENT_ID,
