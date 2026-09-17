@@ -29,6 +29,15 @@ frontend:
           VITE_DISABLE_BUILD_HASH=TRUE
           EOF
 
+          case "${AWS_BRANCH}" in
+            dev|staging)
+              cat >> apps/storefront/.env.production << EOF
+          VITE_DOCUMENTS_APP_CLIENT_ID=ooty5p0sanjii578e42z4mqbjj527av
+          VITE_DOCUMENTS_API_URL=https://rtpc12l9k0.execute-api.eu-central-1.amazonaws.com/sandbox
+          EOF
+              ;;
+          esac
+
         # Installa le dipendenze
         - yarn install --frozen-lockfile
 
