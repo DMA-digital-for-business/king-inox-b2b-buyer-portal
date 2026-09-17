@@ -94,9 +94,11 @@ export default function Documents() {
   const sortBy = parseSortBy(searchParams.get('sortBy'));
   const sortDir = parseSortDirection(searchParams.get('sortDir'));
 
-  const getDocumentTypeLabel = (documentType: number) => {
-    const category = getDocumentTypeCategory(documentType);
-    return category ? b3Lang(DOCUMENT_TYPE_LABEL_KEYS[category]) : '—';
+  const getDocumentTypeLabel = (document: DocumentItem) => {
+    const category = getDocumentTypeCategory(document.documentType);
+    return category
+      ? b3Lang(DOCUMENT_TYPE_LABEL_KEYS[category])
+      : document.documentTypeLabel || '—';
   };
 
   const formatRegistrationDate = (registrationDate: string) => {
@@ -213,7 +215,7 @@ export default function Documents() {
     {
       key: 'documentType',
       title: b3Lang('documents.documentType'),
-      render: (document) => getDocumentTypeLabel(document.documentType),
+      render: (document) => getDocumentTypeLabel(document),
     },
     {
       key: 'datareg',
@@ -283,7 +285,7 @@ export default function Documents() {
             renderItem={(document) => (
               <DocumentCard
                 document={document}
-                documentTypeLabel={getDocumentTypeLabel(document.documentType)}
+                documentTypeLabel={getDocumentTypeLabel(document)}
                 registrationDate={formatRegistrationDate(document.registrationDate)}
                 isDownloading={downloadingDocumentId === document.documentId}
                 onDownload={handleDownload}

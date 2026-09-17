@@ -126,6 +126,20 @@ describe('Documents page', () => {
     });
   });
 
+  it('uses the API document type label for an unmapped document type', async () => {
+    const document = buildDocumentWith({ documentType: 313 });
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json(buildDocumentsResponseWith({ data: [document] })),
+      ),
+    );
+
+    renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    const row = await screen.findByRole('row', { name: new RegExp(document.fileName, 'i') });
+    expect(within(row).getByText(document.documentTypeLabel)).toBeInTheDocument();
+  });
+
   it('shows a PDF icon and hides only the PDF extension from the displayed filename', async () => {
     const pdfDisplayName = faker.system.fileName();
     const pdfDocument = buildDocumentWith({ fileName: `${pdfDisplayName}.PDF` });
@@ -192,9 +206,7 @@ describe('Documents page', () => {
     );
 
     const { navigation } = renderWithProviders(<Documents />, {
-      initialEntries: [
-        '/documents?offset=20&limit=10&tipoDoc=all&sortBy=datareg&sortDir=desc',
-      ],
+      initialEntries: ['/documents?offset=20&limit=10&tipoDoc=all&sortBy=datareg&sortDir=desc'],
     });
 
     await userEvent.click(await screen.findByRole('button', { name: 'File name' }));
