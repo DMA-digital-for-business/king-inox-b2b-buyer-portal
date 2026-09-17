@@ -1,10 +1,17 @@
 export const DOCUMENT_TYPE_FILTERS = {
-  all: [],
+  all: undefined,
+  offers: 22,
+  orders: 23,
+  ddt: 2,
+  invoices: 3,
+} as const;
+
+const DOCUMENT_TYPE_CATEGORIES: Record<DocumentTypeCategory, readonly number[]> = {
   offers: [22, 164],
   orders: [23, 27],
   ddt: [2, 1002],
   invoices: [3, 191, 796, 9000],
-} as const;
+};
 
 export type DocumentTypeFilter = keyof typeof DOCUMENT_TYPE_FILTERS;
 
@@ -15,9 +22,8 @@ export type DocumentSortBy = 'filename' | 'datareg';
 export type DocumentSortDirection = 'asc' | 'desc';
 
 export function getDocumentTypeCategory(documentType: number): DocumentTypeCategory | undefined {
-  return (Object.keys(DOCUMENT_TYPE_FILTERS) as DocumentTypeFilter[]).find(
-    (filter): filter is DocumentTypeCategory =>
-      filter !== 'all' && DOCUMENT_TYPE_FILTERS[filter].some((type) => type === documentType),
+  return (Object.keys(DOCUMENT_TYPE_CATEGORIES) as DocumentTypeCategory[]).find((category) =>
+    DOCUMENT_TYPE_CATEGORIES[category].includes(documentType),
   );
 }
 
@@ -44,7 +50,7 @@ export interface DocumentsResponse {
 export interface DocumentsRequestParams {
   offset: number;
   limit: number;
-  documentTypes: readonly number[];
+  documentType: number | undefined;
   sortBy: DocumentSortBy;
   sortDir: DocumentSortDirection;
 }

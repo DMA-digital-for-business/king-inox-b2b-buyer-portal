@@ -78,7 +78,7 @@ async function documentsFetch(path: string): Promise<Response> {
 export async function getDocuments({
   offset,
   limit,
-  documentTypes,
+  documentType,
   sortBy,
   sortDir,
 }: DocumentsRequestParams): Promise<DocumentsResponse> {
@@ -88,9 +88,7 @@ export async function getDocuments({
     sortBy,
     sortDir,
   });
-  documentTypes.forEach((documentType) => {
-    searchParams.append('tipoDoc', documentType.toString());
-  });
+  if (documentType !== undefined) searchParams.set('tipoDoc', documentType.toString());
   const response = await documentsFetch(`/api/v1/documents?${searchParams.toString()}`);
 
   return response.json() as Promise<DocumentsResponse>;

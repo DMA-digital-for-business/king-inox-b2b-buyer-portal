@@ -190,7 +190,7 @@ describe('Documents page', () => {
     const url = new URL((requestSpy.mock.calls[0][0] as Request).url);
     expect(url.searchParams.get('offset')).toBe('20');
     expect(url.searchParams.get('limit')).toBe('20');
-    expect(url.searchParams.getAll('tipoDoc')).toEqual(['23', '27']);
+    expect(url.searchParams.getAll('tipoDoc')).toEqual(['23']);
     expect(url.searchParams.get('sortBy')).toBe('filename');
     expect(url.searchParams.get('sortDir')).toBe('asc');
     expect(screen.getByRole('combobox', { name: 'Document type' })).toHaveTextContent('Orders');

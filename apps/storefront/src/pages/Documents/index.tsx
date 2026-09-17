@@ -119,7 +119,7 @@ export default function Documents() {
       getDocuments({
         offset,
         limit,
-        documentTypes: DOCUMENT_TYPE_FILTERS[documentTypeFilter],
+        documentType: DOCUMENT_TYPE_FILTERS[documentTypeFilter],
         sortBy,
         sortDir,
       }),

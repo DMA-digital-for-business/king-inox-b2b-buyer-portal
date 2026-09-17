@@ -36,7 +36,7 @@ describe('documents API', () => {
     await getDocuments({
       offset: 20,
       limit: 20,
-      documentTypes: [23, 27],
+      documentType: 23,
       sortBy: 'filename',
       sortDir: 'asc',
     });
@@ -48,9 +48,9 @@ describe('documents API', () => {
       limit: '20',
       sortBy: 'filename',
       sortDir: 'asc',
-      tipoDoc: '27',
+      tipoDoc: '23',
     });
-    expect(url.searchParams.getAll('tipoDoc')).toEqual(['23', '27']);
+    expect(url.searchParams.getAll('tipoDoc')).toEqual(['23']);
     expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
   });
 
@@ -70,7 +70,7 @@ describe('documents API', () => {
       getDocuments({
         offset: 0,
         limit: 10,
-        documentTypes: [],
+        documentType: undefined,
         sortBy: 'datareg',
         sortDir: 'desc',
       }),
@@ -120,7 +120,7 @@ describe('documents API', () => {
       getDocuments({
         offset: 0,
         limit: 10,
-        documentTypes: [],
+        documentType: undefined,
         sortBy: 'datareg',
         sortDir: 'desc',
       }),
@@ -139,7 +139,7 @@ describe('documents API', () => {
       getDocuments({
         offset: 0,
         limit: 10,
-        documentTypes: [],
+        documentType: undefined,
         sortBy: 'datareg',
         sortDir: 'desc',
       }),
