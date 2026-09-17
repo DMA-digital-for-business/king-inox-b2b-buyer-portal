@@ -1,6 +1,7 @@
 import { getCurrentCustomerJWT } from '@/shared/service/bc/api/login';
 import { getEnvironment } from '@/shared/service/request/base';
 import { Environment } from '@/types';
+import b2bLogger from '@/utils/b3Logger';
 
 import { DocumentDownload, DocumentsRequestParams, DocumentsResponse } from './types';
 
@@ -13,6 +14,12 @@ const STAGING_DOCUMENTS_APP_CLIENT_ID =
 interface DocumentsServiceConfig {
   apiUrl: string;
   appClientId: string;
+}
+
+function logDocumentsDiagnostic(message: string, details?: Record<string, unknown>) {
+  if (import.meta.env.MODE !== 'test') {
+    b2bLogger.log(`[Documents] ${message}`, details ?? '');
+  }
 }
 
 export class DocumentsApiError extends Error {
@@ -28,13 +35,22 @@ export class DocumentsApiError extends Error {
 function getDocumentsServiceConfig(): DocumentsServiceConfig {
   const environment = getEnvironment();
 
+  logDocumentsDiagnostic('Resolving service configuration', {
+    environment,
+    runtimeEnvironment: window.B3?.setting?.environment,
+    platform: window.B3?.setting?.platform,
+    apiUrl: STAGING_DOCUMENTS_API_URL,
+  });
+
   if (environment === Environment.Local || environment === Environment.Staging) {
+    logDocumentsDiagnostic('Service configuration accepted', { environment });
     return {
       apiUrl: STAGING_DOCUMENTS_API_URL,
       appClientId: STAGING_DOCUMENTS_APP_CLIENT_ID,
     };
   }
 
+  logDocumentsDiagnostic('Service configuration rejected', { environment });
   // TODO: configure VITE_DOCUMENTS_API_URL and VITE_DOCUMENTS_APP_CLIENT_ID for production.
   throw new DocumentsApiError('The documents service is not configured for this environment.');
 }
@@ -42,11 +58,23 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
 async function getDocumentsJWT(appClientId: string): Promise<string> {
   let token: string | undefined;
 
+  logDocumentsDiagnostic('Requesting current customer JWT', {
+    platform: window.B3?.setting?.platform,
+    hasAppClientId: Boolean(appClientId),
+  });
+
   try {
     token = await getCurrentCustomerJWT(appClientId);
-  } catch {
+  } catch (error) {
+    logDocumentsDiagnostic('Current customer JWT request failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw new DocumentsApiError('A current customer JWT could not be obtained.', 401);
   }
+
+  logDocumentsDiagnostic('Current customer JWT request completed', {
+    hasToken: Boolean(token),
+  });
 
   if (!token) {
     throw new DocumentsApiError('A current customer JWT could not be obtained.', 401);
@@ -58,11 +86,20 @@ async function getDocumentsJWT(appClientId: string): Promise<string> {
 async function documentsFetch(path: string): Promise<Response> {
   const { apiUrl, appClientId } = getDocumentsServiceConfig();
   const token = await getDocumentsJWT(appClientId);
-  const response = await fetch(`${apiUrl}${path}`, {
+  const requestUrl = `${apiUrl}${path}`;
+
+  logDocumentsDiagnostic('Sending API request', { requestUrl });
+  const response = await fetch(requestUrl, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+
+  logDocumentsDiagnostic('API response received', {
+    requestUrl,
+    status: response.status,
+    ok: response.ok,
   });
 
   if (!response.ok) {
@@ -82,6 +119,14 @@ export async function getDocuments({
   sortBy,
   sortDir,
 }: DocumentsRequestParams): Promise<DocumentsResponse> {
+  logDocumentsDiagnostic('Loading documents', {
+    offset,
+    limit,
+    documentType,
+    sortBy,
+    sortDir,
+  });
+
   const searchParams = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
