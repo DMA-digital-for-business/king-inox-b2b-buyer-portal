@@ -32,7 +32,9 @@ export interface DocumentItem {
   fileName: string;
   documentType: number;
   documentTypeLabel: string;
+  reference: string | null;
   registrationDate: string;
+  status: string | null;
 }
 
 interface DocumentsPaging {

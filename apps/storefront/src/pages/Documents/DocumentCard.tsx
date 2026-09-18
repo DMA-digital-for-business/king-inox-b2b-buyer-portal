@@ -9,6 +9,7 @@ import { DocumentItem } from './types';
 interface DocumentCardProps {
   document: DocumentItem;
   documentTypeLabel: string;
+  documentStatusLabel: string;
   registrationDate: string;
   isDownloading: boolean;
   onDownload: (document: DocumentItem) => void;
@@ -17,6 +18,7 @@ interface DocumentCardProps {
 export function DocumentCard({
   document,
   documentTypeLabel,
+  documentStatusLabel,
   registrationDate,
   isDownloading,
   onDownload,
@@ -62,6 +64,12 @@ export function DocumentCard({
           </Button>
           <Typography variant="body2" color="text.secondary">
             {b3Lang('documents.documentType')}: {documentTypeLabel}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {b3Lang('documents.reference')}: {document.reference || '—'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {b3Lang('documents.status')}: {documentStatusLabel}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {b3Lang('documents.registrationDate')}: {registrationDate}

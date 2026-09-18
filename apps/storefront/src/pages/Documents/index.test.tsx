@@ -25,7 +25,9 @@ const buildDocumentWith = builder<DocumentItem>(() => ({
   fileName: faker.system.fileName(),
   documentType: 3,
   documentTypeLabel: faker.commerce.department(),
+  reference: faker.string.alphanumeric(),
   registrationDate: faker.date.past().toISOString(),
+  status: faker.word.sample(),
 }));
 
 const buildDocumentsResponseWith = builder<DocumentsResponse>(() => ({
@@ -48,7 +50,9 @@ describe('Documents page', () => {
   });
 
   it('loads the default page and displays document details', async () => {
-    const document = buildDocumentWith('WHATEVER_VALUES');
+    const reference = faker.string.alphanumeric();
+    const status = faker.word.sample();
+    const document = buildDocumentWith({ reference, status });
     const requestSpy = vi.fn();
     server.use(
       http.get(`${API_URL}/api/v1/documents`, ({ request }) => {
@@ -66,6 +70,8 @@ describe('Documents page', () => {
 
     const row = await screen.findByRole('row', { name: new RegExp(document.fileName, 'i') });
     expect(within(row).getByText('Invoices')).toBeInTheDocument();
+    expect(within(row).getByText(reference)).toBeInTheDocument();
+    expect(within(row).getByText(status)).toBeInTheDocument();
     expect(within(row).queryByText(document.documentTypeLabel)).not.toBeInTheDocument();
     expect(
       within(row).getByText(
@@ -124,6 +130,59 @@ describe('Documents page', () => {
     documents.forEach((document) => {
       expect(screen.queryByText(document.documentTypeLabel)).not.toBeInTheDocument();
     });
+  });
+
+  it('translates Italian and English document statuses to the active language', async () => {
+    const statuses = [
+      'DA EVADERE',
+      'TO PROCESS',
+      'DELIVERED',
+      'EVASO',
+      'PART. DELIV',
+      'PARZ. EVASO',
+      'EXPIRED',
+      'SCADUTA',
+      'VALID',
+      'VALIDA',
+    ];
+    const documents = statuses.map((status) => buildDocumentWith({ status }));
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json(
+          buildDocumentsResponseWith({
+            data: documents,
+            paging: { total: documents.length, offset: 0, limit: 10 },
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    expect(await screen.findAllByText('To process')).toHaveLength(2);
+    expect(screen.getAllByText('Delivered')).toHaveLength(2);
+    expect(screen.getAllByText('Partially delivered')).toHaveLength(2);
+    expect(screen.getAllByText('Expired')).toHaveLength(2);
+    expect(screen.getAllByText('Valid')).toHaveLength(2);
+    statuses.forEach((status) => expect(screen.queryByText(status)).not.toBeInTheDocument());
+  });
+
+  it('displays document statuses in Italian when Italian is active', async () => {
+    const document = buildDocumentWith({ status: 'DELIVERED' });
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, () =>
+        HttpResponse.json(buildDocumentsResponseWith({ data: [document] })),
+      ),
+    );
+
+    renderWithProviders(<Documents />, {
+      initialEntries: ['/documents'],
+      initialGlobalContext: { bcLanguage: 'it' },
+    });
+
+    const row = await screen.findByRole('row', { name: new RegExp(document.fileName, 'i') });
+    expect(within(row).getByText('Evaso')).toBeInTheDocument();
+    expect(within(row).queryByText('DELIVERED')).not.toBeInTheDocument();
   });
 
   it('uses the API document type label for an unmapped document type', async () => {

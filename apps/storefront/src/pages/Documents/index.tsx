@@ -48,6 +48,18 @@ const DOCUMENT_TYPE_LABEL_KEYS: Record<DocumentTypeCategory, string> = {
   ddt: 'documents.typeDdt',
   invoices: 'documents.typeInvoices',
 };
+const DOCUMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  'DA EVADERE': 'documents.statusToProcess',
+  'TO PROCESS': 'documents.statusToProcess',
+  DELIVERED: 'documents.statusDelivered',
+  EVASO: 'documents.statusDelivered',
+  'PART. DELIV': 'documents.statusPartiallyDelivered',
+  'PARZ. EVASO': 'documents.statusPartiallyDelivered',
+  EXPIRED: 'documents.statusExpired',
+  SCADUTA: 'documents.statusExpired',
+  VALID: 'documents.statusValid',
+  VALIDA: 'documents.statusValid',
+};
 
 function parseOffset(value: string | null): number {
   const offset = Number(value);
@@ -99,6 +111,13 @@ export default function Documents() {
     return category
       ? b3Lang(DOCUMENT_TYPE_LABEL_KEYS[category])
       : document.documentTypeLabel || '—';
+  };
+
+  const getDocumentStatusLabel = (document: DocumentItem) => {
+    if (!document.status) return '—';
+
+    const labelKey = DOCUMENT_STATUS_LABEL_KEYS[document.status.trim().toUpperCase()];
+    return labelKey ? b3Lang(labelKey) : document.status;
   };
 
   const formatRegistrationDate = (registrationDate: string) => {
@@ -218,6 +237,16 @@ export default function Documents() {
       render: (document) => getDocumentTypeLabel(document),
     },
     {
+      key: 'reference',
+      title: b3Lang('documents.reference'),
+      render: (document) => document.reference || '—',
+    },
+    {
+      key: 'status',
+      title: b3Lang('documents.status'),
+      render: (document) => getDocumentStatusLabel(document),
+    },
+    {
       key: 'datareg',
       title: b3Lang('documents.registrationDate'),
       isSortable: true,
@@ -286,6 +315,7 @@ export default function Documents() {
               <DocumentCard
                 document={document}
                 documentTypeLabel={getDocumentTypeLabel(document)}
+                documentStatusLabel={getDocumentStatusLabel(document)}
                 registrationDate={formatRegistrationDate(document.registrationDate)}
                 isDownloading={downloadingDocumentId === document.documentId}
                 onDownload={handleDownload}

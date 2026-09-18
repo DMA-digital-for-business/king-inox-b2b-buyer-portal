@@ -20,14 +20,16 @@ const buildDocumentWith = builder<DocumentItem>(() => ({
   fileName: faker.system.fileName(),
   documentType: 23,
   documentTypeLabel: faker.commerce.department(),
+  reference: faker.string.alphanumeric(),
   registrationDate: faker.date.past().toISOString(),
+  status: faker.word.sample(),
 }));
 
 it('displays documents as cards on mobile', async () => {
   vi.spyOn(document.body, 'clientWidth', 'get').mockReturnValue(500);
   window.B3.setting.environment = Environment.Staging;
   const displayFileName = faker.system.fileName();
-  const documentItem = buildDocumentWith({ fileName: `${displayFileName}.pdf` });
+  const documentItem = buildDocumentWith({ fileName: `${displayFileName}.pdf`, status: 'VALIDA' });
 
   server.use(
     http.get(`${window.origin}/customer/current.jwt`, () => HttpResponse.text(faker.string.uuid())),
@@ -47,6 +49,8 @@ it('displays documents as cards on mobile', async () => {
   expect(screen.queryByText(documentItem.fileName)).not.toBeInTheDocument();
   expect(screen.getByTitle('PDF')).toBeInTheDocument();
   expect(screen.getByText(/Document type: Orders/)).toBeInTheDocument();
+  expect(screen.getByText(`Your code: ${documentItem.reference}`)).toBeInTheDocument();
+  expect(screen.getByText('Status: Valid')).toBeInTheDocument();
   expect(screen.getByText(/Registration date:/)).toHaveTextContent(
     new Intl.DateTimeFormat('en', {
       day: '2-digit',
