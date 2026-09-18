@@ -40,6 +40,7 @@ const DEFAULT_LIMIT = 10;
 const DEFAULT_DOCUMENT_TYPE_FILTER: DocumentTypeFilter = 'all';
 const DEFAULT_SORT_BY: DocumentSortBy = 'datareg';
 const DEFAULT_SORT_DIRECTION: DocumentSortDirection = 'desc';
+const LOADING_TABLE_MAX_HEIGHT = 400;
 const ROWS_PER_PAGE = [10, 20, 30];
 const SORTABLE_COLUMNS: DocumentSortBy[] = ['filename', 'datareg'];
 const DOCUMENT_TYPE_LABEL_KEYS: Record<DocumentTypeCategory, string> = {
@@ -288,41 +289,52 @@ export default function Documents() {
           {b3Lang('documents.loadError')}
         </Alert>
       ) : (
-        <B3Spin isSpinning={documentsQuery.isFetching}>
-          <B3Table
-            columnItems={columns}
-            listItems={documents}
-            pagination={{ offset, first: limit, count: total }}
-            onPaginationChange={({ offset: nextOffset, first: nextLimit }) => {
-              updateSearchParams({
-                offset: nextLimit === limit ? nextOffset : DEFAULT_OFFSET,
-                limit: nextLimit,
-                tipoDoc: documentTypeFilter,
-                sortBy,
-                sortDir,
-              });
-            }}
-            rowsPerPageOptions={ROWS_PER_PAGE}
-            isLoading={documentsQuery.isFetching}
-            isCustomRender={isMobile}
-            itemXs={12}
-            tableKey="documentId"
-            orderBy={sortBy}
-            sortDirection={sortDir}
-            sortByFn={handleSortChange}
-            noDataText={b3Lang('documents.noData')}
-            renderItem={(document) => (
-              <DocumentCard
-                document={document}
-                documentTypeLabel={getDocumentTypeLabel(document)}
-                documentStatusLabel={getDocumentStatusLabel(document)}
-                registrationDate={formatRegistrationDate(document.registrationDate)}
-                isDownloading={downloadingDocumentId === document.documentId}
-                onDownload={handleDownload}
-              />
-            )}
-          />
-        </B3Spin>
+        <Box
+          data-testid="documents-table-container"
+          sx={{
+            maxHeight: documentsQuery.isFetching ? LOADING_TABLE_MAX_HEIGHT : 'none',
+            overflow: documentsQuery.isFetching ? 'auto' : 'visible',
+          }}
+        >
+          <B3Spin
+            isSpinning={documentsQuery.isFetching}
+            spinningHeight={documentsQuery.isFetching ? LOADING_TABLE_MAX_HEIGHT : undefined}
+          >
+            <B3Table
+              columnItems={columns}
+              listItems={documents}
+              pagination={{ offset, first: limit, count: total }}
+              onPaginationChange={({ offset: nextOffset, first: nextLimit }) => {
+                updateSearchParams({
+                  offset: nextLimit === limit ? nextOffset : DEFAULT_OFFSET,
+                  limit: nextLimit,
+                  tipoDoc: documentTypeFilter,
+                  sortBy,
+                  sortDir,
+                });
+              }}
+              rowsPerPageOptions={ROWS_PER_PAGE}
+              isLoading={documentsQuery.isFetching}
+              isCustomRender={isMobile}
+              itemXs={12}
+              tableKey="documentId"
+              orderBy={sortBy}
+              sortDirection={sortDir}
+              sortByFn={handleSortChange}
+              noDataText={b3Lang('documents.noData')}
+              renderItem={(document) => (
+                <DocumentCard
+                  document={document}
+                  documentTypeLabel={getDocumentTypeLabel(document)}
+                  documentStatusLabel={getDocumentStatusLabel(document)}
+                  registrationDate={formatRegistrationDate(document.registrationDate)}
+                  isDownloading={downloadingDocumentId === document.documentId}
+                  onDownload={handleDownload}
+                />
+              )}
+            />
+          </B3Spin>
+        </Box>
       )}
     </Stack>
   );

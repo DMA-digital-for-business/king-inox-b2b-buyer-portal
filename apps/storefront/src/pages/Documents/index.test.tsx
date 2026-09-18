@@ -49,6 +49,29 @@ describe('Documents page', () => {
     window.URL.revokeObjectURL = vi.fn();
   });
 
+  it('limits the table height only while documents are loading', async () => {
+    let finishRequest: (() => void) | undefined;
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, async () => {
+        await new Promise<void>((resolve) => {
+          finishRequest = resolve;
+        });
+        return HttpResponse.json(buildDocumentsResponseWith('WHATEVER_VALUES'));
+      }),
+    );
+
+    renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    const tableContainer = screen.getByTestId('documents-table-container');
+    expect(tableContainer).toHaveStyle({ maxHeight: '400px', overflow: 'auto' });
+
+    await waitFor(() => expect(finishRequest).toBeDefined());
+    finishRequest?.();
+    await screen.findByRole('table');
+
+    expect(tableContainer).toHaveStyle({ maxHeight: 'none', overflow: 'visible' });
+  });
+
   it('loads the default page and displays document details', async () => {
     const reference = faker.string.alphanumeric();
     const status = faker.word.sample();
