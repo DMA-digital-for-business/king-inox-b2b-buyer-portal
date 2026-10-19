@@ -75,6 +75,7 @@ export interface QuotePdfData {
   isDraft: boolean;
   quoteNumber?: string;
   customerCode?: string;
+  salesRep?: { name?: string | null; email?: string | null; phone?: string | null };
   currencyCode?: string;
   commercialTerms?: { carriage?: string; payment?: string; packing?: string };
   logoUrl?: string;
@@ -500,13 +501,19 @@ export function buildQuotePdfDocument(
                                   color: COLORS.accent,
                                 },
                                 {
-                                  text: 'Matteo Cha',
+                                  text: displayValue(data.salesRep?.name),
                                   bold: true,
                                   fontSize: 9,
                                   margin: [0, 2, 0, 0],
                                 },
                                 {
-                                  text: 'Tel. +39 02 5760 6482 · m.cha@king-inox.it',
+                                  text:
+                                    compactLines([
+                                      data.salesRep?.phone
+                                        ? `Tel. ${data.salesRep.phone}`
+                                        : undefined,
+                                      data.salesRep?.email,
+                                    ]).join(' · ') || '—',
                                   fontSize: 7,
                                   margin: [0, 2, 0, 0],
                                 },
@@ -585,7 +592,14 @@ export function buildQuotePdfDocument(
                   ],
                 ],
               },
-              layout: 'noBorders',
+              layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                paddingLeft: () => 9,
+                paddingRight: () => 9,
+                paddingTop: () => 2,
+                paddingBottom: () => 2,
+              },
             } as Content,
           ]
         : []),

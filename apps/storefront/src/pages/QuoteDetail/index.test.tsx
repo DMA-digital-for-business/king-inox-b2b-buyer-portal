@@ -243,10 +243,16 @@ describe('when the user is a B2B customer', () => {
     });
     const issuedAt = faker.date.past();
     const expirationDate = faker.date.future();
+    const salesRep = {
+      salesRepName: faker.person.fullName(),
+      salesRepEmail: faker.internet.email(),
+      salesRepPhoneNumber: faker.phone.number(),
+    };
     const quote = buildQuoteWith({
       data: {
         quote: {
           id: '272989',
+          salesRepInfo: salesRep,
           status: 1,
           createdAt: getUnixTime(issuedAt),
           expiredAt: getUnixTime(expirationDate),
@@ -294,6 +300,11 @@ describe('when the user is a B2B customer', () => {
       expect(downloadQuotePdf).toHaveBeenCalledWith(
         expect.objectContaining({
           quoteTitle: quote.data.quote.quoteTitle,
+          salesRep: {
+            name: salesRep.salesRepName,
+            email: salesRep.salesRepEmail,
+            phone: salesRep.salesRepPhoneNumber,
+          },
           referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
           issuedAt: expect.any(String),
           expirationDate: expect.any(String),

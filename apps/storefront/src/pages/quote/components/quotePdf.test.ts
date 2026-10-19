@@ -42,6 +42,11 @@ const buildQuotePdfDataWith = builder<QuotePdfData>(() => ({
   locale: 'en',
   isDraft: false,
   storeName: faker.company.name(),
+  salesRep: {
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    phone: faker.phone.number(),
+  },
   logoUrl: faker.image.url(),
   quoteTitle: faker.commerce.productName(),
   referenceNumber: faker.string.alphanumeric(),
@@ -136,7 +141,10 @@ describe('quote PDF document', () => {
     expect(text).toContain(data.lines[0].yourCode);
     expect(text).toContain(data.lines[0].productUrl);
     expect(text).toContain(data.templateLabels.validity);
-    expect(text).toContain('Matteo Cha');
+    expect(text).toContain(data.salesRep?.name);
+    expect(text).toContain(data.salesRep?.email);
+    expect(text).toContain(data.salesRep?.phone);
+    expect(text).not.toContain('Matteo Cha');
     expect(document.watermark).toBeUndefined();
   });
 
@@ -144,7 +152,8 @@ describe('quote PDF document', () => {
     const data = buildQuotePdfDataWith({ isDraft: true });
     const document = buildQuotePdfDocument(data);
     const text = JSON.stringify(document.content);
-    expect(text).not.toContain('Matteo Cha');
+    expect(text).not.toContain(data.salesRep?.name);
+    expect(text).not.toContain(data.salesRep?.email);
     expect(text).not.toContain(data.templateLabels.validity);
     expect(text).not.toContain(data.labels.draft.toUpperCase());
     expect(text).not.toContain(`${data.templateLabels.offer} n. `);

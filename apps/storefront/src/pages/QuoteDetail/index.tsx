@@ -758,6 +758,11 @@ function QuoteDetail() {
       locale: pdfLocale,
       isDraft,
       quoteNumber: quoteDetail.quoteNumber,
+      salesRep: {
+        name: quoteDetail.salesRepInfo?.salesRepName,
+        email: quoteDetail.salesRepInfo?.salesRepEmail,
+        phone: quoteDetail.salesRepInfo?.salesRepPhoneNumber,
+      },
       customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
       currencyCode: displayCurrency?.currencyCode,
       commercialTerms: {
