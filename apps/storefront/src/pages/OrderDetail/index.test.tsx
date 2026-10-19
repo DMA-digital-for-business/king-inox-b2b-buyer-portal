@@ -481,7 +481,7 @@ describe('when a personal customer visits an order', () => {
     expect(screen.getByText('MI-SCREAM-001')).toBeVisible();
     expect(screen.getByText('Size: Large')).toBeVisible();
     expect(screen.getByText('Color: Red')).toBeVisible();
-    expect(screen.getByText('€333,00')).toBeVisible();
+    expect(screen.getByText('33.300,00 %')).toBeVisible();
     expect(screen.getByText('443')).toBeVisible();
     expect(screen.getByText('€147.519,00')).toBeVisible();
   });
@@ -718,7 +718,7 @@ describe('when a personal customer visits an order', () => {
       expect(screen.getByText('Scream Canister')).toBeVisible();
       expect(screen.getByText('MI-SCREAM-001')).toBeVisible();
       expect(screen.getByText('55')).toBeVisible();
-      expect(screen.getByText('€333,00')).toBeVisible();
+      expect(screen.getByText('33.300,00 %')).toBeVisible();
 
       expect(await screen.findByText('Shipment 2 –')).toBeVisible();
       expect(screen.getByText('shipped on June, 12, by USPS, Express Shipping')).toBeVisible();
@@ -726,7 +726,7 @@ describe('when a personal customer visits an order', () => {
       expect(screen.getByText('Laugh Canister')).toBeVisible();
       expect(screen.getByText('MI-LAUGH-002')).toBeVisible();
       expect(screen.getByText('21')).toBeVisible();
-      expect(screen.getByText('€123,00')).toBeVisible();
+      expect(screen.getByText('12.300,00 %')).toBeVisible();
     });
   });
 
@@ -776,7 +776,7 @@ describe('when a personal customer visits an order', () => {
       expect(screen.getByText('Scare Floor Operations Manual (eBook)')).toBeVisible();
       expect(screen.getByText('MI-EBOOK-101')).toBeVisible();
 
-      expect(screen.getByText('€22,34')).toBeVisible();
+      expect(screen.getByText('2.234,00 %')).toBeVisible();
       expect(screen.getByText('112')).toBeVisible();
       expect(screen.getByText('€2.502,08')).toBeVisible();
       expect(screen.getByText('Format: ePub')).toBeVisible();

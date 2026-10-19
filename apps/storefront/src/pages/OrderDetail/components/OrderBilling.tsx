@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
 
-import { B3ProductList } from '@/components/B3ProductList';
 import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 
@@ -10,6 +9,7 @@ import { OrderDetailsContext } from '../context/OrderDetailsContext';
 
 import DownloadDigitalProductsDialog from './DownloadDigitalProductsDialog/DownloadDigitalProductsDialog';
 import { getDigitalDownloadElements } from './getDigitalDownloadElements';
+import { OrderProductList } from './OrderProductList';
 
 type OrderBillingProps = {
   isCurrentCompany: boolean;
@@ -139,7 +139,7 @@ export function OrderBilling({ isCurrentCompany }: OrderBillingProps) {
             </Typography>
           </Box>
 
-          <B3ProductList
+          <OrderProductList
             products={
               digitalProductsWithUrl.length ? digitalProductsWithUrl : digitalProducts || []
             }

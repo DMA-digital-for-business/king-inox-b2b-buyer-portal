@@ -4,12 +4,13 @@ import { Box, Card, CardContent, Link, Stack, Typography } from '@mui/material';
 import { format } from 'date-fns/format';
 import { getTracking } from 'ts-tracking-number';
 
-import { B3ProductList } from '@/components/B3ProductList';
 import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 
 import { OrderShippedItem, OrderShippingsItem } from '../../../types';
 import { OrderDetailsContext } from '../context/OrderDetailsContext';
+
+import { OrderProductList } from './OrderProductList';
 
 const ShipmentTitle = styled('span')(() => ({
   fontWeight: 'bold',
@@ -161,7 +162,7 @@ export function OrderShipping({ isCurrentCompany }: OrderShippingProps) {
                       <Typography variant="body1">{shipment.tracking_number}</Typography>
                     )}
                   </Box>
-                  <B3ProductList
+                  <OrderProductList
                     quantityKey="current_quantity_shipped"
                     products={shipment.itemsInfo}
                     money={money}
@@ -185,7 +186,7 @@ export function OrderShipping({ isCurrentCompany }: OrderShippingProps) {
                   </Typography>
                 </Box> */}
 
-                <B3ProductList
+                <OrderProductList
                   quantityKey="not_shipping_number"
                   products={shipping.notShip.itemsInfo}
                   money={money}

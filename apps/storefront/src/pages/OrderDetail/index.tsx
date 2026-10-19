@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowBackIosNew, InfoOutlined } from '@mui/icons-material';
 import { Box, Grid, Stack, Typography } from '@mui/material';
@@ -26,8 +26,6 @@ import b2bLogger from '@/utils/b3Logger';
 import OrderStatus from '../order/components/OrderStatus';
 import { orderStatusTranslationVariables } from '../order/shared/getOrderStatus';
 
-import { CursorDetailPagination } from './components/CursorDetailPagination';
-import { DetailPagination } from './components/DetailPagination';
 import { OrderAction } from './components/OrderAction';
 import { OrderBilling } from './components/OrderBilling';
 import { OrderHistory } from './components/OrderHistory';
@@ -241,10 +239,6 @@ function OrderDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isB2BUser, orderId]);
 
-  const handlePageChange = useCallback((nextOrderId: string | number) => {
-    setOrderId(nextOrderId.toString());
-  }, []);
-
   useEffect(() => {
     const getAddressLabelPermission = async () => {
       try {
@@ -359,29 +353,6 @@ function OrderDetail() {
                 : ''}
             </Typography>
             <OrderStatus code={status} text={getOrderStatusLabel(status)} />
-          </Grid>
-          <Grid
-            container
-            item
-            xs={isMobile ? 12 : 4}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {location?.state &&
-              (isUnifiedOrders ? (
-                // key={location.key} remounts when history changes
-                // so useCursorDetailPagination re-seeds from location.state on mount.
-                <CursorDetailPagination
-                  key={location.key}
-                  onChange={handlePageChange}
-                  color={customColor}
-                />
-              ) : (
-                <DetailPagination onChange={handlePageChange} color={customColor} />
-              ))}
           </Grid>
         </Grid>
         {orderId && !isCurrentCompany ? (

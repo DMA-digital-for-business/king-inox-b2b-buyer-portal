@@ -214,29 +214,29 @@ function OrderCard(props: OrderCardProps) {
           ...currencyFormatInfo(),
           decimal_places: 2,
         };
-    showedInformation = infoKey?.map((key: string, index: number) => (
-      <Fragment key={key}>
-        {symbol[key] === 'grandTotal' && (
-          <Divider
-            sx={{
-              marginBottom: '1rem',
-              marginTop: '0.5rem',
-            }}
-          />
-        )}
-
-        <ItemContainer key={key} nameKey={symbol[key]} aria-label={key} role="group">
-          <p id="item-name-key">{key}</p>{' '}
-          {displayAsNegativeNumber.includes(symbol[key]) ? (
-            <p>
-              {`-${ordersCurrencyFormat(moneyFormat, infoValue[index])}`}
-            </p>
-          ) : (
-            <p>{ordersCurrencyFormat(moneyFormat, infoValue[index])}</p>
+    showedInformation = infoKey?.map((key: string, index: number) =>
+      symbol[key] === 'shipping' ? null : (
+        <Fragment key={key}>
+          {symbol[key] === 'grandTotal' && (
+            <Divider
+              sx={{
+                marginBottom: '1rem',
+                marginTop: '0.5rem',
+              }}
+            />
           )}
-        </ItemContainer>
-      </Fragment>
-    ));
+
+          <ItemContainer key={key} nameKey={symbol[key]} aria-label={key} role="group">
+            <p id="item-name-key">{key}</p>{' '}
+            {displayAsNegativeNumber.includes(symbol[key]) ? (
+              <p>{`-${ordersCurrencyFormat(moneyFormat, infoValue[index])}`}</p>
+            ) : (
+              <p>{ordersCurrencyFormat(moneyFormat, infoValue[index])}</p>
+            )}
+          </ItemContainer>
+        </Fragment>
+      ),
+    );
   }
 
   return (
@@ -540,20 +540,22 @@ export function OrderAction(props: OrderActionProps) {
   return (
     <OrderActionContainer>
       {orderData &&
-        orderData.map((item: OrderData) => (
-          <OrderCard
-            products={products!}
-            orderId={orderId.toString()}
-            {...item}
-            itemKey={item.key}
-            role={role}
-            ipStatus={ipStatus}
-            invoiceId={invoiceId}
-            key={item.key}
-            isCurrentCompany={isCurrentCompany}
-            switchCompanyId={companyId}
-          />
-        ))}
+        orderData
+          .filter((item) => item.key !== 'payment')
+          .map((item: OrderData) => (
+            <OrderCard
+              products={products!}
+              orderId={orderId.toString()}
+              {...item}
+              itemKey={item.key}
+              role={role}
+              ipStatus={ipStatus}
+              invoiceId={invoiceId}
+              key={item.key}
+              isCurrentCompany={isCurrentCompany}
+              switchCompanyId={companyId}
+            />
+          ))}
     </OrderActionContainer>
   );
 }

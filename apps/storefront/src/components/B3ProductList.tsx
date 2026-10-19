@@ -147,6 +147,10 @@ function getBackorderLayoutStyles(
 }
 
 interface ProductProps<T> {
+  renderMeasure?: (product: T & ProductItem) => ReactElement;
+  measureTitle?: string;
+  formatUnitPrice?: (price: number) => string;
+  isProductOptionVisible?: (label: string) => boolean;
   products: Array<T & ProductItem>;
   money?: MoneyFormat;
   renderAction?: (item: T & ProductItem) => ReactElement;
@@ -176,6 +180,10 @@ function getProductVariantSku(product: ProductItem): string {
 export function B3ProductList<T>(props: ProductProps<T>) {
   const {
     products,
+    renderMeasure,
+    measureTitle = 'Misura',
+    formatUnitPrice,
+    isProductOptionVisible = () => true,
     renderAction,
     quantityKey = 'quantity',
     actionWidth = '100px',
@@ -305,6 +313,11 @@ export function B3ProductList<T>(props: ProductProps<T>) {
           <FlexItem padding={desktopProductColumnPadding} sx={desktopProductColumnSx}>
             <ProductHead>{b3Lang('global.searchProduct.product')}</ProductHead>
           </FlexItem>
+          {renderMeasure && (
+            <FlexItem width="18%">
+              <ProductHead>{measureTitle}</ProductHead>
+            </FlexItem>
+          )}
           <FlexItem textAlignLocation={textAlign} {...desktopNumericColumnStyle}>
             <ProductHead>{b3Lang('global.searchProduct.price')}</ProductHead>
           </FlexItem>
@@ -409,7 +422,12 @@ export function B3ProductList<T>(props: ProductProps<T>) {
           priceLabel: string,
           priceValue: number,
           priceDiscountedValue: number,
+          isUnitPrice = false,
         ) => {
+          const displayPrice = (value: number) =>
+            isUnitPrice && formatUnitPrice
+              ? showTypePrice(formatUnitPrice(value), product)
+              : getDisplayPrice(value);
           return (
             <FlexItem
               textAlignLocation={textAlign}
@@ -439,7 +457,9 @@ export function B3ProductList<T>(props: ProductProps<T>) {
                   }}
                 >
                   {isMobile && <span>{priceLabel}: </span>}
-                  <span id="product-price">{getDisplayPrice(priceValue)}</span>
+                  <span id="product-price" style={{ whiteSpace: 'nowrap' }}>
+                    {displayPrice(priceValue)}
+                  </span>
                 </Box>
                 {discountAccountForSingleProduct > 0 ? (
                   <Box
@@ -447,7 +467,7 @@ export function B3ProductList<T>(props: ProductProps<T>) {
                       color: '#2E7D32',
                     }}
                   >
-                    {getDisplayPrice(priceDiscountedValue)}
+                    {displayPrice(priceDiscountedValue)}
                   </Box>
                 ) : null}
               </Box>
@@ -509,15 +529,25 @@ export function B3ProductList<T>(props: ProductProps<T>) {
                       {b3Lang('orderDetail.digitalProducts.viewFiles')}
                     </Button>
                   )}
-                {(product.product_options || []).map((option) => (
-                  <ProductOptionText
-                    key={`${option.option_id}`}
-                  >{`${option.display_name}: ${option.display_value}`}</ProductOptionText>
-                ))}
+                {(product.product_options || [])
+                  .filter((option) => isProductOptionVisible(option.display_name))
+                  .map((option) => (
+                    <ProductOptionText
+                      key={`${option.option_id}`}
+                    >{`${option.display_name}: ${option.display_value}`}</ProductOptionText>
+                  ))}
               </Box>
             </FlexItem>
 
-            {renderPrice('Price', productPrice, discountedPrice)}
+            {renderMeasure && (
+              <FlexItem width={isMobile ? '100%' : '18%'}>
+                <Box>
+                  {isMobile && `${measureTitle}: `}
+                  {renderMeasure(product)}
+                </Box>
+              </FlexItem>
+            )}
+            {renderPrice('Price', productPrice, discountedPrice, true)}
             <FlexItem
               textAlignLocation={textAlign}
               {...desktopQtyColumnStyle}
