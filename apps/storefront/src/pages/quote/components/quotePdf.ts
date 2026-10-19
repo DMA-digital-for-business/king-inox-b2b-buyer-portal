@@ -663,7 +663,10 @@ export function buildQuotePdfDocument(
                             bold: true,
                           },
                           {
-                            text: data.summary.grandTotal,
+                            text: data.summary.grandTotal.replace(
+                              /(\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))/g,
+                              '$1.',
+                            ),
                             bold: true,
                             fontSize: 15,
                             margin: [0, 3, 0, 0],

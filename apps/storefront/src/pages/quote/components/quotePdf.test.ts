@@ -215,6 +215,17 @@ describe('quote PDF document', () => {
     expect(text).not.toContain('"text":"onRequest"');
   });
 
+  it.each([' ', '\u00a0', '\u202f'])(
+    'uses dots instead of %j as thousands separators in the total',
+    (separator) => {
+      const data = buildQuotePdfDataWith({
+        summary: { grandTotal: `€1${separator}002${separator}345,45` },
+      });
+      const text = JSON.stringify(buildQuotePdfDocument(data).content);
+      expect(text).toContain('€1.002.345,45');
+    },
+  );
+
   it('renders an empty quote with a repeated two-row table header', () => {
     const data = buildQuotePdfDataWith({ lines: [] });
     const text = JSON.stringify(buildQuotePdfDocument(data).content);
