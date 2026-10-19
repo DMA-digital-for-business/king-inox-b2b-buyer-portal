@@ -469,6 +469,7 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
 it('downloads one PDF with the current unsaved quote information', async () => {
   const measure = faker.string.alphanumeric();
   const code = faker.string.alphanumeric();
+  const vatNumber = `IT${faker.string.numeric(11)}`;
   const carriage = faker.lorem.words();
   const payment = faker.lorem.words();
   const packing = faker.lorem.words();
@@ -602,7 +603,10 @@ it('downloads one PDF with the current unsaved quote information', async () => {
         data: {
           pdfCompany: {
             id: company.companyInfo.id,
-            extraFields: [{ fieldName: 'CODICE CLIENTE ERP', fieldValue: code }],
+            extraFields: [
+              { fieldName: 'CODICE CLIENTE ERP', fieldValue: code },
+              { fieldName: 'PARTITA IVA', fieldValue: vatNumber },
+            ],
           },
         },
       }),
@@ -644,6 +648,7 @@ it('downloads one PDF with the current unsaved quote information', async () => {
       quoteTitle: editedTitle,
       isDraft: true,
       customerCode: code,
+      customerVatNumber: vatNumber,
       commercialTerms: { carriage, payment, packing },
       lines: [
         expect.objectContaining({

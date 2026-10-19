@@ -59,5 +59,6 @@
   "quoteDraft.submission.response.next": "Responderemos en un plazo de 2 horas laborables. Pulsa OK para ver el resumen y los detalles de la solicitud enviada.",
   "quoteDraft.submission.loading": "Enviando tu solicitud de presupuesto…",
   "quoteDraft.submission.response.title": "¡Gracias por enviar tu solicitud de presupuesto!",
-  "quoteDraft.submission.response.message": "Tu solicitud de presupuesto se ha enviado correctamente. Nuestro equipo comercial revisará los productos, las cantidades y las notas para preparar una propuesta adaptada a tus necesidades."
+  "quoteDraft.submission.response.message": "Tu solicitud de presupuesto se ha enviado correctamente. Nuestro equipo comercial revisará los productos, las cantidades y las notas para preparar una propuesta adaptada a tus necesidades.",
+  "quoteDraft.pdf.king.vatNumber": "N.º IVA"
 }

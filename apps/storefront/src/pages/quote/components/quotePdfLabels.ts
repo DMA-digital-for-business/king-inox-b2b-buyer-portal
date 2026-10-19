@@ -4,6 +4,7 @@ const quotePdfTemplateLabelKeys = [
   'offer',
   'to',
   'customerCode',
+  'vatNumber',
   'contact',
   'description',
   'amount',

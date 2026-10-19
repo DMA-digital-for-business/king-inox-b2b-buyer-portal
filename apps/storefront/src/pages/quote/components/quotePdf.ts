@@ -75,6 +75,7 @@ export interface QuotePdfData {
   isDraft: boolean;
   quoteNumber?: string;
   customerCode?: string;
+  customerVatNumber?: string;
   salesRep?: { name?: string | null; email?: string | null; phone?: string | null };
   currencyCode?: string;
   commercialTerms?: { carriage?: string; payment?: string; packing?: string };
@@ -546,7 +547,7 @@ export function buildQuotePdfDocument(
                         address.country,
                       ]).map((text): Content => ({ text, margin: [0, 1, 0, 0] })),
                       {
-                        text: `${t.customerCode}: ${displayValue(data.customerCode)}`,
+                        text: `${t.customerCode}: ${displayValue(data.customerCode)}${data.customerVatNumber?.trim() ? `    ${t.vatNumber}: ${data.customerVatNumber.trim()}` : ''}`,
                         fontSize: 7,
                         margin: [0, 5, 0, 0],
                       },

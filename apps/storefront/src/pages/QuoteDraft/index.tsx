@@ -624,6 +624,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         locale: pdfLocale,
         isDraft: true,
         customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
+        customerVatNumber: pdfExtraField(resources.companyFields, 'PARTITA IVA'),
         currencyCode: currency.currency_code,
         commercialTerms: {
           carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),

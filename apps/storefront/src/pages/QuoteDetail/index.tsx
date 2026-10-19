@@ -764,6 +764,7 @@ function QuoteDetail() {
         phone: quoteDetail.salesRepInfo?.salesRepPhoneNumber,
       },
       customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
+      customerVatNumber: pdfExtraField(resources.companyFields, 'PARTITA IVA'),
       currencyCode: displayCurrency?.currencyCode,
       commercialTerms: {
         carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),

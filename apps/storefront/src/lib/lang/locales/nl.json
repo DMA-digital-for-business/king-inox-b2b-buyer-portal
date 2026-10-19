@@ -59,5 +59,6 @@
   "quoteDraft.submission.response.next": "We reageren binnen 2 werkuren. Klik op OK om het overzicht en de details van je aanvraag te bekijken.",
   "quoteDraft.submission.loading": "Je offerteaanvraag wordt verzonden…",
   "quoteDraft.submission.response.title": "Bedankt voor je offerteaanvraag!",
-  "quoteDraft.submission.response.message": "Je offerteaanvraag is verzonden. Ons verkoopteam bekijkt de producten, aantallen en eventuele opmerkingen om een voorstel op maat voor je te maken."
+  "quoteDraft.submission.response.message": "Je offerteaanvraag is verzonden. Ons verkoopteam bekijkt de producten, aantallen en eventuele opmerkingen om een voorstel op maat voor je te maken.",
+  "quoteDraft.pdf.king.vatNumber": "Btw-nr."
 }

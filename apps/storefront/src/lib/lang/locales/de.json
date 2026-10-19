@@ -59,5 +59,6 @@
   "quoteDraft.submission.response.next": "Wir antworten innerhalb von 2 Geschäftsstunden. Klicken Sie auf OK, um die Zusammenfassung und Details Ihrer Anfrage anzuzeigen.",
   "quoteDraft.submission.loading": "Ihre Angebotsanfrage wird gesendet…",
   "quoteDraft.submission.response.title": "Vielen Dank für Ihre Angebotsanfrage!",
-  "quoteDraft.submission.response.message": "Ihre Angebotsanfrage wurde erfolgreich gesendet. Unser Vertriebsteam prüft die Produkte, Mengen und Anmerkungen, um ein passendes Angebot für Sie zu erstellen."
+  "quoteDraft.submission.response.message": "Ihre Angebotsanfrage wurde erfolgreich gesendet. Unser Vertriebsteam prüft die Produkte, Mengen und Anmerkungen, um ein passendes Angebot für Sie zu erstellen.",
+  "quoteDraft.pdf.king.vatNumber": "USt-IdNr."
 }

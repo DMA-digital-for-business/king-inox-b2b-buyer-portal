@@ -169,6 +169,23 @@ describe('quote PDF document', () => {
     expect(text).not.toContain(data.salesRep.name);
   });
 
+  it('shows the company VAT number next to the customer code when available', () => {
+    const data = buildQuotePdfDataWith({
+      customerCode: faker.string.numeric(6),
+      customerVatNumber: `IT${faker.string.numeric(11)}`,
+    });
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(
+      `${data.templateLabels.customerCode}: ${data.customerCode}    ${data.templateLabels.vatNumber}: ${data.customerVatNumber}`,
+    );
+  });
+
+  it.each([undefined, '', '   '])('omits an unavailable company VAT number (%j)', (vatNumber) => {
+    const data = buildQuotePdfDataWith({ customerVatNumber: vatNumber });
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).not.toContain(data.templateLabels.vatNumber);
+  });
+
   it('renders a draft watermark without contact or validity', () => {
     const data = buildQuotePdfDataWith({ isDraft: true });
     const document = buildQuotePdfDocument(data);
