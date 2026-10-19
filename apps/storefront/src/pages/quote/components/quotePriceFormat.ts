@@ -48,3 +48,5 @@ export const formatQuoteConvertedPrice = (
     isConversionRate,
     useCurrentCurrency,
   });
+
+export const formatQuoteUnitPrice = (price: number) => `${formatQuotePrice(price * 100, false)} %`;

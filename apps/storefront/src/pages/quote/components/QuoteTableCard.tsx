@@ -13,8 +13,14 @@ import {
   draftRowQuantityExceedsAvailableToSell,
   getDraftBackorderDisplayFields,
 } from '../utils/getDraftBackorderDisplayFields';
-import { getPackagingMetafieldValue, packagingColumns } from './quotePackaging';
-import { formatQuotePrice } from './quotePriceFormat';
+
+import {
+  formatPackagingQuantity,
+  getPackagingMetafieldValue,
+  packagingColumns,
+} from './quotePackaging';
+import { formatQuotePrice, formatQuoteUnitPrice } from './quotePriceFormat';
+import { isDisambiguationLabel } from './quoteProductOptions';
 
 interface QuoteTableCardProps {
   item: QuoteItem['node'];
@@ -78,12 +84,14 @@ function QuoteTableCard({
   const productFields = getProductOptionsFields(product, {});
 
   const optionList = JSON.parse(item.optionList);
-  const optionsValue: CustomFieldItems[] = productFields.filter((item) => item.valueText);
+  const optionsValue: CustomFieldItems[] = productFields.filter(
+    (item) => item.valueText && !isDisambiguationLabel(item.valueLabel),
+  );
 
   const { productUrl } = productsSearch;
 
   const singlePrice = getDisplayPrice({
-    price: formatQuotePrice(price),
+    price: formatQuoteUnitPrice(price),
     productInfo: item,
     showText: b3Lang('quoteDraft.quoteSummary.tbd'),
   });
@@ -162,6 +170,9 @@ function QuoteTableCard({
             )}
           </Box>
 
+          <Typography>
+            Misura: {getPackagingMetafieldValue(item, 'MISURA', packagingByVariantId)}
+          </Typography>
           <Box sx={{ marginBottom: '1rem' }}>
             {packagingColumns.map((field) => (
               <Typography
@@ -172,7 +183,10 @@ function QuoteTableCard({
                   color: '#455A64',
                 }}
               >
-                {field.title}: {getPackagingMetafieldValue(item, field.key, packagingByVariantId)}
+                {field.title}:{' '}
+                {formatPackagingQuantity(
+                  getPackagingMetafieldValue(item, field.key, packagingByVariantId),
+                )}
               </Typography>
             ))}
           </Box>

@@ -1,4 +1,4 @@
-export type PackagingMetafieldKey = 'SCATOLA' | 'MASTER_CARTON' | 'PALLET';
+export type PackagingMetafieldKey = 'SCATOLA' | 'MASTER_CARTON' | 'PALLET' | 'MISURA';
 
 interface PackagingRow {
   variantId?: number | string;
@@ -58,7 +58,6 @@ export function normalizeQuantityToBoxMultiple(
   packagingByVariantId?: Record<number, Array<{ entityId: number; key: string; value: string }>>,
 ) {
   const boxQuantity = getBoxQuantity(row, packagingByVariantId);
-  console.log('boxQuantity', boxQuantity);
   if (!boxQuantity || quantity <= 0) {
     return quantity;
   }
@@ -87,4 +86,13 @@ export function normalizeQuantityToBoxStep(
   }
 
   return Math.max(boxQuantity, Math.floor(quantity / boxQuantity) * boxQuantity);
+}
+
+export function formatPackagingQuantity(value: string): string {
+  const number = Number(value);
+  return value.trim() && Number.isFinite(number)
+    ? new Intl.NumberFormat('it-IT', { maximumFractionDigits: 20, useGrouping: true }).format(
+        number,
+      )
+    : value;
 }

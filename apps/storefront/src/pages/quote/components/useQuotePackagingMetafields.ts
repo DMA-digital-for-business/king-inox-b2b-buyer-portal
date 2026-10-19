@@ -12,6 +12,7 @@ interface PackagingMetafieldNode {
 interface VariantPackagingNode {
   entityId: number;
   sku?: string | null;
+  dimensions?: { edges?: Array<{ node?: PackagingMetafieldNode | null } | null> } | null;
   metafields?: {
     edges?: Array<{
       node?: PackagingMetafieldNode | null;
@@ -30,6 +31,9 @@ function buildQuotePackagingQuery(items: Array<{ productId: number; variantId: n
             node {
               entityId
               sku
+              dimensions: metafields(namespace: "dimensions", first: 10) {
+                edges { node { entityId key value } }
+              }
               metafields(namespace: "packaging", first: 10) {
                 edges {
                   node {
@@ -70,10 +74,12 @@ function buildPackagingMap(site: Record<string, unknown>): PackagingByVariantId 
 
     if (!variantId) return;
 
-    packagingByVariantId[variantId] =
-      variantNode?.metafields?.edges
-        ?.map((edge) => edge?.node)
-        .filter((node): node is PackagingMetafieldNode => Boolean(node)) || [];
+    packagingByVariantId[variantId] = [
+      ...(variantNode?.metafields?.edges || []),
+      ...(variantNode?.dimensions?.edges || []),
+    ]
+      .map((edge) => edge?.node)
+      .filter((node): node is PackagingMetafieldNode => Boolean(node));
   });
 
   return packagingByVariantId;
@@ -109,7 +115,7 @@ export function useQuotePackagingMetafields(items: QuoteItem[]): PackagingByVari
   useEffect(() => {
     if (packagingTargets.length === 0) {
       setPackagingByVariantId({});
-      return;
+      return undefined;
     }
 
     let cancelled = false;

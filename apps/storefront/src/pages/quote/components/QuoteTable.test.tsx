@@ -1,4 +1,10 @@
-import { buildGlobalStateWith, renderWithProviders, screen } from 'tests/test-utils';
+import {
+  builder,
+  buildGlobalStateWith,
+  faker,
+  renderWithProviders,
+  screen,
+} from 'tests/test-utils';
 import { vi } from 'vitest';
 
 import { Product } from '@/types';
@@ -95,6 +101,7 @@ const withBackorderContextAndMessaging = (featureEnabled: boolean) => ({
   preloadedState: {
     global: buildGlobalStateWith({
       backorderEnabled: true,
+      blockPendingQuoteNonPurchasableOOS: { isEnableProduct: false },
       backorderDisplaySettings: {
         showQuantityOnBackorder: true,
         showQuantityOnHand: false,
@@ -142,21 +149,35 @@ describe('QuoteTable backorder messaging', () => {
 
   it('displays packaging metafield columns and values for each product row', () => {
     const updateSummary = vi.fn();
+    const measure = faker.string.alphanumeric(10);
+    const buildMetafieldWith = builder(() => ({
+      entityId: faker.number.int(),
+      key: 'MISURA',
+      value: measure,
+    }));
 
     renderWithProviders(
       <QuoteTable
         total={1}
-        items={[lineItemWithPackagingMetafields]}
+        items={[
+          {
+            node: { ...lineItemWithPackagingMetafields.node, variantId: 2 },
+          },
+        ]}
+        packagingByVariantId={{ 2: [buildMetafieldWith('WHATEVER_VALUES')] }}
         updateSummary={updateSummary}
       />,
       withBackorderContextAndMessaging(false),
     );
 
+    expect(screen.getByText('Misura')).toBeInTheDocument();
+    expect(screen.getByText(measure)).toBeInTheDocument();
+    expect(screen.getByText(/1[,.]000[,.]00 %/)).toBeInTheDocument();
     expect(screen.getByText('Box')).toBeInTheDocument();
     expect(screen.getByText('M. Carton')).toBeInTheDocument();
     expect(screen.getByText('Pallet')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
-    expect(screen.getByText('2200')).toBeInTheDocument();
-    expect(screen.getByText('86400')).toBeInTheDocument();
+    expect(screen.getByText('2.200')).toBeInTheDocument();
+    expect(screen.getByText('86.400')).toBeInTheDocument();
   });
 });

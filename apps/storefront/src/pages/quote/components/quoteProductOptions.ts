@@ -22,3 +22,7 @@ export function isNotesLabel(label: string | undefined): boolean {
 
   return normalizedLabel === 'note' || normalizedLabel === 'notes';
 }
+
+export function isDisambiguationLabel(label: string | undefined): boolean {
+  return normalizeOptionLabel(label) === 'disambigua';
+}

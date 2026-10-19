@@ -6,7 +6,6 @@ import ceil from 'lodash-es/ceil';
 import BackorderMessage from '@/components/BackorderMessage';
 import { TableColumnItem } from '@/components/table/B3Table';
 import PaginationTable from '@/components/table/PaginationTable';
-import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useBackorderStorefrontMessaging } from '@/hooks/useBackorderStorefrontMessaging';
 import { LangFormatFunction, useB3Lang } from '@/lib/lang';
 import { deleteProductFromDraftQuoteList, setDraftProduct, useAppDispatch } from '@/store';
@@ -31,13 +30,14 @@ import {
 } from '../utils/getDraftBackorderDisplayFields';
 
 import {
+  formatPackagingQuantity,
   getPackagingMetafieldValue,
   normalizeQuantityToBoxMultiple,
   normalizeQuantityToBoxStep,
   packagingColumns,
 } from './quotePackaging';
-import { formatQuotePrice } from './quotePriceFormat';
-import { isYourCodeLabel } from './quoteProductOptions';
+import { formatQuotePrice, formatQuoteUnitPrice } from './quotePriceFormat';
+import { isDisambiguationLabel, isYourCodeLabel } from './quoteProductOptions';
 import QuoteTableCard from './QuoteTableCard';
 import { PackagingByVariantId } from './useQuotePackagingMetafields';
 
@@ -61,12 +61,6 @@ const StyledQuoteTableContainer = styled('div')(() => ({
       },
     },
   },
-}));
-
-const StyledImage = styled('img')(() => ({
-  maxWidth: '60px',
-  height: 'auto',
-  marginRight: '0.5rem',
 }));
 
 const QUOTE_PRODUCT_QTY_MAX = 1000000;
@@ -364,11 +358,8 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
           ? availabilityWarning.warningMessage
           : thresholdWarning;
         const productOptionsValues = getProductOptionsValues(row);
-        const yourCodeOption = productOptionsValues.find(({ valueLabel }) =>
-          isYourCodeLabel(valueLabel),
-        );
         const displayedProductOptions = productOptionsValues.filter(
-          ({ valueLabel }) => !isYourCodeLabel(valueLabel),
+          ({ valueLabel }) => !isYourCodeLabel(valueLabel) && !isDisambiguationLabel(valueLabel),
         );
         const productUrl = row.productsSearch?.productUrl;
 
@@ -437,6 +428,16 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
       width: '30%',
     },
     {
+      key: 'Measure',
+      title: 'Misura',
+      render: (row) => (
+        <Typography sx={{ padding: '12px 0' }}>
+          {getPackagingMetafieldValue(row, 'MISURA', packagingByVariantId)}
+        </Typography>
+      ),
+      width: '10%',
+    },
+    {
       key: 'Price',
       title: b3Lang('quoteDraft.quoteTable.price'),
       render: (row: CustomFieldItems) => {
@@ -450,7 +451,7 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
             }}
           >
             {getDisplayPrice({
-              price: formatQuotePrice(inTaxPrice),
+              price: formatQuoteUnitPrice(inTaxPrice),
               productInfo: row,
               showText: b3Lang('quoteDraft.quoteSummary.tbd'),
             })}
@@ -472,7 +473,9 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
               padding: '12px 0',
             }}
           >
-            {getPackagingMetafieldValue(row, column.key, packagingByVariantId)}
+            {formatPackagingQuantity(
+              getPackagingMetafieldValue(row, column.key, packagingByVariantId),
+            )}
           </Typography>
         ),
         width: '10%',
