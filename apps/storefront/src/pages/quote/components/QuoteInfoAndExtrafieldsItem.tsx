@@ -32,7 +32,7 @@ function QuoteInfoAndExtrafieldsItem({ status, quoteInfo }: QuoteInfoAndExtrafie
       <Typography
         id={titleId}
         sx={{
-          fontWeight: 400,
+          fontWeight: 600,
           fontSize: '24px',
           minHeight: '32px',
         }}

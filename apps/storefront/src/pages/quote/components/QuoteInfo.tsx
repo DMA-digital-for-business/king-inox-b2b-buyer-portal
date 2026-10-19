@@ -98,7 +98,7 @@ function QuoteInfoItem({ flag, title, info, status }: QuoteInfoItemProps) {
       <Typography
         id={titleId}
         sx={{
-          fontWeight: 400,
+          fontWeight: 600,
           fontSize: '24px',
           minHeight: '32px',
         }}

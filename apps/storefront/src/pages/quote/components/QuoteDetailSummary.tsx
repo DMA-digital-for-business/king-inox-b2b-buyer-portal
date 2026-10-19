@@ -111,6 +111,10 @@ export default function QuoteDetailSummary({
   };
 
   const shippingAndTax = getShippingAndTax();
+  const isShippingChosenAtCheckout =
+    Boolean(quoteDetail?.salesRepEmail) &&
+    !quoteDetail?.shippingMethod?.id &&
+    (Number(status) === 1 || Number(status) === 5);
   const isEstimatedTax =
     !quoteDetail?.salesRepEmail && !quoteDetail?.shippingMethod?.id && Number(status) === 1;
 
@@ -196,24 +200,26 @@ export default function QuoteDetailSummary({
 
             {shippingAndTax && (
               <>
-                <Grid
-                  role="row"
-                  container
-                  justifyContent="space-between"
-                  sx={{
-                    margin: '4px 0',
-                  }}
-                >
-                  <Typography
+                {!isShippingChosenAtCheckout && (
+                  <Grid
+                    role="row"
+                    container
+                    justifyContent="space-between"
                     sx={{
-                      maxWidth: '70%',
-                      wordBreak: 'break-word',
+                      margin: '4px 0',
                     }}
                   >
-                    {shippingAndTax.shippingText}
-                  </Typography>
-                  <Typography>{showPrice(shippingAndTax.shippingVal)}</Typography>
-                </Grid>
+                    <Typography
+                      sx={{
+                        maxWidth: '70%',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {shippingAndTax.shippingText}
+                    </Typography>
+                    <Typography>{showPrice(shippingAndTax.shippingVal)}</Typography>
+                  </Grid>
+                )}
                 {Number(status) !== 4 && isBackorderMessagingEnabled && (
                   <ShippingExpectationPrompt
                     backorderEnabled={backorderEnabled}
