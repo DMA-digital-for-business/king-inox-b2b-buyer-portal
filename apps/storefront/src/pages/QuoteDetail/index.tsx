@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Box, Button, Grid } from '@mui/material';
 import copy from 'copy-to-clipboard';
@@ -51,13 +52,17 @@ import {
   QuotePdfData,
   resolveQuotePdfProductUrl,
 } from '../quote/components/quotePdf';
+import { pdfExtraField } from '../quote/components/quotePdfData';
+import { getQuotePdfTemplateLabels } from '../quote/components/quotePdfLabels';
 import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import QuoteTermsAndConditions from '../quote/components/QuoteTermsAndConditions';
+import { useQuotePdfResources } from '../quote/components/useQuotePdfResources';
 import {
   getQuoteValidationErrorMessage,
   QUOTE_VALIDATION_ERROR_CODES,
   QUOTE_VALIDATION_MESSAGE_CONTEXTS,
 } from '../quote/shared/getQuoteValidationErrorMessage';
+import { hasShippingAddress } from '../quote/shared/hasShippingAddress';
 import { buildQuoteStockSnapshot } from '../quote/utils/buildQuoteStockSnapshot';
 import getB2BQuoteExtraFields from '../quote/utils/getQuoteExtraFields';
 import { handleQuoteCheckout } from '../quote/utils/quoteCheckout';
@@ -658,14 +663,27 @@ function QuoteDetail() {
 
   const shouldHidePrice = isBackorderEnabled ? shouldHidePrices : isHideQuoteCheckout;
 
-  const buildCurrentQuotePdfData = (): QuotePdfData => {
-    const isOpened = Number(quoteDetail.status) === 1;
+  const { locale: pdfLocale } = useIntl();
+  const loadPdfResources = useQuotePdfResources({
+    items: productList.map(({ productId, variantId }) => ({ productId, variantId })),
+    companyId: quoteDetail.companyId?.id,
+    companyFields: quoteDetail.companyId?.extraFields,
+  });
+
+  const buildCurrentQuotePdfData = async (): Promise<QuotePdfData> => {
+    const resources = await loadPdfResources();
+    const selectedAddress = resources.addresses.find(
+      ({ id }) => String(id) === String(quoteDetail.shippingAddress?.addressId),
+    );
+    const shippingFields = selectedAddress?.extraFields || quoteDetail.shippingAddress?.extraFields;
+    const isDraft = Number(quoteDetail.status) === 0;
     const tbd = b3Lang('quoteDetail.summary.tbd');
-    const formatPdfPrice = (price: number) =>
+    const formatPdfPrice = (price: number, showCurrencyToken = true) =>
       shouldHidePrice
         ? tbd
         : formatQuoteConvertedPrice(price, {
             currency: displayCurrency,
+            showCurrencyToken,
             isConversionRate: false,
             useCurrentCurrency: !!displayCurrency,
           });
@@ -686,6 +704,8 @@ function QuoteDetail() {
 
       return {
         id: String(product.itemId || product.id || product.variantId),
+        sku: product.variantSku || product.sku,
+        variantData: resources.variants[Number(product.variantId)],
         articleCode: product.productName || '',
         productUrl: resolveQuotePdfProductUrl(
           product.productsSearch?.productUrl || product.productUrl,
@@ -702,7 +722,7 @@ function QuoteDetail() {
           )}`;
         }),
         notes: notes || product.notes || undefined,
-        unitPrice: formatPdfPrice(unitPrice),
+        unitPrice: formatPdfPrice(unitPrice * 100, false),
         quantity: Number(product.quantity),
         totalPrice: formatPdfPrice(unitPrice * Number(product.quantity)),
       };
@@ -734,15 +754,26 @@ function QuoteDetail() {
 
     return {
       storeName,
+      templateLabels: getQuotePdfTemplateLabels(b3Lang),
+      locale: pdfLocale,
+      isDraft,
+      quoteNumber: quoteDetail.quoteNumber,
+      customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
+      currencyCode: displayCurrency?.currencyCode,
+      commercialTerms: {
+        carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),
+        payment: pdfExtraField(shippingFields, 'METODO PAGAMENTO'),
+        packing: pdfExtraField(shippingFields, 'METODO PAGAMENTO IMBALLO'),
+      },
       logoUrl: QUOTE_PDF_LOGO_URL,
       quoteTitle: quoteDetail.quoteTitle || '',
-      referenceNumber: quoteDetail.referenceNumber || quoteDetail.quoteNumber || '',
+      referenceNumber: quoteDetail.referenceNumber || '',
       issuedAt:
-        isOpened && quoteDetail.createdAt
+        !isDraft && quoteDetail.createdAt
           ? String(displayFormat(Number(quoteDetail.createdAt)))
           : undefined,
       expirationDate:
-        isOpened && quoteDetail.expiredAt
+        !isDraft && quoteDetail.expiredAt
           ? String(displayFormat(Number(quoteDetail.expiredAt)))
           : undefined,
       contactInfo: quoteDetail.contactInfo || {},
@@ -789,9 +820,13 @@ function QuoteDetail() {
   };
 
   const exportPdf = async () => {
+    if (!hasShippingAddress(quoteDetail.shippingAddress)) {
+      snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequiredForPdf'));
+      return;
+    }
     setIsRequestLoading(true);
     try {
-      await downloadQuotePdf(buildCurrentQuotePdfData());
+      await downloadQuotePdf(await buildCurrentQuotePdfData());
     } catch {
       snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
     } finally {
@@ -808,7 +843,7 @@ function QuoteDetail() {
 
     setIsRequestLoading(true);
     try {
-      await printQuotePdf(buildCurrentQuotePdfData(), printWindow);
+      await printQuotePdf(await buildCurrentQuotePdfData(), printWindow);
     } catch {
       printWindow.close();
       snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));

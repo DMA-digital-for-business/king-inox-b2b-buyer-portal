@@ -183,6 +183,36 @@ describe('when the user is a B2B customer', () => {
     expect(await screen.findByText('Quote #911911')).toBeInTheDocument();
   });
 
+  it('shows a warning instead of downloading the saved quote PDF without a shipping address', async () => {
+    const quote = buildQuoteWith({
+      data: { quote: { id: '272989', status: 1, shippingAddress: { address: '' } } },
+    });
+    server.use(
+      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+      graphql.query('SearchProducts', () =>
+        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+      ),
+      graphql.query('getQuoteExtraFields', () =>
+        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+      ),
+    );
+    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+    renderWithProviders(<QuoteDetail />, {
+      preloadedState: {
+        ...preloadedState,
+        company: buildCompanyStateWith({
+          companyInfo: { status: CompanyStatus.APPROVED },
+          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+        }),
+      },
+    });
+    await userEvent.click(await screen.findByRole('button', { name: /Download/ }));
+    expect(
+      await screen.findByText('A shipping address is required before downloading the quote.'),
+    ).toBeInTheDocument();
+    expect(downloadQuotePdf).not.toHaveBeenCalled();
+  });
+
   it('downloads and prints the quote with the client-side PDF generator', async () => {
     const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
     const yourCode = faker.string.alphanumeric();
@@ -232,6 +262,11 @@ describe('when the user is a B2B customer', () => {
     vitest.mocked(printQuotePdf).mockResolvedValue();
 
     server.use(
+      graphql.query('GetQuotePdfVariants', () => HttpResponse.json({ data: { site: {} } })),
+      graphql.query('GetQuotePdfAddresses', () =>
+        HttpResponse.json({ data: { addresses: { edges: [], pageInfo: { hasNextPage: false } } } }),
+      ),
+      graphql.query('GetQuotePdfCompany', () => HttpResponse.json({ data: { pdfCompany: null } })),
       graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
       graphql.query('SearchProducts', () =>
         HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
@@ -265,6 +300,7 @@ describe('when the user is a B2B customer', () => {
           lines: expect.arrayContaining([
             expect.objectContaining({
               articleCode: product.productName,
+              unitPrice: expect.not.stringMatching(/\p{Sc}/u),
               dimensions,
               yourCode,
               packaging: expect.arrayContaining([

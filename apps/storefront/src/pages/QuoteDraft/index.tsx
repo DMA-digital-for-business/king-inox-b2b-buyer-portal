@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew, Download } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material';
@@ -78,17 +79,21 @@ import {
   QuotePdfData,
   resolveQuotePdfProductUrl,
 } from '../quote/components/quotePdf';
+import { pdfExtraField } from '../quote/components/quotePdfData';
+import { getQuotePdfTemplateLabels } from '../quote/components/quotePdfLabels';
 import { formatQuotePrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
 import QuoteSubmissionResponse from '../quote/components/QuoteSubmissionResponse';
 import QuoteSummary from '../quote/components/QuoteSummary';
 import QuoteTable from '../quote/components/QuoteTable';
 import { useQuotePackagingMetafields } from '../quote/components/useQuotePackagingMetafields';
+import { useQuotePdfResources } from '../quote/components/useQuotePdfResources';
 import getAccountFormFields from '../quote/config';
 import {
   getQuoteValidationErrorMessage,
   QUOTE_VALIDATION_ERROR_CODES,
 } from '../quote/shared/getQuoteValidationErrorMessage';
+import { hasShippingAddress } from '../quote/shared/hasShippingAddress';
 import getQuoteDraftShowPriceTBD from '../quote/shared/utils';
 import Container from '../quote/style';
 import getB2BQuoteExtraFields from '../quote/utils/getQuoteExtraFields';
@@ -156,9 +161,6 @@ const billingAddress = {
   zipCode: '',
   companyName: '',
 };
-
-const hasShippingAddress = (address: Partial<ShippingAddress> | undefined): boolean =>
-  typeof address?.address === 'string' && address.address.trim().length > 0;
 
 function QuoteDraft({ setOpenPage }: PageProps) {
   const {
@@ -531,6 +533,20 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     return info;
   };
 
+  const { locale: pdfLocale } = useIntl();
+  const loadPdfResources = useQuotePdfResources({
+    items: draftQuoteList.map(({ node }) => ({
+      productId: node.productId,
+      variantId: node.variantId,
+    })),
+    companyId: isB2BUser
+      ? selectCompanyHierarchyId || companyB2BId || salesRepCompanyId
+      : undefined,
+    userId: customer.b2bId,
+    customerId: customer.id,
+    masquerading: !!salesRepCompanyId,
+  });
+
   const handleDownloadPdf = async () => {
     if (isGeneratingPdf) return;
 
@@ -538,6 +554,15 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
     try {
       const info = getCurrentQuoteInfoForPdf();
+      if (!hasShippingAddress(info.shippingAddress)) {
+        snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequiredForPdf'));
+        return;
+      }
+      const resources = await loadPdfResources();
+      const selectedAddress = resources.addresses.find(
+        ({ id }) => String(id) === String(info.shippingAddress?.addressId),
+      );
+      const shippingFields = selectedAddress?.extraFields || info.shippingAddress?.extraFields;
       const hidePrices = getQuoteDraftShowPriceTBD(draftQuoteList);
       const summary = calculateQuoteSummary(draftQuoteList, showInclusiveTaxPrice);
       const tbd = b3Lang('quoteDraft.quoteSummary.tbd');
@@ -564,6 +589,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
         return {
           id: node.id,
+          sku: node.variantSku,
+          variantData: resources.variants[Number(node.variantId)],
           articleCode: node.productName || '',
           productUrl: resolveQuotePdfProductUrl(
             node.productsSearch?.productUrl,
@@ -575,7 +602,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           notes,
           unitPrice: String(
             getDisplayPrice({
-              price: formatQuotePrice(price),
+              price: formatQuotePrice(price * 100, false),
               productInfo: node,
               showText: tbd,
             }),
@@ -593,6 +620,16 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       const pdfData: QuotePdfData = {
         storeName,
+        templateLabels: getQuotePdfTemplateLabels(b3Lang),
+        locale: pdfLocale,
+        isDraft: true,
+        customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
+        currencyCode: currency.currency_code,
+        commercialTerms: {
+          carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),
+          payment: pdfExtraField(shippingFields, 'METODO PAGAMENTO'),
+          packing: pdfExtraField(shippingFields, 'METODO PAGAMENTO IMBALLO'),
+        },
         logoUrl: QUOTE_PDF_LOGO_URL,
         quoteTitle: info.contactInfo?.quoteTitle || '',
         referenceNumber: info.referenceNumber || '',

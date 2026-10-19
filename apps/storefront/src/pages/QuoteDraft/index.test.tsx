@@ -430,7 +430,7 @@ it('displays a page title of "Quote" and label "Draft"', async () => {
   expect(screen.getByText('Draft')).toBeInTheDocument();
 });
 
-it('downloads one PDF with the current unsaved quote information', async () => {
+it('shows a warning instead of downloading a PDF when no shipping address is selected', async () => {
   server.use(
     graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
     graphql.query('Addresses', () =>
@@ -440,11 +440,48 @@ it('downloads one PDF with the current unsaved quote information', async () => {
       HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
     ),
   );
+  const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteInfo: { shippingAddress: buildAddressWith({ address: '   ' }) },
+  });
+  renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+    preloadedState: {
+      ...preloadedState,
+      quoteInfo,
+      company: buildCompanyStateWith({
+        companyInfo: { status: CompanyStatus.APPROVED },
+        customer: {
+          userType: UserTypes.MULTIPLE_B2C,
+          role: CustomerRole.SENIOR_BUYER,
+          emailAddress: customerEmail,
+        },
+        permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+      }),
+    },
+  });
+  await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }));
+  expect(
+    await screen.findByText('A shipping address is required before downloading the quote.'),
+  ).toBeInTheDocument();
+  expect(downloadQuotePdf).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+});
 
+it('downloads one PDF with the current unsaved quote information', async () => {
+  const measure = faker.string.alphanumeric();
+  const code = faker.string.alphanumeric();
+  const carriage = faker.lorem.words();
+  const payment = faker.lorem.words();
+  const packing = faker.lorem.words();
   const yourCodeOptionId = faker.number.int();
   const yourCode = faker.string.alphanumeric();
   const draftProduct = buildDraftQuoteItemWith({
     node: {
+      productId: faker.number.int({ min: 1, max: 10000 }),
+      variantId: faker.number.int({ min: 1, max: 10000 }),
+      variantSku: faker.string.alphanumeric(),
+      basePrice: 1.25,
+      taxPrice: 0,
+      quantity: 20,
       optionList: JSON.stringify([
         { optionId: `attribute[${yourCodeOptionId}]`, optionValue: yourCode },
       ]),
@@ -468,18 +505,94 @@ it('downloads one PDF with the current unsaved quote information', async () => {
     draftQuoteList: [draftProduct],
     draftQuoteInfo: {
       billingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
-      shippingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
+      shippingAddress: buildAddressWith({ country: fakeCountry.countryCode, addressId: 51 }),
     },
   });
   const company = buildCompanyStateWith({
-    companyInfo: { status: CompanyStatus.APPROVED },
+    companyInfo: {
+      id: String(faker.number.int({ min: 1, max: 10000 })),
+      status: CompanyStatus.APPROVED,
+    },
     customer: {
+      b2bId: faker.number.int({ min: 1, max: 10000 }),
       userType: UserTypes.MULTIPLE_B2C,
       role: CustomerRole.SENIOR_BUYER,
       emailAddress: customerEmail,
     },
     permissions: [{ code: 'create_quote', permissionLevel: 2 }],
   });
+  const firstAddressPage = bulk(buildAddressWith, 'WHATEVER_VALUES')
+    .times(50)
+    .map((address, index) => ({ node: { ...address, id: index + 1 } }));
+  server.use(
+    graphql.query('GetQuotePdfVariants', () =>
+      HttpResponse.json({
+        data: {
+          site: {
+            p0: {
+              variants: {
+                edges: [
+                  {
+                    node: {
+                      entityId: draftProduct.node.variantId,
+                      sku: draftProduct.node.variantSku,
+                      dimensions: { edges: [{ node: { key: 'MISURA', value: measure } }] },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    ),
+    graphql.query('GetQuotePdfAddresses', ({ query }) => {
+      expect(query).toContain('first: 50');
+      if (query.includes('offset: 0')) {
+        return HttpResponse.json({
+          data: { addresses: { edges: firstAddressPage, pageInfo: { hasNextPage: true } } },
+        });
+      }
+      expect(query).toContain('offset: 50');
+      return HttpResponse.json({
+        data: {
+          addresses: {
+            edges: [
+              {
+                node: {
+                  id: quoteInfo.draftQuoteInfo.shippingAddress.addressId,
+                  extraFields: [
+                    { fieldName: 'SPEDIZIONE', fieldValue: carriage },
+                    { fieldName: 'METODO PAGAMENTO', fieldValue: payment },
+                    { fieldName: 'METODO PAGAMENTO IMBALLO', fieldValue: packing },
+                  ],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false },
+          },
+        },
+      });
+    }),
+    graphql.query('GetQuotePdfCompany', () =>
+      HttpResponse.json({
+        data: {
+          pdfCompany: {
+            id: company.companyInfo.id,
+            extraFields: [{ fieldName: 'CODICE CLIENTE ERP', fieldValue: code }],
+          },
+        },
+      }),
+    ),
+    graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
+    graphql.query('Addresses', () =>
+      HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
+    ),
+    graphql.query('getQuoteExtraFields', () =>
+      HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
+    ),
+  );
+
   const editedTitle = faker.commerce.productName();
   let finishDownload: (() => void) | undefined;
   vi.mocked(downloadQuotePdf).mockImplementation(
@@ -501,12 +614,22 @@ it('downloads one PDF with the current unsaved quote information', async () => {
   expect(downloadButton).toHaveStyle({ color: '#ff7a1a', borderColor: '#ff7a1a' });
   await userEvent.click(downloadButton);
 
-  expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(downloadQuotePdf).toHaveBeenCalledTimes(1));
   expect(downloadQuotePdf).toHaveBeenCalledWith(
     expect.objectContaining({
       logoUrl: expect.stringContaining('logo-king-inox'),
       quoteTitle: editedTitle,
-      lines: [expect.objectContaining({ yourCode })],
+      isDraft: true,
+      customerCode: code,
+      commercialTerms: { carriage, payment, packing },
+      lines: [
+        expect.objectContaining({
+          yourCode,
+          unitPrice: '125.00',
+          totalPrice: '$25.00',
+          variantData: expect.objectContaining({ dimensions: { MISURA: measure } }),
+        }),
+      ],
     }),
   );
 

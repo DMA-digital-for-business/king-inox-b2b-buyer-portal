@@ -26,6 +26,7 @@ export interface BillingAddress {
 }
 
 export interface ShippingAddress {
+  extraFields?: Array<{ fieldName: string; fieldValue: string }>;
   address: string;
   addressId: number;
   apartment: string;

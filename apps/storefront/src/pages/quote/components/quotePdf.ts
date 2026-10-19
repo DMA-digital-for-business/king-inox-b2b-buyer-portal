@@ -1,9 +1,10 @@
 import type {
-  Column,
   Content,
-  ContentStack,
+  ContentCanvas,
   ContentTable,
+  ContentText,
   TableCell,
+  TableCellProperties,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
 
@@ -14,12 +15,16 @@ import type {
   ShippingAddress,
 } from '@/types/quotes';
 
+import { type PdfVariantData, quotePdfDelivery } from './quotePdfData';
+import type { QuotePdfTemplateLabels } from './quotePdfLabels';
 import { isNotesLabel, isYourCodeLabel } from './quoteProductOptions';
 import type { PackagingByVariantId } from './useQuotePackagingMetafields';
 
 export interface QuotePdfLine {
   id: string;
   articleCode: string;
+  sku?: string;
+  variantData?: PdfVariantData;
   productUrl?: string;
   dimensions: string[];
   yourCode?: string;
@@ -65,6 +70,13 @@ export interface QuotePdfSummary {
 
 export interface QuotePdfData {
   storeName: string;
+  templateLabels: QuotePdfTemplateLabels;
+  locale: string;
+  isDraft: boolean;
+  quoteNumber?: string;
+  customerCode?: string;
+  currencyCode?: string;
+  commercialTerms?: { carriage?: string; payment?: string; packing?: string };
   logoUrl?: string;
   quoteTitle: string;
   referenceNumber: string;
@@ -98,20 +110,26 @@ export const QUOTE_PDF_LOGO_URL = new URL(
 ).href;
 
 const COLORS = {
-  primary: '#263238',
-  secondary: '#607D8B',
-  border: '#D9DCE9',
-  tableHeader: '#ECEFF1',
+  primary: '#2b3138',
+  secondary: '#6b7278',
+  border: '#e3e7eb',
+  tableHeader: '#eef2f8',
   white: '#FFFFFF',
+  accent: '#3f6aa0',
 };
 
 function displayValue(value: unknown): string {
-  if (value === undefined || value === null || value === '') return '-';
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim()))
+    return '—';
   return String(value);
 }
 
-function labeledValue(label: string, value: string): string {
-  return `${label.replace(/:\s*$/, '')}: ${value}`;
+function formatPdfQuantity(value: string | number | undefined): string {
+  const normalized = typeof value === 'number' ? String(value) : value?.trim();
+  if (normalized && /^\d+$/.test(normalized)) {
+    return new Intl.NumberFormat('it-IT', { useGrouping: true }).format(Number(normalized));
+  }
+  return displayValue(value);
 }
 
 function compactLines(values: unknown[]): string[] {
@@ -154,111 +172,140 @@ export function resolveQuotePdfProductUrl(
   }
 }
 
-function addressLines(address: Partial<BillingAddress> | Partial<ShippingAddress>): string[] {
-  const fullName = compactLines([address.firstName, address.lastName]).join(' ');
-  const cityLine = compactLines([address.zipCode, address.city, address.state]).join(', ');
-
-  return compactLines([
-    address.label,
-    fullName,
-    address.companyName,
-    address.address,
-    address.apartment,
-    cityLine,
-    address.country,
-    address.phoneNumber,
-  ]);
+function formatPdfDate(value: string, locale: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(
+    new Date(Date.UTC(year, month - 1, day)),
+  );
 }
 
-function section(title: string, lines: string[]): ContentStack {
+function buildProductCell(line: QuotePdfLine, data: QuotePdfData): Content {
+  const measure =
+    line.variantData?.dimensions.MISURA?.trim() || compactLines(line.dimensions).join('X');
   return {
     stack: [
-      { text: title, style: 'sectionTitle' },
-      ...(lines.length ? lines : ['-']).map((text) => ({ text, style: 'detailLine' })),
+      {
+        text: [
+          { text: line.articleCode, ...(line.productUrl ? { link: line.productUrl } : {}) },
+          ...(measure ? [{ text: ` - ${measure}` }] : []),
+          ...(line.notes ? [{ text: ` - ${line.notes}` }] : []),
+        ],
+        bold: true,
+      },
+      {
+        text: displayValue(line.variantData?.sku || line.sku),
+        color: COLORS.accent,
+        fontSize: 7,
+        margin: [0, 2, 0, 0],
+      },
+      ...(line.yourCode
+        ? [
+            {
+              text: `${data.templateLabels.yourCode}: ${line.yourCode}`,
+              fontSize: 7,
+              color: COLORS.secondary,
+              margin: [0, 2, 0, 0],
+            } as Content,
+          ]
+        : []),
     ],
-    margin: [0, 0, 10, 0],
   };
 }
 
-function buildProductCell(line: QuotePdfLine): Content {
-  const dimensions = compactLines(line.dimensions).join('X');
-  const productDetails = [
-    {
-      text: line.articleCode,
-      ...(line.productUrl ? { link: line.productUrl } : {}),
-    },
-    ...(dimensions ? [{ text: ` - ${dimensions}` }] : []),
-    ...(line.notes ? [{ text: ` - ${line.notes}` }] : []),
-  ];
-  const packaging = compactLines(line.packaging).join('; ');
-  const details: Content[] = [
-    { text: productDetails, bold: true, color: COLORS.primary, fontSize: 9 },
-    ...(line.yourCode
-      ? [
-          {
-            text: `Il vostro codice: ${line.yourCode}`,
-            color: COLORS.primary,
-            fontSize: 9,
-            margin: [0, 2, 0, 0],
-          } as Content,
-        ]
-      : []),
-    ...(packaging
-      ? [
-          {
-            text: packaging,
-            color: COLORS.secondary,
-            fontSize: 8,
-            lineHeight: 1.15,
-            margin: [0, 2, 0, 0],
-          } as Content,
-        ]
-      : []),
-  ];
-
-  return { stack: details };
-}
-
 function buildProductsTable(data: QuotePdfData): ContentTable {
-  const { labels } = data;
-  const header: TableCell[] = [
-    { text: labels.product, style: 'tableHeader' },
-    { text: labels.price, style: 'tableHeader', alignment: 'right' },
-    { text: labels.quantity, style: 'tableHeader', alignment: 'right' },
-    { text: labels.total, style: 'tableHeader', alignment: 'right' },
+  const t = data.templateLabels;
+  const header = (
+    text: string,
+    extra: Partial<ContentText & TableCellProperties> = {},
+  ): TableCell => ({
+    text,
+    bold: true,
+    color: COLORS.accent,
+    fillColor: COLORS.tableHeader,
+    ...extra,
+  });
+  const body: TableCell[][] = [
+    [
+      header(t.description, { rowSpan: 2 }),
+      header(t.packing, { colSpan: 3, alignment: 'center' }),
+      {},
+      {},
+      header(t.unit, { rowSpan: 2 }),
+      header(t.quantity, { rowSpan: 2, alignment: 'right' }),
+      header(data.labels.price, { rowSpan: 2, alignment: 'right' }),
+      header(t.amount, { rowSpan: 2, alignment: 'right' }),
+      header(t.delivery, { rowSpan: 2, alignment: 'center' }),
+    ],
+    [
+      {},
+      ...['Box', 'Bulk', 'Pallet'].map((text) => ({
+        text,
+        bold: true,
+        fontSize: 7,
+        alignment: 'center' as const,
+        color: COLORS.white,
+        fillColor: COLORS.accent,
+      })),
+      {},
+      {},
+      {},
+      {},
+      {},
+    ],
   ];
-
-  const body: TableCell[][] = [header];
-
-  if (!data.lines.length) {
-    body.push([{ text: labels.noProducts, colSpan: 4, margin: [0, 8] }, {}, {}, {}]);
-  } else {
-    data.lines.forEach((line) => {
-      body.push([
-        buildProductCell(line),
-        { text: line.unitPrice, alignment: 'right', margin: [0, 4, 0, 0] },
-        { text: String(line.quantity), alignment: 'right', margin: [0, 4, 0, 0] },
-        { text: line.totalPrice, alignment: 'right', bold: true, margin: [0, 4, 0, 0] },
-      ]);
-    });
-  }
-
+  data.lines.forEach((line) => {
+    const delivery = quotePdfDelivery(line.variantData?.stock || {}, line.quantity);
+    let deliveryText = '—';
+    if (delivery === 'onRequest') deliveryText = t.onRequest;
+    else if (delivery === 'ready') deliveryText = t.ready;
+    else if (delivery) deliveryText = formatPdfDate(delivery, data.locale);
+    body.push([
+      buildProductCell(line, data),
+      ...['SCATOLA', 'MASTER_CARTON', 'PALLET'].map((key) => ({
+        text: formatPdfQuantity(line.variantData?.packaging[key]),
+        alignment: 'center' as const,
+        fontSize: 7,
+      })),
+      { text: 'N.', alignment: 'center' },
+      {
+        text: formatPdfQuantity(line.quantity),
+        alignment: 'right',
+        bold: true,
+      },
+      { text: `${line.unitPrice} %`, alignment: 'right' },
+      { text: line.totalPrice, alignment: 'right', bold: true },
+      {
+        text: deliveryText,
+        alignment: 'center',
+        color: COLORS.accent,
+        fontSize: 7,
+      },
+    ]);
+  });
+  if (!data.lines.length)
+    body.push([{ text: data.labels.noProducts, colSpan: 9 }, {}, {}, {}, {}, {}, {}, {}, {}]);
   return {
+    margin: [0, 18, 0, 0],
     table: {
-      headerRows: 1,
+      headerRows: 2,
       dontBreakRows: true,
       keepWithHeaderRows: 1,
-      widths: ['*', 72, 42, 72],
+      widths: ['*', 29, 31, 34, 19, 42, 48, 49, 52],
       body,
     },
     layout: {
-      fillColor: (rowIndex: number) => (rowIndex === 0 ? COLORS.tableHeader : null),
-      hLineColor: () => COLORS.border,
-      vLineColor: () => COLORS.border,
-      paddingLeft: () => 7,
-      paddingRight: () => 7,
-      paddingTop: () => 7,
-      paddingBottom: () => 7,
+      hLineWidth: (index: number) => {
+        if (index === 2) return 1;
+        return index < 2 ? 0 : 0.4;
+      },
+      hLineColor: (index: number) => (index === 2 ? COLORS.accent : COLORS.border),
+      vLineWidth: (index: number) => (index === 1 || index === 4 ? 0.5 : 0),
+      vLineColor: () => COLORS.accent,
+      paddingLeft: () => 4,
+      paddingRight: () => 4,
+      paddingTop: () => 5,
+      paddingBottom: () => 5,
     },
   };
 }
@@ -267,143 +314,394 @@ export function buildQuotePdfDocument(
   data: QuotePdfData,
   images: EmbeddedImages = {},
 ): TDocumentDefinitions {
-  const { labels } = data;
-  const quoteInfoLines = [
-    `${labels.title}: ${displayValue(data.quoteTitle)}`,
-    `${labels.reference}: ${displayValue(data.referenceNumber)}`,
-    ...(data.issuedAt && labels.issuedOn ? [labeledValue(labels.issuedOn, data.issuedAt)] : []),
-    ...(data.expirationDate && labels.expirationDate
-      ? [labeledValue(labels.expirationDate, data.expirationDate)]
-      : []),
-    ...data.recipients.map((recipient) => `${labels.cc}: ${recipient}`),
-    ...data.extraFields.map(
-      (field) => `${displayValue(field.fieldName)}: ${displayValue(field.value)}`,
-    ),
-  ];
-  const buyerLines = compactLines([
-    data.contactInfo.name,
-    data.contactInfo.companyName,
-    data.contactInfo.email,
-    data.contactInfo.phoneNumber,
-  ]);
-
-  const logo = (
-    images.logo
-      ? { image: images.logo, fit: [150, 55], alignment: 'left', width: '*' as const }
-      : { text: displayValue(data.storeName), style: 'storeName', width: '*' as const }
-  ) as Column;
-  const buyerSection: Column = { ...section(labels.buyerInfo, buyerLines), width: '*' };
-  const quoteSection: Column = { ...section(labels.quoteInfo, quoteInfoLines), width: '*' };
-  const billingSection: Column = {
-    ...section(labels.billing, addressLines(data.billingAddress)),
-    width: '*',
-  };
-  const shippingSection: Column = {
-    ...section(labels.shipping, addressLines(data.shippingAddress)),
-    width: '*',
-  };
-
+  const t = data.templateLabels;
+  const address = data.billingAddress;
+  const date = data.isDraft
+    ? new Intl.DateTimeFormat(data.locale).format(new Date())
+    : displayValue(data.issuedAt);
+  const weightValues = data.lines.map((line) => {
+    const raw = line.variantData?.dimensions.PESO?.trim();
+    const weight = raw ? Number(raw.replace(',', '.')) : NaN;
+    return Number.isFinite(weight) && weight >= 0 ? weight * line.quantity : NaN;
+  });
+  const totalWeight =
+    weightValues.length && weightValues.every(Number.isFinite)
+      ? `${new Intl.NumberFormat(data.locale, { maximumFractionDigits: 3 }).format(weightValues.reduce((sum, weight) => sum + weight, 0))} kg`
+      : '—';
+  const rule = (width: number, color: string, thickness: number): ContentCanvas => ({
+    canvas: [
+      { type: 'line', x1: 0, y1: 0, x2: width, y2: 0, lineWidth: thickness, lineColor: color },
+    ],
+  });
+  const keyClause = (label: string, text: string): Content => ({
+    columns: [
+      {
+        text: label.toLocaleUpperCase(data.locale),
+        width: 80,
+        bold: true,
+        color: COLORS.accent,
+        fontSize: 7,
+      },
+      { text, width: '*' },
+    ],
+    columnGap: 9,
+    margin: [8, 4, 0, 0],
+  });
+  const term = (label: string, value?: string): Content => ({
+    text: [{ text: `${label}: `, bold: true, color: COLORS.accent }, { text: displayValue(value) }],
+    margin: [0, 3, 0, 0],
+  });
   return {
     pageSize: 'A4',
-    pageMargins: [36, 40, 36, 46],
+    pageMargins: [40, 37, 40, 48],
     info: {
-      title: data.quoteTitle || labels.quote,
-      subject: labels.quote,
-      author: data.storeName,
-      creator: data.storeName,
+      title: data.quoteTitle || t.offer,
+      subject: t.offer,
+      author: 'KING S.p.A.',
+      creator: 'KING S.p.A.',
     },
     defaultStyle: {
-      font: 'Roboto',
-      fontSize: 9,
+      font: data.locale.startsWith('zh') ? 'KingSansSC' : 'Roboto',
+      fontSize: 8,
       color: COLORS.primary,
     },
-    background: {
-      canvas: [
-        {
-          type: 'rect',
-          x: 0,
-          y: 0,
-          w: 595.28,
-          h: 841.89,
-          color: COLORS.white,
-        },
-      ],
-    },
+    ...(data.isDraft
+      ? {
+          watermark: {
+            text: data.labels.draft.toLocaleUpperCase(data.locale),
+            color: COLORS.accent,
+            opacity: 0.05,
+            bold: true,
+            angle: -24,
+            fontSize: 100,
+          },
+        }
+      : {}),
     footer: (currentPage, pageCount) => ({
-      text: `${labels.page} ${currentPage} ${labels.of} ${pageCount}`,
-      alignment: 'center',
+      columns: [
+        { text: t.disclaimer, width: '*' },
+        { text: `${currentPage} / ${pageCount}`, width: 40, alignment: 'right' },
+      ],
+      columnGap: 10,
       color: COLORS.secondary,
-      fontSize: 8,
-      margin: [0, 14, 0, 0],
+      fontSize: 6.5,
+      margin: [40, 14, 40, 0],
     }),
-    styles: {
-      storeName: { fontSize: 18, bold: true, color: COLORS.primary },
-      documentTitle: { fontSize: 22, bold: true, color: COLORS.primary },
-      draft: { fontSize: 10, bold: true, color: COLORS.secondary },
-      sectionHeading: { fontSize: 14, bold: true, color: COLORS.primary },
-      sectionTitle: { fontSize: 10, bold: true, color: COLORS.secondary, margin: [0, 0, 0, 5] },
-      detailLine: { fontSize: 9, margin: [0, 1, 0, 0] },
-      tableHeader: { fontSize: 9, bold: true, color: COLORS.primary },
-      summaryLabel: { fontSize: 9, color: COLORS.secondary },
-      summaryValue: { fontSize: 9, alignment: 'right' },
-      summaryTotal: { fontSize: 11, bold: true, alignment: 'right' },
-    },
     content: [
       {
         columns: [
-          logo,
           {
-            width: 180,
-            alignment: 'right',
-            stack: [
-              { text: labels.quote, style: 'documentTitle' },
-              { text: data.draftLabel || labels.draft, style: 'draft', margin: [0, 4, 0, 0] },
+            width: 240,
+            columns: [
+              ...(images.logo
+                ? [{ image: images.logo, fit: [85, 85] as [number, number], width: 88 }]
+                : []),
+              {
+                stack: [
+                  { text: 'KING', fontSize: 32, bold: true },
+                  { text: 'Stainless steel fasteners', bold: true, fontSize: 8 },
+                  {
+                    text: 'www.king-inox.it',
+                    color: COLORS.accent,
+                    bold: true,
+                    fontSize: 9,
+                    margin: [0, 3, 0, 0],
+                  },
+                ],
+              },
             ],
           },
+          {
+            width: '*',
+            fontSize: 7,
+            lineHeight: 1.35,
+            columns: [
+              {
+                stack: [
+                  { text: 'KING S.p.A.', bold: true },
+                  'Via Abruzzo, 2',
+                  '20073 OPERA - MI - ITALIA',
+                  'Tel. +39 02 57606482',
+                  'info@king-inox.it',
+                ],
+              },
+              {
+                stack: [
+                  'Cap. Soc. 500.000 € i.v.',
+                  'R.E.A. Milano 760791',
+                  'P.IVA IT 00738100155',
+                  'R.I. MI e C.F. 00738100155',
+                  'SDI MZO2A0U',
+                ],
+              },
+            ],
+            columnGap: 10,
+          },
         ],
-        margin: [0, 0, 0, 22],
+        columnGap: 10,
+        margin: [0, 0, 0, 12],
       },
-      {
-        columns: [buyerSection, quoteSection],
-        columnGap: 14,
-        margin: [0, 0, 0, 18],
-      },
-      {
-        columns: [billingSection, shippingSection],
-        columnGap: 14,
-        margin: [0, 0, 0, 22],
-      },
-      { text: labels.products, style: 'sectionHeading', margin: [0, 0, 0, 9] },
-      buildProductsTable(data),
+      rule(515, COLORS.primary, 2),
+      { ...rule(196, COLORS.accent, 2.6), margin: [0, 4, 0, 14] },
       {
         columns: [
-          { text: '', width: '*' },
           {
-            width: 220,
-            margin: [0, 20, 0, 0],
+            width: '*',
+            stack: [
+              {
+                text: `OPERA, ${date}`,
+                bold: true,
+                color: COLORS.secondary,
+                margin: [0, 0, 0, 10],
+              },
+              {
+                text: [
+                  { text: `${t.offer} n. ` },
+                  {
+                    text: data.isDraft
+                      ? data.labels.draft.toLocaleUpperCase(data.locale)
+                      : displayValue(data.quoteNumber),
+                    bold: true,
+                    fontSize: 15,
+                    color: COLORS.accent,
+                  },
+                ],
+              },
+              ...(data.referenceNumber
+                ? [
+                    {
+                      text: `${data.labels.reference.replace(/:\s*$/, '')}: ${data.referenceNumber}`,
+                      margin: [0, 6, 0, 0],
+                    } as Content,
+                  ]
+                : []),
+              ...(!data.isDraft
+                ? [
+                    {
+                      margin: [0, 8, 14, 0],
+                      table: {
+                        widths: ['*'],
+                        body: [
+                          [
+                            {
+                              fillColor: COLORS.tableHeader,
+                              stack: [
+                                {
+                                  text: t.contact.toLocaleUpperCase(data.locale),
+                                  fontSize: 6.5,
+                                  bold: true,
+                                  color: COLORS.accent,
+                                },
+                                {
+                                  text: 'Matteo Cha',
+                                  bold: true,
+                                  fontSize: 9,
+                                  margin: [0, 2, 0, 0],
+                                },
+                                {
+                                  text: 'Tel. +39 02 5760 6482 · m.cha@king-inox.it',
+                                  fontSize: 7,
+                                  margin: [0, 2, 0, 0],
+                                },
+                              ],
+                            },
+                          ],
+                        ],
+                      },
+                      layout: 'noBorders',
+                    } as Content,
+                  ]
+                : []),
+            ],
+          },
+          {
+            width: 200,
             table: {
-              widths: ['*', 85],
+              widths: ['*'],
               body: [
-                [{ text: labels.summary, bold: true, colSpan: 2, margin: [0, 2, 0, 6] }, {}],
                 [
-                  { text: labels.subtotal, style: 'summaryLabel' },
-                  { text: data.summary.subtotal, style: 'summaryValue' },
-                ],
-                [
-                  { text: labels.shipping, style: 'summaryLabel' },
-                  { text: data.summary.shipping, style: 'summaryValue' },
-                ],
-                [
-                  { text: labels.tax, style: 'summaryLabel' },
-                  { text: data.summary.tax, style: 'summaryValue' },
-                ],
-                [
-                  { text: labels.grandTotal, bold: true, margin: [0, 6, 0, 0] },
-                  { text: data.summary.grandTotal, style: 'summaryTotal', margin: [0, 6, 0, 0] },
+                  {
+                    border: [true, false, false, false],
+                    stack: [
+                      { text: t.to, bold: true, fontSize: 7, color: COLORS.accent },
+                      {
+                        text: displayValue(address.companyName || data.contactInfo.companyName),
+                        fontSize: 12,
+                        bold: true,
+                        color: COLORS.accent,
+                        margin: [0, 3, 0, 3],
+                      },
+                      ...compactLines([
+                        address.address,
+                        address.apartment,
+                        compactLines([address.zipCode, address.city, address.state]).join(' '),
+                        address.country,
+                      ]).map((text): Content => ({ text, margin: [0, 1, 0, 0] })),
+                      {
+                        text: `${t.customerCode}: ${displayValue(data.customerCode)}`,
+                        fontSize: 7,
+                        margin: [0, 5, 0, 0],
+                      },
+                    ],
+                  },
                 ],
               ],
             },
-            layout: 'noBorders',
+            layout: { vLineColor: () => COLORS.accent, vLineWidth: () => 2, paddingLeft: () => 9 },
+          },
+        ],
+        columnGap: 15,
+      },
+      buildProductsTable(data),
+      {
+        text: t.legend,
+        alignment: 'right',
+        fontSize: 7,
+        color: COLORS.secondary,
+        margin: [0, 5, 0, 16],
+      },
+      ...(!data.isDraft
+        ? [
+            {
+              table: {
+                widths: ['*'],
+                body: [
+                  [
+                    {
+                      fillColor: COLORS.accent,
+                      color: COLORS.white,
+                      stack: [
+                        { text: t.validity, bold: true },
+                        { text: t.confirmation, fontSize: 7.5, margin: [0, 3, 0, 0] },
+                      ],
+                    },
+                  ],
+                ],
+              },
+              layout: 'noBorders',
+            } as Content,
+          ]
+        : []),
+      keyClause(t.availability, t.availabilityText),
+      keyClause(t.quantities, t.quantitiesText),
+      keyClause(t.claims, t.claimsText),
+      { text: t.certificates, fontSize: 7, color: COLORS.secondary, margin: [0, 9, 0, 3] },
+      { text: t.origin, fontSize: 7, color: COLORS.secondary, margin: [0, 0, 0, 7] },
+      {
+        table: {
+          widths: ['*'],
+          body: [
+            [
+              {
+                fillColor: COLORS.tableHeader,
+                text: [
+                  { text: 'CBAM Notice  ', bold: true, color: COLORS.accent },
+                  { text: t.cbam },
+                ],
+                fontSize: 7,
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineColor: () => COLORS.accent,
+          vLineColor: () => COLORS.accent,
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0.5,
+        },
+      },
+      {
+        unbreakable: true,
+        margin: [0, 20, 0, 0],
+        stack: [
+          {
+            columns: [
+              { text: '', width: '*' },
+              {
+                width: 290,
+                table: {
+                  widths: [78, 64, '*'],
+                  body: [
+                    [
+                      {
+                        fillColor: '#c9ced4',
+                        alignment: 'center',
+                        stack: [
+                          {
+                            text: t.weight.toLocaleUpperCase(data.locale),
+                            fontSize: 7,
+                            bold: true,
+                          },
+                          { text: totalWeight, bold: true, fontSize: 11, margin: [0, 3, 0, 0] },
+                        ],
+                      },
+                      {
+                        fillColor: '#c9ced4',
+                        alignment: 'center',
+                        stack: [
+                          {
+                            text: t.currency.toLocaleUpperCase(data.locale),
+                            fontSize: 7,
+                            bold: true,
+                          },
+                          {
+                            text: displayValue(data.currencyCode),
+                            bold: true,
+                            fontSize: 11,
+                            margin: [0, 3, 0, 0],
+                          },
+                        ],
+                      },
+                      {
+                        fillColor: COLORS.accent,
+                        color: COLORS.white,
+                        alignment: 'center',
+                        stack: [
+                          {
+                            text: data.labels.total.toLocaleUpperCase(data.locale),
+                            fontSize: 7,
+                            bold: true,
+                          },
+                          {
+                            text: data.summary.grandTotal,
+                            bold: true,
+                            fontSize: 15,
+                            margin: [0, 3, 0, 0],
+                          },
+                        ],
+                      },
+                    ],
+                  ],
+                },
+                layout: {
+                  hLineWidth: () => 0,
+                  vLineWidth: () => 2,
+                  vLineColor: () => COLORS.white,
+                  paddingLeft: () => 8,
+                  paddingRight: () => 8,
+                  paddingTop: () => 6,
+                  paddingBottom: () => 6,
+                },
+              },
+            ],
+          },
+          { ...rule(515, COLORS.accent, 2), margin: [0, 15, 0, 9] },
+          {
+            columns: [
+              {
+                stack: [
+                  term(t.carriage, data.commercialTerms?.carriage),
+                  term(t.packingTerms, data.commercialTerms?.packing),
+                ],
+              },
+              { stack: [term(t.payment, data.commercialTerms?.payment)] },
+            ],
+            columnGap: 22,
+          },
+          {
+            text: `${t.signature}  ________________________________________`,
+            margin: [0, 16, 0, 0],
+            color: COLORS.secondary,
           },
         ],
       },
@@ -530,8 +828,27 @@ async function createQuotePdf(data: QuotePdfData) {
     prepareEmbeddedImages(data),
   ]);
   const definition = buildQuotePdfDocument(data, images);
-  const virtualFileSystem = resolvePdfMakeVirtualFileSystem(pdfFonts);
-
+  const virtualFileSystem = { ...resolvePdfMakeVirtualFileSystem(pdfFonts) };
+  if (data.locale.startsWith('zh')) {
+    const response = await fetch(new URL('./fonts/KingSansSC.woff', import.meta.url).href);
+    if (!response.ok) throw new Error('Quote PDF font unavailable');
+    const fontData = await readBlobAsDataUrl(await response.blob());
+    const [, base64Font] = fontData.split(',');
+    virtualFileSystem['KingSansSC.woff'] = base64Font;
+    return pdfMake.createPdf(
+      definition,
+      undefined,
+      {
+        KingSansSC: {
+          normal: 'KingSansSC.woff',
+          bold: 'KingSansSC.woff',
+          italics: 'KingSansSC.woff',
+          bolditalics: 'KingSansSC.woff',
+        },
+      },
+      virtualFileSystem,
+    );
+  }
   return pdfMake.createPdf(definition, undefined, undefined, virtualFileSystem);
 }
 

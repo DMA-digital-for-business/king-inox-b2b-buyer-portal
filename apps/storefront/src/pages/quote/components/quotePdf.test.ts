@@ -1,5 +1,7 @@
 import { builder, faker } from 'tests/test-utils';
 
+import en from '@/lib/lang/locales/en.json';
+
 import {
   buildQuotePdfDocument,
   buildQuotePdfFileName,
@@ -9,6 +11,7 @@ import {
   resolvePdfMakeVirtualFileSystem,
   resolveQuotePdfProductUrl,
 } from './quotePdf';
+import { getQuotePdfTemplateLabels } from './quotePdfLabels';
 
 const buildLabelsWith = builder<QuotePdfData['labels']>(() => ({
   quote: faker.lorem.word(),
@@ -35,6 +38,9 @@ const buildLabelsWith = builder<QuotePdfData['labels']>(() => ({
 }));
 
 const buildQuotePdfDataWith = builder<QuotePdfData>(() => ({
+  templateLabels: getQuotePdfTemplateLabels((id) => en[id as keyof typeof en]),
+  locale: 'en',
+  isDraft: false,
   storeName: faker.company.name(),
   logoUrl: faker.image.url(),
   quoteTitle: faker.commerce.productName(),
@@ -118,89 +124,102 @@ describe('quote PDF document', () => {
     expect(pdfLength).toBeGreaterThan(0);
   });
 
-  it('contains quote, buyer, address, product and summary data with only the logo image', () => {
-    const excludedMessage = faker.lorem.sentence();
-    const excludedAttachment = faker.system.fileName();
+  it('renders KING branding, billing recipient and only the final quote total', () => {
     const data = buildQuotePdfDataWith('WHATEVER_VALUES');
-    const logoImage = `data:image/jpeg;base64,${faker.string.alphanumeric()}`;
-    const document = buildQuotePdfDocument(data, {
-      logo: logoImage,
-    });
-    const serializedDocument = JSON.stringify(document.content);
-
-    expect(serializedDocument).toEqual(expect.stringContaining(data.contactInfo.name as string));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.billingAddress.address!));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.shippingAddress.address!));
-    expect(serializedDocument).toContain(
-      `"text":[{"text":"${data.lines[0].articleCode}","link":"${data.lines[0].productUrl}"},{"text":" - ${data.lines[0].dimensions.join('X')}"},{"text":" - ${data.lines[0].notes}"}]`,
-    );
-    expect(serializedDocument).toContain(`Il vostro codice: ${data.lines[0].yourCode}`);
-    expect(serializedDocument).toContain(`"link":"${data.lines[0].productUrl}"`);
-    expect(serializedDocument).toEqual(expect.stringContaining(data.lines[0].packaging.join('; ')));
-    expect(serializedDocument.match(/"image":/g)).toHaveLength(1);
-    expect(serializedDocument).toContain(logoImage);
-    expect(serializedDocument).toEqual(expect.stringContaining(data.summary.grandTotal));
-    expect(serializedDocument).not.toContain(excludedMessage);
-    expect(serializedDocument).not.toContain(excludedAttachment);
-  });
-
-  it('includes issued and expiration dates without duplicating label colons', () => {
-    const issuedAt = faker.date.past().toLocaleDateString();
-    const expirationDate = faker.date.future().toLocaleDateString();
-    const issuedOnLabel = `${faker.lorem.words()}:`;
-    const expirationDateLabel = `${faker.lorem.words()}:`;
-    const data = buildQuotePdfDataWith({
-      issuedAt,
-      expirationDate,
-      labels: buildLabelsWith({
-        issuedOn: issuedOnLabel,
-        expirationDate: expirationDateLabel,
-      }),
-    });
-    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
-
-    expect(serializedDocument).toContain(`${issuedOnLabel} ${issuedAt}`);
-    expect(serializedDocument).toContain(`${expirationDateLabel} ${expirationDate}`);
-    expect(serializedDocument).not.toContain(`${issuedOnLabel}:`);
-    expect(serializedDocument).not.toContain(`${expirationDateLabel}:`);
-  });
-
-  it('omits issued and expiration labels when the quote has no date data', () => {
-    const issuedOnLabel = faker.lorem.words();
-    const expirationDateLabel = faker.lorem.words();
-    const data = buildQuotePdfDataWith({
-      labels: buildLabelsWith({
-        issuedOn: issuedOnLabel,
-        expirationDate: expirationDateLabel,
-      }),
-    });
-    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
-
-    expect(serializedDocument).not.toContain(issuedOnLabel);
-    expect(serializedDocument).not.toContain(expirationDateLabel);
-  });
-
-  it('uses the store name when the logo is unavailable and renders an empty-products row', () => {
-    const data = buildQuotePdfDataWith({ lines: [] });
     const document = buildQuotePdfDocument(data);
-    const serializedDocument = JSON.stringify(document.content);
-
-    expect(serializedDocument).toEqual(expect.stringContaining(data.storeName));
-    expect(serializedDocument).toEqual(expect.stringContaining(data.labels.noProducts));
+    const text = JSON.stringify(document.content);
+    expect(text).toContain('KING S.p.A.');
+    expect(text).toContain(data.billingAddress.address);
+    expect(text).not.toContain(data.shippingAddress.address);
+    expect(text).toContain(data.summary.grandTotal);
+    expect(text).not.toContain(data.labels.tax);
+    expect(text).toContain(data.lines[0].yourCode);
+    expect(text).toContain(data.lines[0].productUrl);
+    expect(text).toContain(data.templateLabels.validity);
+    expect(text).toContain('Matteo Cha');
+    expect(document.watermark).toBeUndefined();
   });
 
-  it('does not add a separator for missing product notes', () => {
-    const line = {
-      ...buildQuotePdfDataWith('WHATEVER_VALUES').lines[0],
-      productUrl: undefined,
-      notes: undefined,
-    };
-    const data = buildQuotePdfDataWith({ lines: [line] });
-    const serializedDocument = JSON.stringify(buildQuotePdfDocument(data).content);
-
-    expect(serializedDocument).toContain(
-      `"text":[{"text":"${line.articleCode}"},{"text":" - ${line.dimensions.join('X')}"}]`,
+  it('renders a draft watermark without contact or validity', () => {
+    const data = buildQuotePdfDataWith({ isDraft: true });
+    const document = buildQuotePdfDocument(data);
+    const text = JSON.stringify(document.content);
+    expect(text).not.toContain('Matteo Cha');
+    expect(text).not.toContain(data.templateLabels.validity);
+    expect(text).toContain(data.labels.draft.toUpperCase());
+    expect(document.watermark).toEqual(
+      expect.objectContaining({ text: data.labels.draft.toUpperCase() }),
     );
+    expect(text).toContain(data.templateLabels.cbam);
+  });
+
+  it('uses the quote number separately from the customer reference and does not invent an issue date', () => {
+    const number = faker.string.numeric();
+    const data = buildQuotePdfDataWith({ quoteNumber: number, issuedAt: undefined });
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(number);
+    expect(text).toContain(data.referenceNumber);
+    expect(text).toContain('OPERA, —');
+  });
+
+  it('prefers variant measure and includes packaging, delivery and total weight', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    const measure = faker.string.alphanumeric();
+    const sku = faker.string.alphanumeric();
+    data.lines[0] = {
+      ...data.lines[0],
+      quantity: 20,
+      variantData: {
+        sku,
+        dimensions: { MISURA: measure, PESO: '0.5' },
+        packaging: { SCATOLA: '100', MASTER_CARTON: '1000', PALLET: '32000' },
+        stock: { STOCK: '20' },
+      },
+    };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(measure);
+    expect(text).toContain(sku);
+    expect(text).not.toContain(data.lines[0].dimensions.join('X'));
+    expect(text).toContain('32.000');
+    expect(text).toContain('1.000');
+    expect(text).toContain(data.templateLabels.ready);
+    expect(text).toContain('10 kg');
+  });
+
+  it('does not report a partial weight when one variant weight is missing', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    data.lines.push({
+      ...data.lines[0],
+      variantData: { packaging: {}, stock: {}, dimensions: { PESO: '1' } },
+    });
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).not.toContain(' kg');
+    expect(text).toContain('—');
+  });
+
+  it('formats quantities with Italian thousands separators regardless of the portal language', () => {
+    const data = buildQuotePdfDataWith({ locale: 'en' });
+    data.lines[0] = { ...data.lines[0], quantity: 32000 };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain('"text":"32.000","alignment":"right","bold":true');
+  });
+
+  it('renders the translated on-request delivery label for unavailable items', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    data.lines[0] = {
+      ...data.lines[0],
+      variantData: { packaging: {}, dimensions: {}, stock: { STOCK: '0', QTA_REFILL: '0' } },
+    };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(data.templateLabels.onRequest);
+    expect(text).not.toContain('"text":"onRequest"');
+  });
+
+  it('renders an empty quote with a repeated two-row table header', () => {
+    const data = buildQuotePdfDataWith({ lines: [] });
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(data.labels.noProducts);
+    expect(text).toContain('"headerRows":2');
   });
 });
 
