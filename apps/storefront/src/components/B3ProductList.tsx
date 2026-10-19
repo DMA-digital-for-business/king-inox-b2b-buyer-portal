@@ -147,6 +147,7 @@ function getBackorderLayoutStyles(
 }
 
 interface ProductProps<T> {
+  hideMobileImages?: boolean;
   renderMeasure?: (product: T & ProductItem) => ReactElement;
   measureTitle?: string;
   formatUnitPrice?: (price: number) => string;
@@ -180,6 +181,7 @@ function getProductVariantSku(product: ProductItem): string {
 export function B3ProductList<T>(props: ProductProps<T>) {
   const {
     products,
+    hideMobileImages = false,
     renderMeasure,
     measureTitle = 'Misura',
     formatUnitPrice,
@@ -273,7 +275,13 @@ export function B3ProductList<T>(props: ProductProps<T>) {
     setList([]);
   }, [products]);
 
-  const itemStyle = isMobile ? mobileItemStyle : defaultItemStyle;
+  const showProductImage = !(isMobile && hideMobileImages);
+  const itemStyle = isMobile
+    ? {
+        default: { ...mobileItemStyle.default, padding: showProductImage ? '0 0 0 76px' : '0' },
+        qty: { ...mobileItemStyle.qty, padding: showProductImage ? '0 0 0 76px' : '0' },
+      }
+    : defaultItemStyle;
   const {
     qtyColumn: desktopQtyColumnStyle,
     qtyColumnSx: desktopQtyColumnExtraSx,
@@ -481,10 +489,10 @@ export function B3ProductList<T>(props: ProductProps<T>) {
               <Checkbox checked={isChecked(product)} onChange={() => handleSelectChange(product)} />
             )}
             <FlexItem padding={desktopProductColumnPadding} sx={desktopProductColumnSx}>
-              <ProductImage src={product.imageUrl || PRODUCT_DEFAULT_IMAGE} />
+              {showProductImage && <ProductImage src={product.imageUrl || PRODUCT_DEFAULT_IMAGE} />}
               <Box
                 sx={{
-                  marginLeft: '16px',
+                  marginLeft: showProductImage ? '16px' : '0',
                   ...(isMobile
                     ? {}
                     : {

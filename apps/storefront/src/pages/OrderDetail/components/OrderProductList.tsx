@@ -45,6 +45,7 @@ export function OrderProductList<T extends ProductItem>({
 
   return (
     <B3ProductList
+      hideMobileImages
       products={products}
       money={money}
       quantityKey={quantityKey}

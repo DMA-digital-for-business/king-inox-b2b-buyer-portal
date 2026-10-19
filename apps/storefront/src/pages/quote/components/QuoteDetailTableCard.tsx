@@ -1,7 +1,6 @@
-import { Box, CardContent, styled, Typography } from '@mui/material';
+import { Box, CardContent, Typography } from '@mui/material';
 
 import BackorderMessage from '@/components/BackorderMessage';
-import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useBackorderStorefrontMessaging } from '@/hooks/useBackorderStorefrontMessaging';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useB3Lang } from '@/lib/lang';
@@ -24,12 +23,6 @@ interface QuoteTableCardProps {
   showBackorderDetails?: boolean;
   status?: string | number;
 }
-
-const StyledImage = styled('img')(() => ({
-  maxWidth: '60px',
-  height: 'auto',
-  marginRight: '0.5rem',
-}));
 
 function QuoteDetailTableCard(props: QuoteTableCardProps) {
   const {
@@ -58,7 +51,6 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
   const {
     basePrice,
     quantity,
-    imageUrl,
     productName,
     options,
     sku,
@@ -102,9 +94,6 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
           pl: 0,
         }}
       >
-        <Box>
-          <StyledImage src={imageUrl || PRODUCT_DEFAULT_IMAGE} alt="Product-img" loading="lazy" />
-        </Box>
         <Box
           sx={{
             flex: 1,

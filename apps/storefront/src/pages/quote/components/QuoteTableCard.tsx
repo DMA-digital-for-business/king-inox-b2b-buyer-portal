@@ -1,10 +1,8 @@
-import { Delete, Edit } from '@mui/icons-material';
-import { Box, CardContent, styled, TextField, Typography } from '@mui/material';
+import { Delete } from '@mui/icons-material';
+import { Box, CardContent, TextField, Typography } from '@mui/material';
 
 import BackorderMessage from '@/components/BackorderMessage';
-import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useB3Lang } from '@/lib/lang';
-import { Product } from '@/types';
 import { QuoteItem } from '@/types/quotes';
 import { getBCPrice, getDisplayPrice } from '@/utils/b3Product/b3Product';
 import { getProductOptionsFields } from '@/utils/b3Product/shared/config';
@@ -24,7 +22,6 @@ import { isDisambiguationLabel } from './quoteProductOptions';
 
 interface QuoteTableCardProps {
   item: QuoteItem['node'];
-  onEdit: (item: Product, itemId: string) => void;
   onDelete: (id: string) => void;
   handleUpdateProductQty: (item: QuoteItem['node'], quantity: number) => void;
   handleCheckProductQty: (item: QuoteItem['node'], quantity: number) => void;
@@ -34,15 +31,8 @@ interface QuoteTableCardProps {
   showBackorderDetails?: boolean;
 }
 
-const StyledImage = styled('img')(() => ({
-  maxWidth: '60px',
-  height: 'auto',
-  marginRight: '0.5rem',
-}));
-
 function QuoteTableCard({
   item,
-  onEdit,
   onDelete,
   handleUpdateProductQty,
   handleCheckProductQty,
@@ -51,16 +41,7 @@ function QuoteTableCard({
   packagingByVariantId,
   showBackorderDetails = false,
 }: QuoteTableCardProps) {
-  const {
-    basePrice,
-    quantity,
-    id,
-    primaryImage,
-    productName,
-    variantSku,
-    productsSearch,
-    taxPrice = 0,
-  } = item;
+  const { basePrice, quantity, id, productName, variantSku, productsSearch, taxPrice = 0 } = item;
 
   const b3Lang = useB3Lang();
   const backorderFields = getDraftBackorderDisplayFields(item);
@@ -118,13 +99,6 @@ function QuoteTableCard({
           pl: 0,
         }}
       >
-        <Box>
-          <StyledImage
-            src={primaryImage || PRODUCT_DEFAULT_IMAGE}
-            alt="Product-img"
-            loading="lazy"
-          />
-        </Box>
         <Box
           sx={{
             flex: 1,
@@ -241,25 +215,6 @@ function QuoteTableCard({
             }}
             id="shoppingList-actionList-mobile"
           >
-            {optionList.length > 0 && (
-              <Edit
-                sx={{
-                  marginRight: '0.5rem',
-                  cursor: 'pointer',
-                  color: 'rgba(0, 0, 0, 0.54)',
-                }}
-                onClick={() => {
-                  onEdit(
-                    {
-                      ...productsSearch,
-                      quantity,
-                      selectOptions: item.optionList,
-                    },
-                    id,
-                  );
-                }}
-              />
-            )}
             <Delete
               sx={{ cursor: 'pointer', color: 'rgba(0, 0, 0, 0.54)' }}
               onClick={() => {

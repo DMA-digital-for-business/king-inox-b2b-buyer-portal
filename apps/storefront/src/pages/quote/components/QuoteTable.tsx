@@ -192,8 +192,8 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
 
   const [isRequestLoading, setIsRequestLoading] = useState(false);
   const [chooseOptionsOpen, setSelectedOptionsOpen] = useState(false);
-  const [optionsProduct, setOptionsProduct] = useState<Product>();
-  const [optionsProductId, setOptionsProductId] = useState<string>('');
+  const [optionsProduct] = useState<Product>();
+  const [optionsProductId] = useState<string>('');
 
   const handleUpdateProductQty = async (row: QuoteItem['node'], quantity: number) => {
     const product = await setModifierQtyPrice(row, quantity);
@@ -260,12 +260,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
 
   const handleChooseOptionsDialogCancel = () => {
     setSelectedOptionsOpen(false);
-  };
-
-  const handleOpenProductEdit = (product: Product, itemId: string) => {
-    setOptionsProduct(product);
-    setOptionsProductId(itemId);
-    setSelectedOptionsOpen(true);
   };
 
   const getNewQuoteProduct = (products: Product[]): QuoteItem[] =>
@@ -630,7 +624,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
           <QuoteTableCard
             item={row}
             isLast={index === total - 1}
-            onEdit={handleOpenProductEdit}
             onDelete={handleDeleteClick}
             handleUpdateProductQty={handleInputProductQty}
             handleCheckProductQty={handleCheckProductQty}

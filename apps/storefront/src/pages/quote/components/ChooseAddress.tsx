@@ -62,7 +62,10 @@ function ChooseAddress({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            '@media (min-width: 769px)': {
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            },
             gridAutoRows: '1fr',
             gap: 2,
           }}
