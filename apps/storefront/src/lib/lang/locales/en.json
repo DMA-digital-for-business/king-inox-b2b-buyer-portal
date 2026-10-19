@@ -860,5 +860,6 @@
   "quoteDraft.pdf.king.amount": "Value",
   "quoteDraft.pdf.king.quantity": "Quantity",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "A shipping address is required before downloading the quote.",
-  "quoteDraft.pdf.king.onRequest": "On request"
+  "quoteDraft.pdf.king.onRequest": "On request",
+  "quoteDraft.pdf.king.fromDate": "from"
 }

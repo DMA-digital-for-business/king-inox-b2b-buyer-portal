@@ -53,5 +53,6 @@
   "quoteDraft.pdf.king.amount": "金额",
   "quoteDraft.pdf.king.quantity": "数量",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "下载报价前必须填写收货地址。",
-  "quoteDraft.pdf.king.onRequest": "按需询问"
+  "quoteDraft.pdf.king.onRequest": "按需询问",
+  "quoteDraft.pdf.king.fromDate": "自"
 }

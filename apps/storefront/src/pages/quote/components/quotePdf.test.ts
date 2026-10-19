@@ -132,7 +132,7 @@ describe('quote PDF document', () => {
     expect(text).toContain(data.billingAddress.address);
     expect(text).not.toContain(data.shippingAddress.address);
     expect(text).toContain(data.summary.grandTotal);
-    expect(text).not.toContain(data.labels.tax);
+    expect(text).not.toContain(`"text":${JSON.stringify(data.labels.tax)}`);
     expect(text).toContain(data.lines[0].yourCode);
     expect(text).toContain(data.lines[0].productUrl);
     expect(text).toContain(data.templateLabels.validity);
@@ -146,7 +146,8 @@ describe('quote PDF document', () => {
     const text = JSON.stringify(document.content);
     expect(text).not.toContain('Matteo Cha');
     expect(text).not.toContain(data.templateLabels.validity);
-    expect(text).toContain(data.labels.draft.toUpperCase());
+    expect(text).not.toContain(data.labels.draft.toUpperCase());
+    expect(text).not.toContain(`${data.templateLabels.offer} n. `);
     expect(document.watermark).toEqual(
       expect.objectContaining({ text: data.labels.draft.toUpperCase() }),
     );
@@ -225,6 +226,21 @@ describe('quote PDF document', () => {
       expect(text).toContain('€1.002.345,45');
     },
   );
+
+  it('shows the refill quantity alongside the delivery date', () => {
+    const data = buildQuotePdfDataWith({ locale: 'it' });
+    data.lines[0] = {
+      ...data.lines[0],
+      quantity: 32000,
+      variantData: {
+        packaging: {},
+        dimensions: {},
+        stock: { STOCK: '0', QTA_REFILL: '32000', DATA_REFILL: '2026-04-11' },
+      },
+    };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain(JSON.stringify(`32.000 ${data.templateLabels.fromDate} 11/04/2026`));
+  });
 
   it('renders an empty quote with a repeated two-row table header', () => {
     const data = buildQuotePdfDataWith({ lines: [] });

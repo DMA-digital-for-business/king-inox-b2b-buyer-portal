@@ -53,5 +53,6 @@
   "quoteDraft.pdf.king.amount": "Montant",
   "quoteDraft.pdf.king.quantity": "Quantité",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Une adresse de livraison est nécessaire avant de télécharger l’offre.",
-  "quoteDraft.pdf.king.onRequest": "Sur demande"
+  "quoteDraft.pdf.king.onRequest": "Sur demande",
+  "quoteDraft.pdf.king.fromDate": "à partir du"
 }

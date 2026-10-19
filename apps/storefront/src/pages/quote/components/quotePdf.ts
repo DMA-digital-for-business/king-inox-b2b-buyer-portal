@@ -175,9 +175,12 @@ export function resolveQuotePdfProductUrl(
 function formatPdfDate(value: string, locale: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const [year, month, day] = value.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(
-    new Date(Date.UTC(year, month - 1, day)),
-  );
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 function buildProductCell(line: QuotePdfLine, data: QuotePdfData): Content {
@@ -259,7 +262,9 @@ function buildProductsTable(data: QuotePdfData): ContentTable {
     let deliveryText = '—';
     if (delivery === 'onRequest') deliveryText = t.onRequest;
     else if (delivery === 'ready') deliveryText = t.ready;
-    else if (delivery) deliveryText = formatPdfDate(delivery, data.locale);
+    else if (delivery) {
+      deliveryText = `${formatPdfQuantity(line.variantData?.stock.QTA_REFILL)} ${t.fromDate} ${formatPdfDate(delivery, data.locale)}`;
+    }
     body.push([
       buildProductCell(line, data),
       ...['SCATOLA', 'MASTER_CARTON', 'PALLET'].map((key) => ({
@@ -454,19 +459,21 @@ export function buildQuotePdfDocument(
                 color: COLORS.secondary,
                 margin: [0, 0, 0, 10],
               },
-              {
-                text: [
-                  { text: `${t.offer} n. ` },
-                  {
-                    text: data.isDraft
-                      ? data.labels.draft.toLocaleUpperCase(data.locale)
-                      : displayValue(data.quoteNumber),
-                    bold: true,
-                    fontSize: 15,
-                    color: COLORS.accent,
-                  },
-                ],
-              },
+              ...(!data.isDraft
+                ? [
+                    {
+                      text: [
+                        { text: `${t.offer} n. ` },
+                        {
+                          text: displayValue(data.quoteNumber),
+                          bold: true,
+                          fontSize: 15,
+                          color: COLORS.accent,
+                        },
+                      ],
+                    } as Content,
+                  ]
+                : []),
               ...(data.referenceNumber
                 ? [
                     {

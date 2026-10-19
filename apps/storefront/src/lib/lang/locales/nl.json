@@ -53,5 +53,6 @@
   "quoteDraft.pdf.king.amount": "Bedrag",
   "quoteDraft.pdf.king.quantity": "Aantal",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Een verzendadres is vereist voordat u de offerte kunt downloaden.",
-  "quoteDraft.pdf.king.onRequest": "Op aanvraag"
+  "quoteDraft.pdf.king.onRequest": "Op aanvraag",
+  "quoteDraft.pdf.king.fromDate": "vanaf"
 }

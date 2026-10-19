@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew, Download } from '@mui/icons-material';
-import { Box, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
 
@@ -228,7 +228,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
   const [addressList, setAddressList] = useState<B2BAddress[]>([]);
 
-  const [shippingSameAsBilling, setShippingSameAsBilling] = useState<boolean>(false);
+  const [shippingSameAsBilling] = useState<boolean>(false);
   const [billingChange, setBillingChange] = useState<boolean>(false);
   const [quoteSubmissionResponseOpen, setQuoteSubmissionResponseOpen] = useState<boolean>(false);
   const [extraFields, setExtraFields] = useState<QuoteFormattedItemsProps[]>([]);
@@ -1250,27 +1250,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                   setBillingChange={setBillingChange}
                 />
               </Box>
-              <FormControlLabel
-                label={b3Lang('quoteDraft.checkbox.sameAddressShippingAndBilling')}
-                control={
-                  <Checkbox
-                    checked={shippingSameAsBilling}
-                    onChange={(e) => {
-                      setShippingSameAsBilling(e.target.checked);
-                      if (billingRef.current) {
-                        const billingAddress = billingRef.current.getContactInfoValue();
-
-                        if (shippingRef.current && e.target.checked) {
-                          shippingRef.current.setShippingInfoValue(billingAddress);
-                        }
-                      }
-                    }}
-                  />
-                }
-                sx={{
-                  mt: 2,
-                }}
-              />
               <CustomButton
                 sx={{
                   mt: '20px',

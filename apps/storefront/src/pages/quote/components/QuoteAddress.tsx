@@ -1,10 +1,9 @@
 import { forwardRef, useEffect, useId, useImperativeHandle, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
+import { useIntl } from 'react-intl';
 import { Box, Typography } from '@mui/material';
 import cloneDeep from 'lodash-es/cloneDeep';
 
-import { B3CustomForm } from '@/components/B3CustomForm';
-import { useGetCountry } from '@/hooks/useGetCountry';
 import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { AddressItemType } from '@/types/address';
@@ -27,12 +26,6 @@ interface AccountFormFieldsProps extends Record<string, any> {
   size: string;
   options?: any[];
 }
-
-const toReadOnlyField = (field: AccountFormFieldsProps): AccountFormFieldsProps => ({
-  ...field,
-  disabled: true,
-  readOnly: true,
-});
 
 interface AddressProps {
   title: string;
@@ -62,13 +55,10 @@ function QuoteAddress(
   }: AddressProps,
   ref: any,
 ) {
-  const {
-    control,
-    getValues,
-    formState: { errors },
-    setValue,
-    reset,
-  } = useForm({
+  const { control, getValues, setValue, reset } = useForm({
+    defaultValues: Object.fromEntries(
+      accountFormFields.map((field) => [field.name, field.default ?? '']),
+    ),
     mode: 'onSubmit',
   });
 
@@ -78,17 +68,20 @@ function QuoteAddress(
   type InfoKeys = keyof typeof info;
 
   const [isOpen, setOpen] = useState<boolean>(false);
-  const [quoteAddress, setQuoteAddress] = useState<AccountFormFieldsProps[]>(
-    cloneDeep(accountFormFields),
-  );
-
-  useGetCountry({
-    control,
-    setValue,
-    getValues,
-    setAddress: setQuoteAddress,
-    addresses: quoteAddress,
-  });
+  const { locale } = useIntl();
+  const addressValues = useWatch({ control });
+  const countryCode = String(addressValues.country || '');
+  const country = /^[a-z]{2}$/i.test(countryCode)
+    ? new Intl.DisplayNames([locale], { type: 'region' }).of(countryCode.toUpperCase())
+    : countryCode;
+  const street = [addressValues.address, addressValues.apartment].filter(Boolean).join(', ');
+  const city = [addressValues.zipCode, addressValues.city].filter(Boolean).join(' ');
+  const locality = [city, addressValues.state ? `(${addressValues.state})` : '']
+    .filter(Boolean)
+    .join(' ');
+  const addressSummary = [[street, locality].filter(Boolean).join(', '), country]
+    .filter(Boolean)
+    .join(' - ');
 
   const getContactInfoValue = () => getValues();
   const setShippingInfoValue = (address: any) => {
@@ -199,13 +192,7 @@ function QuoteAddress(
         )}
       </Box>
 
-      <B3CustomForm
-        formFields={quoteAddress.map(toReadOnlyField)}
-        errors={errors}
-        control={control}
-        getValues={getValues}
-        setValue={setValue}
-      />
+      <Typography sx={{ overflowWrap: 'anywhere', maxWidth: 450 }}>{addressSummary || '—'}</Typography>
 
       <ChooseAddress
         isOpen={isOpen}

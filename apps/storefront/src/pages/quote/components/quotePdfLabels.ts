@@ -13,6 +13,7 @@ const quotePdfTemplateLabelKeys = [
   'delivery',
   'ready',
   'onRequest',
+  'fromDate',
   'yourCode',
   'legend',
   'validity',
