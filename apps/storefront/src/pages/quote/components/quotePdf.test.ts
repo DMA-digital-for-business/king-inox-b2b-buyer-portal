@@ -306,17 +306,27 @@ describe('quote PDF product URL', () => {
 });
 
 describe('quote PDF filename', () => {
-  it('sanitizes the identifier and includes the generation date', () => {
-    const prefix = faker.lorem.word();
-    const identifier = `${faker.lorem.word()} / ${faker.lorem.word()}`;
+  it('uses Offerta, the quote number and the generation date', () => {
+    const number = faker.string.numeric();
     const date = faker.date.anytime();
-    const fileName = buildQuotePdfFileName(prefix, identifier, date);
+    expect(buildQuotePdfFileName(number, date)).toBe(
+      `Offerta-${number}-${new Intl.DateTimeFormat('sv-SE').format(date)}.pdf`,
+    );
+  });
 
-    expect(fileName).toContain(prefix);
-    expect(fileName).toContain(date.toISOString().slice(0, 10));
-    expect(fileName).not.toContain(' ');
+  it.each([undefined, '', '   '])('omits an absent quote number (%j)', (number) => {
+    const date = faker.date.anytime();
+    expect(buildQuotePdfFileName(number, date)).toBe(
+      `Offerta-${new Intl.DateTimeFormat('sv-SE').format(date)}.pdf`,
+    );
+  });
+
+  it('sanitizes the quote number for a safe filename', () => {
+    const number = `${faker.string.numeric()} / ${faker.string.numeric()}`;
+    const fileName = buildQuotePdfFileName(number);
     expect(fileName).not.toContain('/');
-    expect(fileName).toMatch(/\.pdf$/);
+    expect(fileName).not.toContain(' ');
+    expect(fileName).toMatch(/^Offerta-.+\.pdf$/);
   });
 });
 

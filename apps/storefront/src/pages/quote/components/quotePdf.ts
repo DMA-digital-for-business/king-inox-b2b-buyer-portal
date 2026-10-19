@@ -790,23 +790,21 @@ export async function imageUrlToDataUrl(
   }
 }
 
-export function buildQuotePdfFileName(
-  prefix: string,
-  referenceOrTitle: string,
-  date = new Date(),
-): string {
-  const normalizedPrefix = prefix.trim() || 'quote';
-  const identifier = referenceOrTitle.trim() || 'draft';
-  const safeIdentifier =
-    identifier
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80) || 'draft';
-  const datePart = date.toISOString().slice(0, 10);
+export function buildQuotePdfFileName(quoteNumber?: string, date = new Date()): string {
+  const safeNumber = (quoteNumber || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  const datePart = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 
-  return `${normalizedPrefix}-${safeIdentifier}-${datePart}.pdf`;
+  return `${['Offerta', safeNumber, datePart].filter(Boolean).join('-')}.pdf`;
 }
 
 async function prepareEmbeddedImages(data: QuotePdfData): Promise<EmbeddedImages> {
@@ -878,7 +876,7 @@ async function createQuotePdf(data: QuotePdfData) {
 
 export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
   const pdf = await createQuotePdf(data);
-  const fileName = buildQuotePdfFileName(data.filePrefix, data.referenceNumber || data.quoteTitle);
+  const fileName = buildQuotePdfFileName(data.quoteNumber);
 
   await new Promise<void>((resolve) => {
     pdf.download(fileName, resolve);

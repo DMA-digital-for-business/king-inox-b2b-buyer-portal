@@ -70,7 +70,6 @@ import ContactInfo, { ContactInfoRef } from '../quote/components/ContactInfo';
 import QuoteAddress from '../quote/components/QuoteAddress';
 import QuoteAttachment from '../quote/components/QuoteAttachment';
 import QuoteInfo from '../quote/components/QuoteInfo';
-import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
 import {
   downloadQuotePdf,
@@ -1349,8 +1348,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
             >
               <QuoteSummary ref={quoteSummaryRef} />
               {/* <AddToQuote updateList={updateSummary} addToQuote={addToQuote} /> */}
-
-              <QuoteNote quoteStatus="Draft" />
 
               {role !== 100 && <QuoteAttachment status={0} />}
             </Stack>
