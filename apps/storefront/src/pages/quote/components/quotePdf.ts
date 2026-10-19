@@ -322,6 +322,9 @@ export function buildQuotePdfDocument(
 ): TDocumentDefinitions {
   const t = data.templateLabels;
   const address = data.billingAddress;
+  const salesRepEmail = data.salesRep?.email?.trim();
+  const salesRepPhone = data.salesRep?.phone?.trim();
+  const showSalesRepContact = !data.isDraft && Boolean(salesRepEmail || salesRepPhone);
   const date = data.isDraft
     ? new Intl.DateTimeFormat(data.locale).format(new Date())
     : displayValue(data.issuedAt);
@@ -483,7 +486,7 @@ export function buildQuotePdfDocument(
                     } as Content,
                   ]
                 : []),
-              ...(!data.isDraft
+              ...(showSalesRepContact
                 ? [
                     {
                       margin: [0, 8, 14, 0],
@@ -509,10 +512,8 @@ export function buildQuotePdfDocument(
                                 {
                                   text:
                                     compactLines([
-                                      data.salesRep?.phone
-                                        ? `Tel. ${data.salesRep.phone}`
-                                        : undefined,
-                                      data.salesRep?.email,
+                                      salesRepPhone ? `Tel. ${salesRepPhone}` : undefined,
+                                      salesRepEmail,
                                     ]).join(' · ') || '—',
                                   fontSize: 7,
                                   margin: [0, 2, 0, 0],

@@ -148,6 +148,26 @@ describe('quote PDF document', () => {
     expect(document.watermark).toBeUndefined();
   });
 
+  it.each(['email', 'phone'] as const)(
+    'shows the commercial contact with only an agent %s',
+    (field) => {
+      const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+      const value = field === 'email' ? faker.internet.email() : faker.phone.number();
+      data.salesRep = { name: faker.person.fullName(), [field]: value };
+      const text = JSON.stringify(buildQuotePdfDocument(data).content);
+      expect(text).toContain(data.templateLabels.contact.toUpperCase());
+      expect(text).toContain(value);
+    },
+  );
+
+  it('hides the commercial contact when only the agent name is available', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    data.salesRep = { name: faker.person.fullName(), email: '   ', phone: '   ' };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).not.toContain(data.templateLabels.contact.toUpperCase());
+    expect(text).not.toContain(data.salesRep.name);
+  });
+
   it('renders a draft watermark without contact or validity', () => {
     const data = buildQuotePdfDataWith({ isDraft: true });
     const document = buildQuotePdfDocument(data);
