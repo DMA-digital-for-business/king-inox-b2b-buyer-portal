@@ -692,7 +692,7 @@
   "quoteDetail.copyQuoteLink": "Copy quote link",
   "quoteDetail.reviewAllQuotes": "Review all quotes",
   "quoteDetail.message.message": "Message",
-  "quoteDetail.message.merchantAnswers": "Merchant typically answers within 1 day",
+  "quoteDetail.message.merchantAnswers": "Merchant typically answers within 2 business days",
   "quoteDetail.message.typeMessage": "Type a message...",
   "quoteDetail.message.insufficientStock": "{ProductName} does not have sufficient stock. Please contact your Sales Rep to have it re-issued.",
   "quoteDetail.message.nonPurchasable": "{ProductName} is not purchasable. Please contact your Sales Rep to have it re-issued.",

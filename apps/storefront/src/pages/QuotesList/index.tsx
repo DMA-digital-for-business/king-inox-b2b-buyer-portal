@@ -22,8 +22,8 @@ import { displayFormat } from '@/utils/b3DateFormat';
 import { channelId } from '@/utils/basicConfig';
 import { buildCurrenciesMap } from '@/utils/currencyUtils';
 
-import QuoteStatus from '../quote/components/QuoteStatus';
 import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
+import QuoteStatus from '../quote/components/QuoteStatus';
 import { addPrice } from '../quote/shared/config';
 
 import { QuoteItemCard } from './QuoteItemCard';

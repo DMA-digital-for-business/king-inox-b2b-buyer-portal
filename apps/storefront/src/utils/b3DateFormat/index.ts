@@ -25,7 +25,7 @@ const formatCreator =
       timeFormat,
     );
 
-    const display = dateFormat[displayType];
+    const display = displayType === 'display' ? 'd/m/Y' : 'd/m/Y @ g:i A';
 
     if (!timestamp) return '';
 

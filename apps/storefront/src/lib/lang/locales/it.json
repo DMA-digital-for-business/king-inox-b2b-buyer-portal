@@ -690,7 +690,7 @@
   "quoteDetail.copyQuoteLink": "Copia link preventivo",
   "quoteDetail.reviewAllQuotes": "Rivedi tutti i preventivi",
   "quoteDetail.message.message": "Messaggio",
-  "quoteDetail.message.merchantAnswers": "Il venditore risponde solitamente entro 1 giorno",
+  "quoteDetail.message.merchantAnswers": "Il venditore risponde solitamente entro 2 giorni lavorativi.",
   "quoteDetail.message.typeMessage": "Scrivi un messaggio...",
   "quoteDetail.message.insufficientStock": "{ProductName} non ha scorte sufficienti. Contatta il tuo agente di vendita per richiederne la riemissione.",
   "quoteDetail.message.nonPurchasable": "{ProductName} non è acquistabile. Contatta il tuo agente di vendita per richiederne la riemissione.",
