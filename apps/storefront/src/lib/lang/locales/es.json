@@ -54,5 +54,10 @@
   "quoteDraft.pdf.king.quantity": "Cantidad",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Es necesario introducir una dirección de envío antes de descargar la oferta.",
   "quoteDraft.pdf.king.onRequest": "Bajo petición",
-  "quoteDraft.pdf.king.fromDate": "desde"
+  "quoteDraft.pdf.king.fromDate": "desde",
+  "quoteDraft.submission.wait": "Espera mientras enviamos tu solicitud. Mantén esta página abierta hasta que aparezca la confirmación.",
+  "quoteDraft.submission.response.next": "Responderemos en un plazo de 2 horas laborables. Pulsa OK para ver el resumen y los detalles de la solicitud enviada.",
+  "quoteDraft.submission.loading": "Enviando tu solicitud de presupuesto…",
+  "quoteDraft.submission.response.title": "¡Gracias por enviar tu solicitud de presupuesto!",
+  "quoteDraft.submission.response.message": "Tu solicitud de presupuesto se ha enviado correctamente. Nuestro equipo comercial revisará los productos, las cantidades y las notas para preparar una propuesta adaptada a tus necesidades."
 }

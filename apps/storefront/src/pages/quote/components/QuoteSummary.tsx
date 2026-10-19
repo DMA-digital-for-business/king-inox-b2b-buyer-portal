@@ -24,7 +24,7 @@ import {
   emptyQuoteSummary,
   QuoteSummaryData,
 } from './calculateQuoteSummary';
-import { formatQuotePrice } from './quotePriceFormat';
+import { formatQuotePrice, formatQuoteSummaryPrice } from './quotePriceFormat';
 
 const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
   const b3Lang = useB3Lang();
@@ -67,7 +67,7 @@ const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
     refreshSummary: () => getSummary(),
   }));
 
-  const priceFormat = (price: number) => formatQuotePrice(price);
+  const priceFormat = (price: number) => formatQuoteSummaryPrice(formatQuotePrice(price));
 
   const showPrice = (price: string | number): string | number => {
     if (isHideQuoteDraftPrice) return b3Lang('quoteDraft.quoteSummary.tbd');
@@ -128,19 +128,6 @@ const QuoteSummary = forwardRef((_, ref: Ref<unknown>) => {
                 defaultShippingExpectationPrompt={defaultShippingExpectationPrompt}
               />
             )}
-
-            <Grid
-              container
-              justifyContent="space-between"
-              sx={{
-                margin: '4px 0',
-              }}
-            >
-              <Typography id="quote-draft-tax">{b3Lang('quoteDraft.quoteSummary.tax')}</Typography>
-              <Typography aria-labelledby="quote-draft-tax">
-                {showPrice(priceFormat(quoteSummary.tax))}
-              </Typography>
-            </Grid>
 
             <Grid
               container

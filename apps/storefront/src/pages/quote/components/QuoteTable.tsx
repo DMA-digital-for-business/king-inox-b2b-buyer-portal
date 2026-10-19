@@ -425,7 +425,7 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
           </Box>
         );
       },
-      width: '30%',
+      width: '20%',
     },
     {
       key: 'Measure',
@@ -448,6 +448,7 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
           <Typography
             sx={{
               padding: '12px 0',
+              whiteSpace: 'nowrap',
             }}
           >
             {getDisplayPrice({

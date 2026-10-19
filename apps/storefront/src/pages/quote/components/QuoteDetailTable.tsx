@@ -1,5 +1,6 @@
 import { forwardRef, Ref, useImperativeHandle, useRef, useState } from 'react';
 import { Box, FormControlLabel, styled, Switch, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 
 import BackorderMessage from '@/components/BackorderMessage';
 import { B3PaginationTable, GetRequestList } from '@/components/table/B3PaginationTable';
@@ -10,8 +11,10 @@ import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
 import { getBCPrice, getDisplayPrice } from '@/utils/b3Product/b3Product';
 
-import { formatQuoteConvertedPrice } from './quotePriceFormat';
 import QuoteDetailTableCard from './QuoteDetailTableCard';
+import { formatQuoteConvertedPrice, formatQuoteConvertedUnitPrice } from './quotePriceFormat';
+import { isDisambiguationLabel } from './quoteProductOptions';
+import { fetchQuotePdfVariants } from './useQuotePdfResources';
 
 interface ProductInfoProps {
   basePrice: number | string;
@@ -75,6 +78,10 @@ const StyledQuoteTableContainer = styled('div')(() => ({
   backgroundColor: '#FFFFFF',
   padding: '1rem',
   width: '100%',
+  '& table': {
+    tableLayout: 'fixed',
+    width: '100%',
+  },
   border: '1px solid #E0E0E0',
   boxShadow:
     '0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px rgba(0, 0, 0, 0.14), 0px 1px 3px rgba(0, 0, 0, 0.12)',
@@ -115,6 +122,14 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
     currency,
     status,
   } = props;
+  const { data: variants = {} } = useQuery({
+    queryKey: [
+      'quote-detail-variant-measures',
+      productList.map(({ productId, variantId }) => ({ productId, variantId })),
+    ],
+    queryFn: () => fetchQuotePdfVariants(productList),
+    enabled: productList.length > 0,
+  });
   const isOrdered = Number(status) === 4;
 
   const isEnableProduct = useAppSelector(
@@ -162,7 +177,9 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
       key: 'Product',
       title: b3Lang('quoteDetail.table.product'),
       render: (row: CustomFieldItems) => {
-        const optionsValue = row.options;
+        const optionsValue = (row.options || []).filter(
+          (option: OptionProps) => !isDisambiguationLabel(option.optionName),
+        );
         const productUrl = row.productsSearch?.productUrl;
 
         return (
@@ -235,7 +252,17 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
           </Box>
         );
       },
-      width: '40%',
+      width: '28%',
+    },
+    {
+      key: 'Measure',
+      title: 'Misura',
+      render: (row) => (
+        <Typography sx={{ padding: '12px 0' }}>
+          {variants[Number(row.variantId)]?.dimensions.MISURA || '—'}
+        </Typography>
+      ),
+      width: '22%',
     },
     {
       key: 'Price',
@@ -265,11 +292,12 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
               <Typography
                 sx={{
                   padding: '12px 0 0 0',
+                  whiteSpace: 'nowrap',
                   textDecoration: 'line-through',
                 }}
               >
                 {showPrice(
-                  formatQuoteConvertedPrice(price, {
+                  formatQuoteConvertedUnitPrice(price, {
                     currency,
                     isConversionRate: false,
                     useCurrentCurrency: !!currency,
@@ -282,11 +310,12 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
             <Typography
               sx={{
                 padding: isDiscount ? '0' : '12px 0 0 0',
+                whiteSpace: 'nowrap',
                 color: isDiscount ? '#2E7D32' : '#212121',
               }}
             >
               {showPrice(
-                formatQuoteConvertedPrice(discountPrice, {
+                formatQuoteConvertedUnitPrice(discountPrice, {
                   currency,
                   isConversionRate: false,
                   useCurrentCurrency: !!currency,
@@ -297,9 +326,10 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
           </>
         );
       },
-      width: '15%',
+      width: '18%',
       style: {
         textAlign: 'right',
+        whiteSpace: 'nowrap',
       },
     },
     {
@@ -318,10 +348,10 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
           )}
         </Box>
       ),
-      width: '130px',
+      width: '12%',
       style: {
         textAlign: 'left',
-        minWidth: '130px',
+        whiteSpace: 'nowrap',
       },
     },
     {
@@ -390,6 +420,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
       width: '20%',
       style: {
         textAlign: 'right',
+        whiteSpace: 'nowrap',
       },
     },
   ];
@@ -445,6 +476,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
           <QuoteDetailTableCard
             len={total || 0}
             item={row}
+            measure={variants[Number(row.variantId)]?.dimensions.MISURA || '—'}
             showPrice={showPrice}
             itemIndex={index}
             currency={currency}

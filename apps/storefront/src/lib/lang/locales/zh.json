@@ -54,5 +54,10 @@
   "quoteDraft.pdf.king.quantity": "数量",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "下载报价前必须填写收货地址。",
   "quoteDraft.pdf.king.onRequest": "按需询问",
-  "quoteDraft.pdf.king.fromDate": "自"
+  "quoteDraft.pdf.king.fromDate": "自",
+  "quoteDraft.submission.wait": "正在提交您的请求，请稍候。在显示确认信息之前，请保持此页面打开。",
+  "quoteDraft.submission.response.next": "我们将在 2 个工作小时内回复。点击“OK”查看刚提交请求的摘要和详细信息。",
+  "quoteDraft.submission.loading": "正在提交您的报价请求…",
+  "quoteDraft.submission.response.title": "感谢您提交报价请求！",
+  "quoteDraft.submission.response.message": "您的报价请求已成功提交。我们的销售团队将审核产品、数量及备注，为您准备符合需求的报价方案。"
 }

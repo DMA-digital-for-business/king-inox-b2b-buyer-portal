@@ -54,5 +54,10 @@
   "quoteDraft.pdf.king.quantity": "Quantité",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Une adresse de livraison est nécessaire avant de télécharger l’offre.",
   "quoteDraft.pdf.king.onRequest": "Sur demande",
-  "quoteDraft.pdf.king.fromDate": "à partir du"
+  "quoteDraft.pdf.king.fromDate": "à partir du",
+  "quoteDraft.submission.wait": "Veuillez patienter pendant l’envoi de votre demande. Gardez cette page ouverte jusqu’à la confirmation.",
+  "quoteDraft.submission.response.next": "Nous vous répondrons sous 2 heures ouvrées. Cliquez sur OK pour consulter le récapitulatif et les détails de votre demande.",
+  "quoteDraft.submission.loading": "Envoi de votre demande de devis…",
+  "quoteDraft.submission.response.title": "Merci pour votre demande de devis !",
+  "quoteDraft.submission.response.message": "Votre demande de devis a bien été envoyée. Notre équipe commerciale examinera les produits, les quantités et les éventuelles remarques pour préparer une proposition adaptée à vos besoins."
 }

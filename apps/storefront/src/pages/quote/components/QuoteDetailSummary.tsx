@@ -6,7 +6,7 @@ import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
 import { DisplayCurrency } from '@/types/currency';
 
-import { formatQuoteConvertedPrice } from './quotePriceFormat';
+import { formatQuoteConvertedPrice, formatQuoteSummaryPrice } from './quotePriceFormat';
 
 interface Summary {
   originalSubtotal: string | number;
@@ -63,11 +63,13 @@ export default function QuoteDetailSummary({
     : quoteDetail.currency;
 
   const priceFormat = (price: number) =>
-    formatQuoteConvertedPrice(price, {
-      currency: effectiveCurrency,
-      isConversionRate: false,
-      useCurrentCurrency: !!effectiveCurrency,
-    });
+    formatQuoteSummaryPrice(
+      formatQuoteConvertedPrice(price, {
+        currency: effectiveCurrency,
+        isConversionRate: false,
+        useCurrentCurrency: !!effectiveCurrency,
+      }),
+    );
 
   const getShippingAndTax = () => {
     if (quoteDetail?.shippingMethod?.id) {
@@ -109,6 +111,8 @@ export default function QuoteDetailSummary({
   };
 
   const shippingAndTax = getShippingAndTax();
+  const isEstimatedTax =
+    !quoteDetail?.salesRepEmail && !quoteDetail?.shippingMethod?.id && Number(status) === 1;
 
   const showPrice = (price: string | number): string | number => {
     if (shouldHidePrice) return b3Lang('quoteDraft.quoteSummary.tbd');
@@ -218,17 +222,19 @@ export default function QuoteDetailSummary({
                     defaultShippingExpectationPrompt={defaultShippingExpectationPrompt}
                   />
                 )}
-                <Grid
-                  role="row"
-                  container
-                  justifyContent="space-between"
-                  sx={{
-                    margin: '4px 0',
-                  }}
-                >
-                  <Typography>{shippingAndTax.taxText}</Typography>
-                  <Typography>{showPrice(shippingAndTax.taxVal)}</Typography>
-                </Grid>
+                {!isEstimatedTax && (
+                  <Grid
+                    role="row"
+                    container
+                    justifyContent="space-between"
+                    sx={{
+                      margin: '4px 0',
+                    }}
+                  >
+                    <Typography>{shippingAndTax.taxText}</Typography>
+                    <Typography>{showPrice(shippingAndTax.taxVal)}</Typography>
+                  </Grid>
+                )}
               </>
             )}
 

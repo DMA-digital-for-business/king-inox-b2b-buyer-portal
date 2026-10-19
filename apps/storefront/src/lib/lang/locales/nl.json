@@ -54,5 +54,10 @@
   "quoteDraft.pdf.king.quantity": "Aantal",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Een verzendadres is vereist voordat u de offerte kunt downloaden.",
   "quoteDraft.pdf.king.onRequest": "Op aanvraag",
-  "quoteDraft.pdf.king.fromDate": "vanaf"
+  "quoteDraft.pdf.king.fromDate": "vanaf",
+  "quoteDraft.submission.wait": "Even geduld terwijl we je aanvraag verzenden. Houd deze pagina open tot de bevestiging verschijnt.",
+  "quoteDraft.submission.response.next": "We reageren binnen 2 werkuren. Klik op OK om het overzicht en de details van je aanvraag te bekijken.",
+  "quoteDraft.submission.loading": "Je offerteaanvraag wordt verzonden…",
+  "quoteDraft.submission.response.title": "Bedankt voor je offerteaanvraag!",
+  "quoteDraft.submission.response.message": "Je offerteaanvraag is verzonden. Ons verkoopteam bekijkt de producten, aantallen en eventuele opmerkingen om een voorstel op maat voor je te maken."
 }

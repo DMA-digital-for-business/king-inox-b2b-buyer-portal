@@ -9,9 +9,11 @@ import { useAppSelector } from '@/store';
 import { DisplayCurrency } from '@/types/currency';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
 
-import { formatQuoteConvertedPrice } from './quotePriceFormat';
+import { formatQuoteConvertedPrice, formatQuoteConvertedUnitPrice } from './quotePriceFormat';
+import { isDisambiguationLabel } from './quoteProductOptions';
 
 interface QuoteTableCardProps {
+  measure?: string;
   item: any;
   len: number;
   getTaxRate: (variants: any) => number;
@@ -40,6 +42,7 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
     displayDiscount,
     showBackorderDetails = false,
     status,
+    measure = '—',
   } = props;
   const isOrdered = Number(status) === 4;
   const b3Lang = useB3Lang();
@@ -135,21 +138,26 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
           >
             {options.length > 0 && (
               <Box>
-                {options.map((option: any) => (
-                  <Typography
-                    sx={{
-                      fontSize: '0.75rem',
-                      lineHeight: '1.5',
-                      color: '#455A64',
-                    }}
-                    key={option.optionName}
-                  >
-                    {`${option.optionName}: ${option.optionLabel}`}
-                  </Typography>
-                ))}
+                {options
+                  .filter(
+                    (option: { optionName?: string }) => !isDisambiguationLabel(option.optionName),
+                  )
+                  .map((option: any) => (
+                    <Typography
+                      sx={{
+                        fontSize: '0.75rem',
+                        lineHeight: '1.5',
+                        color: '#455A64',
+                      }}
+                      key={option.optionName}
+                    >
+                      {`${option.optionName}: ${option.optionLabel}`}
+                    </Typography>
+                  ))}
               </Box>
             )}
           </Box>
+          <Typography sx={{ my: 1 }}>Misura: {measure}</Typography>
           <Typography variant="body1" color="#616161">
             {notes}
           </Typography>
@@ -175,7 +183,7 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 }}
               >
                 {`${showPrice(
-                  formatQuoteConvertedPrice(price, {
+                  formatQuoteConvertedUnitPrice(price, {
                     currency,
                     useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
                   }),
@@ -189,11 +197,11 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 color: isDiscount ? '#2E7D32' : '#212121',
               }}
             >
-                {`${showPrice(
-                  formatQuoteConvertedPrice(offeredPrice, {
-                    currency,
-                    useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
-                  }),
+              {`${showPrice(
+                formatQuoteConvertedUnitPrice(offeredPrice, {
+                  currency,
+                  useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
+                }),
                 quoteTableItem,
               )}`}
             </span>
@@ -235,11 +243,11 @@ function QuoteDetailTableCard(props: QuoteTableCardProps) {
                 color: isDiscount ? '#2E7D32' : '#212121',
               }}
             >
-                {`${showPrice(
-                  formatQuoteConvertedPrice(totalWithDiscount, {
-                    currency,
-                    useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
-                  }),
+              {`${showPrice(
+                formatQuoteConvertedPrice(totalWithDiscount, {
+                  currency,
+                  useCurrentCurrency: isCurrencySymbolPlacementFixEnabled,
+                }),
                 quoteTableItem,
               )}`}
             </span>

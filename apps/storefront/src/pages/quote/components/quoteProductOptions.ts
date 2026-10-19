@@ -24,5 +24,5 @@ export function isNotesLabel(label: string | undefined): boolean {
 }
 
 export function isDisambiguationLabel(label: string | undefined): boolean {
-  return normalizeOptionLabel(label) === 'disambigua';
+  return ['disambigua', 'disambiegua'].includes(normalizeOptionLabel(label) || '');
 }

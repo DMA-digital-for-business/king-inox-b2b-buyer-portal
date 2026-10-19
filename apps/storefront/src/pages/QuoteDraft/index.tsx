@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew, Download } from '@mui/icons-material';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
 
@@ -221,6 +221,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
   const [isMobile] = useMobile();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
@@ -779,6 +780,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     }
 
     setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const info = cloneDeep(quoteInfoOrigin);
@@ -990,6 +992,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       b2bLogger.error(error);
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -1026,7 +1029,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   }, [billingChange, shippingSameAsBilling]);
 
   return (
-    <B3Spin isSpinning={loading}>
+    <B3Spin isSpinning={loading && !isSubmitting}>
       <Box
         sx={{
           mb: '60px',
@@ -1150,9 +1153,14 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                       height: '38px',
                       flex: 1,
                     }}
+                    startIcon={
+                      isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined
+                    }
                     onClick={handleSubmit}
                   >
-                    {b3Lang('quoteDraft.button.submit')}
+                    {isSubmitting
+                      ? b3Lang('quoteDraft.submission.loading')
+                      : b3Lang('quoteDraft.button.submit')}
                   </CustomButton>
                 </Box>
               ) : (
@@ -1185,9 +1193,14 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                     size="small"
                     disabled={loading}
                     sx={{ padding: '8px 22px', alignSelf: 'center' }}
+                    startIcon={
+                      isSubmitting ? <CircularProgress size={18} color="inherit" /> : undefined
+                    }
                     onClick={handleSubmit}
                   >
-                    {b3Lang('quoteDraft.button.submit')}
+                    {isSubmitting
+                      ? b3Lang('quoteDraft.submission.loading')
+                      : b3Lang('quoteDraft.button.submit')}
                   </CustomButton>
                 </Box>
               )}
@@ -1195,6 +1208,32 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           )}
         </Box>
 
+        {isSubmitting && (
+          <Box
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            sx={{
+              mb: 3,
+              p: 3,
+              border: 1,
+              borderColor: 'primary.main',
+              borderRadius: 1,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+              <CircularProgress size={32} aria-label={b3Lang('quoteDraft.submission.loading')} />
+              <Box>
+                <Typography fontWeight={600}>{b3Lang('quoteDraft.submission.loading')}</Typography>
+                <Typography color="text.secondary">
+                  {b3Lang('quoteDraft.submission.wait')}
+                </Typography>
+              </Box>
+            </Stack>
+            <LinearProgress />
+          </Box>
+        )}
         <Box>
           {!isEdit && (
             <QuoteInfo
@@ -1221,6 +1260,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
               <Box
                 sx={{
                   display: 'flex',
+                  width: '100%',
                   mt: isMobile ? 0 : '3rem',
                   flexDirection: isMobile ? 'column' : 'row',
                 }}
@@ -1320,7 +1360,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       <QuoteSubmissionResponse
         isOpen={quoteSubmissionResponseOpen}
         onClose={handleCloseQuoteSubmissionResponse}
-        quoteSubmissionResponseInfo={quoteSubmissionResponseInfo}
       />
     </B3Spin>
   );

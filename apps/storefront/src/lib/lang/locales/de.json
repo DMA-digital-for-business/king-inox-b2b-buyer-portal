@@ -54,5 +54,10 @@
   "quoteDraft.pdf.king.quantity": "Menge",
   "quoteDraft.notification.shippingAddressRequiredForPdf": "Vor dem Herunterladen des Angebots muss eine Lieferadresse angegeben werden.",
   "quoteDraft.pdf.king.onRequest": "Auf Anfrage",
-  "quoteDraft.pdf.king.fromDate": "ab"
+  "quoteDraft.pdf.king.fromDate": "ab",
+  "quoteDraft.submission.wait": "Bitte warten Sie, während wir Ihre Anfrage senden. Lassen Sie diese Seite bis zur Bestätigung geöffnet.",
+  "quoteDraft.submission.response.next": "Wir antworten innerhalb von 2 Geschäftsstunden. Klicken Sie auf OK, um die Zusammenfassung und Details Ihrer Anfrage anzuzeigen.",
+  "quoteDraft.submission.loading": "Ihre Angebotsanfrage wird gesendet…",
+  "quoteDraft.submission.response.title": "Vielen Dank für Ihre Angebotsanfrage!",
+  "quoteDraft.submission.response.message": "Ihre Angebotsanfrage wurde erfolgreich gesendet. Unser Vertriebsteam prüft die Produkte, Mengen und Anmerkungen, um ein passendes Angebot für Sie zu erstellen."
 }

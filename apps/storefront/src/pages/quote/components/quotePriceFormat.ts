@@ -50,3 +50,12 @@ export const formatQuoteConvertedPrice = (
   });
 
 export const formatQuoteUnitPrice = (price: number) => `${formatQuotePrice(price * 100, false)} %`;
+
+export const formatQuoteSummaryPrice = (formattedPrice: string) =>
+  formattedPrice.replace(/(\d)[ \u00a0\u202f](?=\d)/g, '$1.');
+
+export const formatQuoteConvertedUnitPrice = (
+  price: number | string,
+  options: QuoteCurrencyOptions,
+) =>
+  `${formatQuoteConvertedPrice(Number(price) * 100, { ...options, showCurrencyToken: false })} %`;

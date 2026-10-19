@@ -327,7 +327,7 @@ describe('when the user is a B2B customer', () => {
     expect(openWindow).toHaveBeenCalledWith('', '_blank');
   });
 
-  it('displays the quote status, issue and expiration dates', async () => {
+  it('displays the quote status and issue date without an expiration date', async () => {
     const quote = buildQuoteWith({
       data: {
         quote: {
@@ -358,13 +358,22 @@ describe('when the user is a B2B customer', () => {
     expect(screen.getByRole('heading', { name: 'Issued on:' })).toBeInTheDocument();
     expect(screen.getByText('2 February 2025')).toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { name: 'Expiration date:' })).toBeInTheDocument();
-    expect(screen.getByText('3 March 2025')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Expiration date:' })).not.toBeInTheDocument();
+    expect(screen.queryByText('3 March 2025')).not.toBeInTheDocument();
   });
 
   it('displays a summary of the products within the quote', async () => {
+    const measure = faker.string.alphanumeric(10);
+    const buildOptionWith = builder(() => ({
+      type: faker.lorem.word(),
+      optionId: faker.number.int(),
+      optionName: 'disambigua',
+      optionLabel: '0',
+      optionValue: '0',
+    }));
     const woolSock = buildQuoteProductWith({
       productName: 'Wool Socks',
+      options: [buildOptionWith('WHATEVER_VALUES')],
       quantity: 10,
       basePrice: '49.00',
       offeredPrice: '49.00',
@@ -388,6 +397,26 @@ describe('when the user is a B2B customer', () => {
     });
 
     server.use(
+      graphql.query('GetQuotePdfVariants', () =>
+        HttpResponse.json({
+          data: {
+            site: {
+              p0: {
+                variants: {
+                  edges: [
+                    {
+                      node: {
+                        entityId: woolSock.variantId,
+                        dimensions: { edges: [{ node: { key: 'MISURA', value: measure } }] },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }),
+      ),
       graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
       graphql.query('SearchProducts', () =>
         HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
@@ -408,15 +437,19 @@ describe('when the user is a B2B customer', () => {
 
     expect(await screen.findByText('2 products')).toBeInTheDocument();
 
+    expect(screen.getByRole('columnheader', { name: 'Misura' })).toBeInTheDocument();
+    expect(await screen.findByText(measure)).toBeInTheDocument();
+    expect(screen.queryByText(/disambigua/i)).not.toBeInTheDocument();
+
     const rowOfWoolSocks = await screen.findByRole('row', { name: /Wool Socks/ });
 
-    expect(within(rowOfWoolSocks).getByRole('cell', { name: '$49.00' })).toBeInTheDocument();
+    expect(within(rowOfWoolSocks).getByRole('cell', { name: '4,900.00 %' })).toBeInTheDocument();
     expect(within(rowOfWoolSocks).getByRole('cell', { name: '10' })).toBeInTheDocument();
     expect(within(rowOfWoolSocks).getByRole('cell', { name: '$490.00' })).toBeInTheDocument();
 
     const rowOfDenimJacket = await screen.findByRole('row', { name: /Denim Jacket/ });
 
-    expect(within(rowOfDenimJacket).getByRole('cell', { name: '$133.33' })).toBeInTheDocument();
+    expect(within(rowOfDenimJacket).getByRole('cell', { name: '13,333.00 %' })).toBeInTheDocument();
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '3' })).toBeInTheDocument();
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '$399.99' })).toBeInTheDocument();
   });
@@ -1747,7 +1780,7 @@ describe('when the user is a B2B customer', () => {
       });
 
       const row = (await screen.findByText('Wool Socks')).closest('tr')!;
-      expect(within(row).getByRole('cell', { name: '49.00€' })).toBeInTheDocument();
+      expect(within(row).getByRole('cell', { name: '4,900.00 %' })).toBeInTheDocument();
 
       const summary = screen.getByTestId('quote-summary');
       expect(within(summary).getByText('200.00€')).toBeInTheDocument();
@@ -1766,7 +1799,7 @@ describe('when the user is a B2B customer', () => {
       });
 
       const row = (await screen.findByText('Wool Socks')).closest('tr')!;
-      expect(within(row).getByRole('cell', { name: '€49.00' })).toBeInTheDocument();
+      expect(within(row).getByRole('cell', { name: '4,900.00 %' })).toBeInTheDocument();
 
       const summary = screen.getByTestId('quote-summary');
       expect(within(summary).getByText('€200.00')).toBeInTheDocument();
@@ -1799,7 +1832,7 @@ describe('when the user is a B2B customer', () => {
       });
 
       const row = (await screen.findByText('Wool Socks')).closest('tr')!;
-      expect(within(row).getByRole('cell', { name: '€49.00' })).toBeInTheDocument();
+      expect(within(row).getByRole('cell', { name: '4,900.00 %' })).toBeInTheDocument();
 
       const summary = screen.getByTestId('quote-summary');
       expect(within(summary).getByText('€200.00')).toBeInTheDocument();

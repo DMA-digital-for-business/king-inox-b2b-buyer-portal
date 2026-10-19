@@ -156,6 +156,7 @@ function QuoteAddress(
       mt={isMobile ? '2rem' : '0'}
       pr={pr}
       pl={pl}
+      sx={{ minWidth: 0, boxSizing: 'border-box' }}
     >
       <Box
         sx={{
@@ -192,7 +193,9 @@ function QuoteAddress(
         )}
       </Box>
 
-      <Typography sx={{ overflowWrap: 'anywhere', maxWidth: 450 }}>{addressSummary || '—'}</Typography>
+      <Typography sx={{ overflowWrap: 'anywhere', maxWidth: 450 }}>
+        {addressSummary || '—'}
+      </Typography>
 
       <ChooseAddress
         isOpen={isOpen}

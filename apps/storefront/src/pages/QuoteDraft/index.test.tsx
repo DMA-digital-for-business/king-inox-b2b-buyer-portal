@@ -2458,16 +2458,21 @@ describe('when the user is a B2B customer', () => {
         },
       });
 
+      let completeSubmission: () => void = () => {};
+      const pendingSubmission = new Promise<void>((resolve) => {
+        completeSubmission = resolve;
+      });
       server.use(
-        graphql.mutation('CreateQuote', () =>
-          HttpResponse.json(
+        graphql.mutation('CreateQuote', async () => {
+          await pendingSubmission;
+          return HttpResponse.json(
             buildQuoteCreateResponseWith({
               data: {
                 quoteCreate: { quote: { id: 123, createdAt: '1245', uuid: 'test-uuid-1234' } },
               },
             }),
-          ),
-        ),
+          );
+        }),
         graphql.mutation('DeleteCart', () =>
           HttpResponse.json({ data: { cart: { deleteCart: { deletedCartEntityId: '12345' } } } }),
         ),
@@ -2478,12 +2483,17 @@ describe('when the user is a B2B customer', () => {
       await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
 
       await userEvent.click(await screen.findByRole('button', { name: /Submit/i }));
+      expect(await screen.findByRole('button', { name: 'Submitting your quote…' })).toBeDisabled();
+      expect(screen.getByText(/Keep this page open until you see the confirmation/)).toBeVisible();
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
+      completeSubmission();
 
       await waitFor(() => {
-        expect(screen.getByText('Quote Submission Successful')).toBeInTheDocument();
+        expect(screen.getByText('Thank you for submitting your quote!')).toBeInTheDocument();
+        expect(screen.getByText(/We will respond within 2 business hours\./)).toBeInTheDocument();
       });
 
-      const okButton = screen.getByRole('button', { name: 'OK' });
+      const okButton = await screen.findByRole('button', { name: 'OK' });
       await userEvent.click(okButton);
 
       expect(navigation).toHaveBeenCalledWith('/quoteDetail/123?date=1245&uuid=test-uuid-1234');
