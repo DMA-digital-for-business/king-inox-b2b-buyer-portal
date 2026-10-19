@@ -184,7 +184,7 @@ function formatPdfDate(value: string, locale: string): string {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-function buildProductCell(line: QuotePdfLine, data: QuotePdfData): Content {
+function buildProductCell(line: QuotePdfLine): Content {
   const measure =
     line.variantData?.dimensions.MISURA?.trim() || compactLines(line.dimensions).join('X');
   return {
@@ -193,20 +193,13 @@ function buildProductCell(line: QuotePdfLine, data: QuotePdfData): Content {
         text: [
           { text: line.articleCode, ...(line.productUrl ? { link: line.productUrl } : {}) },
           ...(measure ? [{ text: ` - ${measure}` }] : []),
-          ...(line.notes ? [{ text: ` - ${line.notes}` }] : []),
         ],
         bold: true,
       },
-      {
-        text: displayValue(line.variantData?.sku || line.sku),
-        color: COLORS.accent,
-        fontSize: 7,
-        margin: [0, 2, 0, 0],
-      },
-      ...(line.yourCode
+      ...(line.yourCode?.trim()
         ? [
             {
-              text: `${data.templateLabels.yourCode}: ${line.yourCode}`,
+              text: `Vs. cod. / Your item code ${line.yourCode.trim()}`,
               fontSize: 7,
               color: COLORS.secondary,
               margin: [0, 2, 0, 0],
@@ -267,7 +260,7 @@ function buildProductsTable(data: QuotePdfData): ContentTable {
       deliveryText = `${formatPdfQuantity(line.variantData?.stock.QTA_REFILL)} ${t.fromDate} ${formatPdfDate(delivery, data.locale)}`;
     }
     body.push([
-      buildProductCell(line, data),
+      buildProductCell(line),
       ...['SCATOLA', 'MASTER_CARTON', 'PALLET'].map((key) => ({
         text: formatPdfQuantity(line.variantData?.packaging[key]),
         alignment: 'center' as const,

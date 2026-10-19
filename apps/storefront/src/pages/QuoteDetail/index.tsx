@@ -695,7 +695,7 @@ function QuoteDetail() {
         ? (offeredPrice * taxRate) / (1 + taxRate)
         : offeredPrice * taxRate;
       const unitPrice = getBCPrice(offeredPrice, offeredTax);
-      const { dimensions, yourCode, notes } = extractQuotePdfProductOptions(
+      const { dimensions, notes } = extractQuotePdfProductOptions(
         (product.options || []).map(({ optionName, optionLabel }) => ({
           label: optionName,
           value: optionLabel,
@@ -712,7 +712,7 @@ function QuoteDetail() {
           window.location.origin,
         ),
         dimensions,
-        yourCode,
+        yourCode: resources.variants[Number(product.variantId)]?.yourCode,
         packaging: packagingColumns.map(({ key, title }) => {
           const pdfTitle = key === 'MASTER_CARTON' ? 'Mastercarton' : title;
 

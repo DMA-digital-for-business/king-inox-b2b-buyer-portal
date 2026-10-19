@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { storefrontGQLRequest } from '@/shared/service/bc/graphql/client';
 import B3Request from '@/shared/service/request/b3Fetch';
 
-import type { PdfExtraField, PdfVariantData } from './quotePdfData';
+import { getQuotePdfCustomCode, type PdfExtraField, type PdfVariantData } from './quotePdfData';
 
 interface VariantTarget {
   productId?: number | string;
@@ -20,6 +20,7 @@ interface VariantNode {
   packaging?: MetafieldConnection;
   dimensions?: MetafieldConnection;
   stock?: MetafieldConnection;
+  customCodes?: MetafieldConnection;
 }
 
 interface PdfAddress {
@@ -41,6 +42,7 @@ const metafieldValues = (connection?: MetafieldConnection) =>
 
 export async function fetchQuotePdfVariants(
   items: VariantTarget[],
+  customerOracleId?: string,
 ): Promise<Record<number, PdfVariantData>> {
   const targets = items
     .filter(
@@ -74,6 +76,7 @@ export async function fetchQuotePdfVariants(
             packaging: metafields(namespace: "packaging", first: 10) { edges { node { key value } } }
             dimensions: metafields(namespace: "dimensions", first: 10) { edges { node { key value } } }
             stock: metafields(namespace: "stock", first: 10) { edges { node { key value } } }
+            ${customerOracleId ? 'customCodes: metafields(namespace: "customCodes", keys: ["CUSTOM_CODES"], first: 1) { edges { node { key value } } }' : ''}
           } }
         }
       }`,
@@ -84,7 +87,9 @@ export async function fetchQuotePdfVariants(
           site?: Record<string, { variants?: { edges?: Array<{ node: VariantNode }> } } | null>;
         };
         errors?: Array<{ message: string }>;
-      }>({ query: `query GetQuotePdfVariants { site { ${selections} } }` });
+      }>({
+        query: `query GetQuotePdfVariants { site { ${selections} } }`,
+      });
       if (response.errors?.length) throw new Error(response.errors[0].message);
       Object.values(response.data?.site || {}).forEach((product) => {
         const variant = product?.variants?.edges?.[0]?.node;
@@ -94,12 +99,44 @@ export async function fetchQuotePdfVariants(
             packaging: metafieldValues(variant.packaging),
             dimensions: metafieldValues(variant.dimensions),
             stock: metafieldValues(variant.stock),
+            ...(customerOracleId
+              ? {
+                  yourCode: getQuotePdfCustomCode(
+                    metafieldValues(variant.customCodes).CUSTOM_CODES,
+                    customerOracleId,
+                  ),
+                }
+              : {}),
           };
       });
       return result;
     }),
   );
   return Object.assign({}, ...results);
+}
+
+async function fetchPdfVariantsForCustomer(items: VariantTarget[]) {
+  if (!items.length) return {};
+  const response = await storefrontGQLRequest<{
+    data?: {
+      customer?: { entityId: number; customerOracleMetafields?: MetafieldConnection } | null;
+    };
+    errors?: Array<{ message: string }>;
+  }>({
+    query: `query GetQuotePdfCustomerOracle {
+    customer {
+      entityId
+      customerOracleMetafields: metafields(namespace: "oracle", keys: ["CUSTOMER_ID"], first: 1) {
+        edges { node { key value } }
+      }
+    }
+  }`,
+  });
+  if (response.errors?.length) throw new Error(response.errors[0].message);
+  const oracleId = metafieldValues(
+    response.data?.customer?.customerOracleMetafields,
+  ).CUSTOMER_ID?.trim();
+  return fetchQuotePdfVariants(items, oracleId);
 }
 
 async function fetchPdfAddresses(companyId: number, offset = 0): Promise<PdfAddress[]> {
@@ -156,7 +193,7 @@ export function useQuotePdfResources(options: ResourceOptions) {
     queryKey: ['quote-pdf-resources', options],
     queryFn: async () => {
       const [variants, commercial] = await Promise.all([
-        fetchQuotePdfVariants(options.items),
+        fetchPdfVariantsForCustomer(options.items),
         fetchCommercialData(options),
       ]);
       return { variants, ...commercial };

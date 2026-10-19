@@ -138,7 +138,8 @@ describe('quote PDF document', () => {
     expect(text).not.toContain(data.shippingAddress.address);
     expect(text).toContain(data.summary.grandTotal);
     expect(text).not.toContain(`"text":${JSON.stringify(data.labels.tax)}`);
-    expect(text).toContain(data.lines[0].yourCode);
+    expect(text).toContain(`Vs. cod. / Your item code ${data.lines[0].yourCode}`);
+    expect(text).not.toContain(data.lines[0].notes);
     expect(text).toContain(data.lines[0].productUrl);
     expect(text).toContain(data.templateLabels.validity);
     expect(text).toContain(data.salesRep?.name);
@@ -195,7 +196,7 @@ describe('quote PDF document', () => {
   it('prefers variant measure and includes packaging, delivery and total weight', () => {
     const data = buildQuotePdfDataWith('WHATEVER_VALUES');
     const measure = faker.string.alphanumeric();
-    const sku = faker.string.alphanumeric();
+    const sku = faker.string.uuid();
     data.lines[0] = {
       ...data.lines[0],
       quantity: 20,
@@ -208,12 +209,21 @@ describe('quote PDF document', () => {
     };
     const text = JSON.stringify(buildQuotePdfDocument(data).content);
     expect(text).toContain(measure);
-    expect(text).toContain(sku);
+    expect(text).not.toContain(sku);
     expect(text).not.toContain(data.lines[0].dimensions.join('X'));
     expect(text).toContain('32.000');
     expect(text).toContain('1.000');
     expect(text).toContain(data.templateLabels.ready);
     expect(text).toContain('10 kg');
+  });
+
+  it('omits the SKU and customer code line when the customer code is unavailable', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    const sku = faker.string.uuid();
+    data.lines[0] = { ...data.lines[0], sku, yourCode: '   ' };
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).not.toContain(sku);
+    expect(text).not.toContain('Vs. cod. / Your item code');
   });
 
   it('does not report a partial weight when one variant weight is missing', () => {

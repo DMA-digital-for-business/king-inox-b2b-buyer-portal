@@ -1,6 +1,6 @@
 import { builder, faker, graphql, HttpResponse, startMockServer } from 'tests/test-utils';
 
-import { pdfExtraField, quotePdfDelivery } from './quotePdfData';
+import { getQuotePdfCustomCode, pdfExtraField, quotePdfDelivery } from './quotePdfData';
 import { fetchQuotePdfVariants } from './useQuotePdfResources';
 
 const { server } = startMockServer();
@@ -64,6 +64,7 @@ describe('quote PDF resources', () => {
         expect(query).toContain('namespace: "packaging"');
         expect(query).toContain('namespace: "dimensions"');
         expect(query).toContain('namespace: "stock"');
+        expect(query).not.toContain('namespace: "customCodes"');
         expect(query.match(/product\(entityId:/g)).toHaveLength(1);
         return HttpResponse.json({
           data: {
@@ -96,6 +97,94 @@ describe('quote PDF resources', () => {
       stock: {},
       packaging: {},
     });
+  });
+
+  it('selects the variant customer code using the Oracle company identifier', async () => {
+    const target = buildTargetWith('WHATEVER_VALUES');
+    const oracleId = `00${faker.string.numeric(6)}`;
+    const code = faker.string.uuid();
+    const unrelatedId = `${oracleId}-other`;
+    server.use(
+      graphql.query('GetQuotePdfVariants', ({ query }) => {
+        expect(query).toContain('namespace: "customCodes", keys: ["CUSTOM_CODES"], first: 1');
+        return HttpResponse.json({
+          data: {
+            site: {
+              p0: {
+                variants: {
+                  edges: [
+                    {
+                      node: {
+                        entityId: target.variantId,
+                        customCodes: {
+                          edges: [
+                            {
+                              node: {
+                                key: 'CUSTOM_CODES',
+                                value: `${unrelatedId}=OTHER|${oracleId}=${code}`,
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        });
+      }),
+    );
+    const variants = await fetchQuotePdfVariants([target], oracleId);
+    expect(variants[target.variantId].yourCode).toBe(code);
+  });
+
+  it('does not substitute another company code when its identifier is absent from CUSTOM_CODES', async () => {
+    const target = buildTargetWith('WHATEVER_VALUES');
+    const oracleId = `00${faker.string.numeric(6)}`;
+    server.use(
+      graphql.query('GetQuotePdfVariants', () =>
+        HttpResponse.json({
+          data: {
+            site: {
+              p0: {
+                variants: {
+                  edges: [
+                    {
+                      node: {
+                        entityId: target.variantId,
+                        customCodes: {
+                          edges: [
+                            {
+                              node: {
+                                key: 'CUSTOM_CODES',
+                                value: `${oracleId}-other=${faker.string.uuid()}`,
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    const variants = await fetchQuotePdfVariants([target], oracleId);
+    expect(variants[target.variantId].yourCode).toBeUndefined();
+  });
+
+  it('parses the theme format with spaces, malformed entries and equals signs in the code', () => {
+    const companyId = `00${faker.string.numeric(6)}`;
+    const code = `${faker.string.uuid()}=suffix`;
+    const value = `invalid | ${companyId}-other=OTHER | ${companyId} =  | ${companyId} = ${code} | ${companyId}=LATER`;
+    expect(getQuotePdfCustomCode(value, ` ${companyId} `)).toBe(code);
+    expect(getQuotePdfCustomCode(value, undefined)).toBeUndefined();
+    expect(getQuotePdfCustomCode(undefined, companyId)).toBeUndefined();
   });
 
   it('reports query errors instead of exporting incomplete resources', async () => {

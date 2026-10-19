@@ -215,7 +215,8 @@ describe('when the user is a B2B customer', () => {
 
   it('downloads and prints the quote with the client-side PDF generator', async () => {
     const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
-    const yourCode = faker.string.alphanumeric();
+    const yourCode = faker.string.uuid();
+    const oracleId = faker.string.numeric(8);
     const product = buildQuoteProductWith({
       options: [
         {
@@ -229,7 +230,7 @@ describe('when the user is a B2B customer', () => {
           type: faker.lorem.word(),
           optionId: faker.number.int(),
           optionName: 'Vostro codice',
-          optionLabel: yourCode,
+          optionLabel: faker.string.uuid(),
           optionValue: faker.lorem.word(),
         },
         {
@@ -268,7 +269,48 @@ describe('when the user is a B2B customer', () => {
     vitest.mocked(printQuotePdf).mockResolvedValue();
 
     server.use(
-      graphql.query('GetQuotePdfVariants', () => HttpResponse.json({ data: { site: {} } })),
+      graphql.query('GetQuotePdfCustomerOracle', () =>
+        HttpResponse.json({
+          data: {
+            customer: {
+              entityId: quote.data.quote.bcCustomerId,
+              customerOracleMetafields: {
+                edges: [{ node: { key: 'CUSTOMER_ID', value: oracleId } }],
+              },
+            },
+          },
+        }),
+      ),
+      graphql.query('GetQuotePdfVariants', ({ query }) => {
+        expect(query).toContain('keys: ["CUSTOM_CODES"]');
+        return HttpResponse.json({
+          data: {
+            site: {
+              p0: {
+                variants: {
+                  edges: [
+                    {
+                      node: {
+                        entityId: product.variantId,
+                        customCodes: {
+                          edges: [
+                            {
+                              node: {
+                                key: 'CUSTOM_CODES',
+                                value: `${oracleId}-other=OTHER|${oracleId}=${yourCode}`,
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        });
+      }),
       graphql.query('GetQuotePdfAddresses', () =>
         HttpResponse.json({ data: { addresses: { edges: [], pageInfo: { hasNextPage: false } } } }),
       ),

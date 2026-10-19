@@ -575,7 +575,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           { ...node.productsSearch, selectOptions: node.optionList },
           {},
         ) as Array<{ valueLabel?: string; valueText?: string }>;
-        const { dimensions, yourCode, notes } = extractQuotePdfProductOptions(
+        const { dimensions, notes } = extractQuotePdfProductOptions(
           productFields.map(({ valueLabel, valueText }) => ({
             label: valueLabel,
             value: valueText,
@@ -597,7 +597,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
             window.location.origin,
           ),
           dimensions,
-          yourCode,
+          yourCode: resources.variants[Number(node.variantId)]?.yourCode,
           packaging,
           notes,
           unitPrice: String(

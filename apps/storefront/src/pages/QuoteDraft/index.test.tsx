@@ -473,7 +473,8 @@ it('downloads one PDF with the current unsaved quote information', async () => {
   const payment = faker.lorem.words();
   const packing = faker.lorem.words();
   const yourCodeOptionId = faker.number.int();
-  const yourCode = faker.string.alphanumeric();
+  const yourCode = faker.string.uuid();
+  const oracleId = faker.string.numeric(8);
   const draftProduct = buildDraftQuoteItemWith({
     node: {
       productId: faker.number.int({ min: 1, max: 10000 }),
@@ -483,7 +484,7 @@ it('downloads one PDF with the current unsaved quote information', async () => {
       taxPrice: 0,
       quantity: 20,
       optionList: JSON.stringify([
-        { optionId: `attribute[${yourCodeOptionId}]`, optionValue: yourCode },
+        { optionId: `attribute[${yourCodeOptionId}]`, optionValue: faker.string.uuid() },
       ]),
       productsSearch: buildProductWith({
         allOptions: [
@@ -525,6 +526,18 @@ it('downloads one PDF with the current unsaved quote information', async () => {
     .times(50)
     .map((address, index) => ({ node: { ...address, id: index + 1 } }));
   server.use(
+    graphql.query('GetQuotePdfCustomerOracle', () =>
+      HttpResponse.json({
+        data: {
+          customer: {
+            entityId: company.customer.id,
+            customerOracleMetafields: {
+              edges: [{ node: { key: 'CUSTOMER_ID', value: oracleId } }],
+            },
+          },
+        },
+      }),
+    ),
     graphql.query('GetQuotePdfVariants', () =>
       HttpResponse.json({
         data: {
@@ -536,6 +549,16 @@ it('downloads one PDF with the current unsaved quote information', async () => {
                     node: {
                       entityId: draftProduct.node.variantId,
                       sku: draftProduct.node.variantSku,
+                      customCodes: {
+                        edges: [
+                          {
+                            node: {
+                              key: 'CUSTOM_CODES',
+                              value: `${oracleId}-other=OTHER|${oracleId}=${yourCode}`,
+                            },
+                          },
+                        ],
+                      },
                       dimensions: { edges: [{ node: { key: 'MISURA', value: measure } }] },
                     },
                   },
