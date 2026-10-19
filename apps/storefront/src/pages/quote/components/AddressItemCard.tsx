@@ -34,7 +34,8 @@ const Flex = styled('div')(({ theme }: FlexProps) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  marginTop: theme!.spacing(3),
+  marginTop: 'auto',
+  paddingTop: theme!.spacing(3),
 }));
 
 export function AddressItemCard(props: OrderItemCardProps) {
@@ -45,11 +46,18 @@ export function AddressItemCard(props: OrderItemCardProps) {
   const b3Lang = useB3Lang();
 
   return (
-    <Card key={addressInfo.id}>
+    <Card
+      key={addressInfo.id}
+      variant="outlined"
+      sx={{ border: 1, borderColor: 'grey.400', display: 'flex' }}
+    >
       <CardContent
         sx={{
           color: '#313440',
           wordBreak: 'break-word',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
         }}
       >
         {addressInfo.label && (
