@@ -4944,6 +4944,38 @@ describe('when the user is a B2B customer', () => {
       expect(createQuoteMutation).not.toHaveBeenCalled();
     });
 
+    it.each(['storefront', 'portal'])(
+      'prepopulates the shipping address from the %s URL over the saved draft',
+      async (source) => {
+        const selectedAddress = {
+          ...shippingAddress,
+          addressLine1: shippingAddress.address,
+          countryCode: country.countryCode,
+        };
+        server.use(
+          graphql.query('Addresses', () =>
+            HttpResponse.json({
+              data: { addresses: { totalCount: 1, edges: [{ node: selectedAddress }] } },
+            }),
+          ),
+        );
+        const query = `?cartShippingAddressId=${SHIPPING_ADDRESS_ID}`;
+        const originalUrl = window.location.href;
+        if (source === 'storefront') window.location.assign(`/${query}`);
+        try {
+          renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+            ...getPreloadedState(defaultBillingAddress, defaultShippingAddress),
+            initialEntries: [source === 'portal' ? `/quoteDraft${query}` : '/quoteDraft'],
+          });
+          expect(
+            await screen.findByText(selectedAddress.addressLine1, { exact: false }),
+          ).toBeInTheDocument();
+        } finally {
+          window.location.assign(originalUrl);
+        }
+      },
+    );
+
     it('should submit the quote with the correct default addresses', async () => {
       renderWithProviders(
         <QuoteDraft setOpenPage={vi.fn()} />,

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowBackIosNew, Download } from '@mui/icons-material';
 import { Box, CircularProgress, LinearProgress, Stack, Typography } from '@mui/material';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
@@ -215,6 +215,11 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   }, [isB2BUser, selectCompanyHierarchyId]);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Stencil parameters precede the hash; portal route parameters follow it.
+  const cartShippingAddressId =
+    searchParams.get('cartShippingAddressId') ??
+    new URLSearchParams(window.location.search).get('cartShippingAddressId');
 
   const b3Lang = useB3Lang();
 
@@ -288,14 +293,20 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           }
 
           if (addressB2BList) {
-            const { node: shippingDefaultAddress } =
-              addressB2BList.find((item: B2BAddress) => item?.node?.isDefaultShipping === 1) || {};
+            const cartShippingAddress = addressB2BList.find(
+              ({ node }: B2BAddress) => String(node.id) === cartShippingAddressId,
+            )?.node;
+            const shippingDefaultAddress =
+              cartShippingAddress ||
+              addressB2BList.find((item: B2BAddress) => item?.node?.isDefaultShipping === 1)?.node;
             const { node: billingDefaultAddress } =
               addressB2BList.find((item: B2BAddress) => item?.node?.isDefaultBilling === 1) || {};
 
             if (
               shippingDefaultAddress &&
-              (!quoteInfo?.shippingAddress || validateObject(quoteInfo, 'shippingAddress'))
+              (cartShippingAddress ||
+                !quoteInfo?.shippingAddress ||
+                validateObject(quoteInfo, 'shippingAddress'))
             ) {
               const addressItem: AddressWithMasterCopy = {
                 label: shippingDefaultAddress.label || '',
@@ -389,7 +400,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     init();
     // disabling as we only need to run this once and values at starting render are good enough
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectCompanyHierarchyId, isAddressCompanyHierarchy]);
+  }, [selectCompanyHierarchyId, isAddressCompanyHierarchy, cartShippingAddressId]);
 
   const quoteAndExtraFieldsInfo = useMemo(() => {
     const contactInfo: CustomFieldItems = quoteInfoOrigin.contactInfo || {};
