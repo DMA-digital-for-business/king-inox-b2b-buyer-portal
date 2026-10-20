@@ -29,6 +29,7 @@ import { orderStatusTranslationVariables } from '../order/shared/getOrderStatus'
 import { OrderAction } from './components/OrderAction';
 import { OrderBilling } from './components/OrderBilling';
 import { OrderHistory } from './components/OrderHistory';
+import { OrderPdfActions } from './components/OrderPdfActions';
 import { OrderShipping } from './components/OrderShipping';
 import { OrderDetailsContext, OrderDetailsProvider } from './context/OrderDetailsContext';
 import convertB2BOrderDetails from './shared/B2BOrderData';
@@ -44,6 +45,8 @@ function OrderDetail() {
   const isAgenting = useAppSelector(({ b2bFeatures }) => b2bFeatures.masqueradeCompany.isAgenting);
 
   const companyInfoId = useAppSelector(({ company }) => company.companyInfo.id);
+  const customer = useAppSelector(({ company }) => company.customer);
+  const inclusiveTax = useAppSelector(({ global }) => global.showInclusiveTaxPrice);
   const currencies = useAppSelector(({ storeConfigs }) => storeConfigs.currencies.currencies);
   const { selectCompanyHierarchyId } = useAppSelector(
     ({ company }) => company.companyHierarchyInfo,
@@ -328,7 +331,7 @@ function OrderDetail() {
           </Box>
         </Box>
 
-        <Grid container spacing={2}>
+        <Grid container spacing={2} alignItems="center">
           <Grid
             item
             xs={isMobile ? 12 : 8}
@@ -336,7 +339,6 @@ function OrderDetail() {
               display: 'flex',
               alignItems: 'center',
               gap: '15px',
-              order: isMobile ? 1 : 0,
             }}
           >
             <Typography
@@ -353,6 +355,16 @@ function OrderDetail() {
                 : ''}
             </Typography>
             <OrderStatus code={status} text={getOrderStatusLabel(status)} />
+          </Grid>
+          <Grid item xs={isMobile ? 12 : 4} sx={{ textAlign: isMobile ? 'left' : 'right' }}>
+            <OrderPdfActions
+              details={detailsData}
+              userId={customer.b2bId}
+              customerId={customer.id}
+              masquerading={!!salesRepCompanyId}
+              loading={isRequestLoading}
+              inclusiveTax={inclusiveTax}
+            />
           </Grid>
         </Grid>
         {orderId && !isCurrentCompany ? (

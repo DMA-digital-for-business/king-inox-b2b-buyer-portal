@@ -867,5 +867,6 @@
   "quoteDraft.notification.shippingAddressRequiredForPdf": "A shipping address is required before downloading the quote.",
   "quoteDraft.pdf.king.onRequest": "On request",
   "quoteDraft.pdf.king.fromDate": "from",
-  "quoteDraft.pdf.king.vatNumber": "VAT No."
+  "quoteDraft.pdf.king.vatNumber": "VAT No.",
+  "orderDetail.pdf.title": "Order Confirmation"
 }

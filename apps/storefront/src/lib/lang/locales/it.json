@@ -865,5 +865,6 @@
   "quoteDraft.notification.shippingAddressRequiredForPdf": "È necessario inserire un indirizzo di spedizione prima di scaricare il preventivo.",
   "quoteDraft.pdf.king.onRequest": "Su richiesta",
   "quoteDraft.pdf.king.fromDate": "dal",
-  "quoteDraft.pdf.king.vatNumber": "P. Iva"
+  "quoteDraft.pdf.king.vatNumber": "P. Iva",
+  "orderDetail.pdf.title": "Conferma d’Ordine"
 }

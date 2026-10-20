@@ -386,3 +386,24 @@ describe('quote PDF image preparation', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('order confirmation PDF', () => {
+  it('uses the order title and removes the delivery column', () => {
+    const data = buildQuotePdfDataWith({ documentType: 'order' });
+    const title = en['orderDetail.pdf.title'];
+    data.templateLabels.offer = title;
+    const document = buildQuotePdfDocument(data);
+    const serialized = JSON.stringify(document);
+    expect(serialized).toContain(title);
+    expect(serialized).not.toContain(data.templateLabels.delivery);
+    expect(serialized).toContain('"widths":["*",29,31,34,19,42,48,49]');
+  });
+
+  it('names the file as an order confirmation', () => {
+    const number = faker.string.numeric();
+    const date = faker.date.anytime();
+    expect(buildQuotePdfFileName(number, date, 'Conferma-Ordine')).toBe(
+      `Conferma-Ordine-${number}-${new Intl.DateTimeFormat('sv-SE').format(date)}.pdf`,
+    );
+  });
+});

@@ -69,6 +69,7 @@ export interface QuotePdfSummary {
 }
 
 export interface QuotePdfData {
+  documentType?: 'order';
   storeName: string;
   templateLabels: QuotePdfTemplateLabels;
   locale: string;
@@ -285,13 +286,21 @@ function buildProductsTable(data: QuotePdfData): ContentTable {
   });
   if (!data.lines.length)
     body.push([{ text: data.labels.noProducts, colSpan: 9 }, {}, {}, {}, {}, {}, {}, {}, {}]);
+  const widths: Array<string | number> = ['*', 29, 31, 34, 19, 42, 48, 49, 52];
+  if (data.documentType === 'order') {
+    widths.pop();
+    body.forEach((row) => {
+      row.pop();
+      if (row[0] && typeof row[0] === 'object' && 'colSpan' in row[0]) row[0].colSpan = 8;
+    });
+  }
   return {
     margin: [0, 18, 0, 0],
     table: {
       headerRows: 2,
       dontBreakRows: true,
       keepWithHeaderRows: 1,
-      widths: ['*', 29, 31, 34, 19, 42, 48, 49, 52],
+      widths,
       body,
     },
     layout: {
@@ -461,7 +470,7 @@ export function buildQuotePdfDocument(
                 ? [
                     {
                       text: [
-                        { text: `${t.offer} n. ` },
+                        { text: data.documentType === 'order' ? `${t.offer} ` : `${t.offer} n. ` },
                         {
                           text: displayValue(data.quoteNumber),
                           bold: true,
@@ -785,7 +794,11 @@ export async function imageUrlToDataUrl(
   }
 }
 
-export function buildQuotePdfFileName(quoteNumber?: string, date = new Date()): string {
+export function buildQuotePdfFileName(
+  quoteNumber?: string,
+  date = new Date(),
+  prefix = 'Offerta',
+): string {
   const safeNumber = (quoteNumber || '')
     .trim()
     .normalize('NFD')
@@ -799,7 +812,7 @@ export function buildQuotePdfFileName(quoteNumber?: string, date = new Date()): 
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
 
-  return `${['Offerta', safeNumber, datePart].filter(Boolean).join('-')}.pdf`;
+  return `${[prefix, safeNumber, datePart].filter(Boolean).join('-')}.pdf`;
 }
 
 async function prepareEmbeddedImages(data: QuotePdfData): Promise<EmbeddedImages> {
@@ -871,7 +884,11 @@ async function createQuotePdf(data: QuotePdfData) {
 
 export async function downloadQuotePdf(data: QuotePdfData): Promise<void> {
   const pdf = await createQuotePdf(data);
-  const fileName = buildQuotePdfFileName(data.quoteNumber);
+  const fileName = buildQuotePdfFileName(
+    data.quoteNumber,
+    new Date(),
+    data.documentType === 'order' ? 'Conferma-Ordine' : 'Offerta',
+  );
 
   await new Promise<void>((resolve) => {
     pdf.download(fileName, resolve);
