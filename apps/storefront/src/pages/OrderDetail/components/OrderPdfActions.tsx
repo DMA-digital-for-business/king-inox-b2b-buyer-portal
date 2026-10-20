@@ -19,6 +19,8 @@ import { useQuotePdfResources } from '@/pages/quote/components/useQuotePdfResour
 import type { Address } from '@/types';
 import { snackbar } from '@/utils/b3Tip';
 
+import { orderPdfShippingFields } from './orderPdfShippingFields';
+
 const CTA_BUTTON_COLOR = '#ff7a1a';
 
 const pdfAddress = (address?: Address) => ({
@@ -64,6 +66,7 @@ export function OrderPdfActions({
   });
   const buildData = async (): Promise<QuotePdfData> => {
     const resources = await loadResources();
+    const shippingFields = orderPdfShippingFields(resources.addresses, details.shippings?.[0]);
     const formatPrice = (value: string | number) =>
       new Intl.NumberFormat(locale, {
         style: 'currency',
@@ -96,7 +99,11 @@ export function OrderPdfActions({
       customerCode: pdfExtraField(resources.companyFields, 'CODICE CLIENTE ERP'),
       customerVatNumber: pdfExtraField(resources.companyFields, 'PARTITA IVA'),
       currencyCode: details.currencyCode,
-      commercialTerms: { payment: details.payment?.paymentMethod },
+      commercialTerms: {
+        carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),
+        payment: pdfExtraField(shippingFields, 'METODO PAGAMENTO'),
+        packing: pdfExtraField(shippingFields, 'METODO PAGAMENTO IMBALLO'),
+      },
       logoUrl: QUOTE_PDF_LOGO_URL,
       contactInfo: {
         name: details.orderSummary?.name,

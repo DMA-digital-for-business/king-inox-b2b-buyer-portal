@@ -23,7 +23,13 @@ interface VariantNode {
   customCodes?: MetafieldConnection;
 }
 
-interface PdfAddress {
+export interface PdfAddress {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  zipCode?: string;
+  countryCode?: string;
+  country?: string;
   id: number | string;
   extraFields?: PdfExtraField[];
 }
@@ -145,7 +151,7 @@ async function fetchPdfAddresses(companyId: number, offset = 0): Promise<PdfAddr
   }>({
     query: `query GetQuotePdfAddresses {
       addresses(companyId: ${companyId}, first: 50, offset: ${offset}) {
-        edges { node { id extraFields { fieldName fieldValue } } }
+        edges { node { id addressLine1 addressLine2 city zipCode countryCode country extraFields { fieldName fieldValue } } }
         pageInfo { hasNextPage }
       }
     }`,
