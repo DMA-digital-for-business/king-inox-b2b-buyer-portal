@@ -79,7 +79,12 @@ export function OrderPdfActions({
     return {
       documentType: 'order',
       storeName: 'KING',
-      templateLabels: { ...getQuotePdfTemplateLabels(b3Lang), offer: title },
+      templateLabels: {
+        ...getQuotePdfTemplateLabels(b3Lang),
+        offer: title,
+        validity: b3Lang('orderDetail.pdf.confirmed'),
+        confirmation: b3Lang('orderDetail.pdf.acceptance'),
+      },
       locale,
       isDraft: false,
       quoteNumber: String(details.orderId),
@@ -93,7 +98,12 @@ export function OrderPdfActions({
       currencyCode: details.currencyCode,
       commercialTerms: { payment: details.payment?.paymentMethod },
       logoUrl: QUOTE_PDF_LOGO_URL,
-      contactInfo: { name: details.orderSummary?.name, email: details.createdEmail },
+      contactInfo: {
+        name: details.orderSummary?.name,
+        email: details.createdEmail,
+        companyName:
+          details.companyInfo?.companyName?.trim() || details.billingAddress?.company?.trim(),
+      },
       billingAddress: pdfAddress(details.billingAddress),
       shippingAddress: pdfAddress(details.shippings?.[0] || details.billingAddress),
       extraFields: [],

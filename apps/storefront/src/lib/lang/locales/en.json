@@ -868,5 +868,7 @@
   "quoteDraft.pdf.king.onRequest": "On request",
   "quoteDraft.pdf.king.fromDate": "from",
   "quoteDraft.pdf.king.vatNumber": "VAT No.",
-  "orderDetail.pdf.title": "Order Confirmation"
+  "orderDetail.pdf.title": "Order Confirmation",
+  "orderDetail.pdf.confirmed": "ORDER CONFIRMED",
+  "orderDetail.pdf.acceptance": "The order is deemed accepted unless otherwise notified within 24 hours."
 }
