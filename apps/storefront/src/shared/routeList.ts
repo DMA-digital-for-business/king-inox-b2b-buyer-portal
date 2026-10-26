@@ -357,7 +357,7 @@ export const getAllowedRoutesWithoutComponent = (globalState: GlobalState): Buye
     }
 
     if (item.configKey === 'shoppingLists') {
-      return storefrontConfig.shoppingLists;
+      return true
     }
 
     if (item.configKey === 'quickOrderPad') {
