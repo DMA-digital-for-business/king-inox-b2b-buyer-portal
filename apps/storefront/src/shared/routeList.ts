@@ -357,10 +357,7 @@ export const getAllowedRoutesWithoutComponent = (globalState: GlobalState): Buye
     }
 
     if (item.configKey === 'shoppingLists') {
-      const shoppingListOnProductPage = quoteConfig.find(
-        (config: QuoteConfigProps) => config.key === 'shopping_list_on_product_page',
-      )?.extraFields;
-      return storefrontConfig.shoppingLists && shoppingListOnProductPage?.b2b;
+      return storefrontConfig.shoppingLists;
     }
 
     if (item.configKey === 'quickOrderPad') {
