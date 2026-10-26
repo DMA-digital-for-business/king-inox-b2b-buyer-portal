@@ -6,6 +6,7 @@ import {
   buildGlobalStateWith,
   bulk,
   faker,
+  fireEvent,
   graphql,
   HttpResponse,
   renderWithProviders,
@@ -698,6 +699,77 @@ describe('when user rejects a shopping list', () => {
       }),
     );
   });
+});
+
+describe('shopping list Box quantities', () => {
+  it.each([
+    { initial: 200, input: '201', expected: 300 },
+    { initial: 200, input: '199', expected: 100 },
+    { initial: 200, input: '0', expected: 100 },
+    { initial: 150, input: undefined, expected: 200 },
+  ])(
+    'saves $expected units from $initial with input $input and Box 100',
+    async ({ initial, input, expected }) => {
+      const product = buildShoppingListProductEdgeWith({ node: { quantity: initial } });
+      vitest.mocked(useParams).mockReturnValue({ id: faker.number.int().toString() });
+      const response = buildShoppingListGraphQLResponseWith({
+        data: { shoppingList: { status: 0, products: { totalCount: 1, edges: [product] } } },
+      });
+      const buildPackagingWith = builder(() => ({
+        data: {
+          site: {
+            product_0: {
+              variant_0: {
+                edges: [
+                  {
+                    node: {
+                      entityId: product.node.variantId,
+                      metafields: {
+                        edges: [
+                          { node: { entityId: faker.number.int(), key: 'SCATOLA', value: '100' } },
+                        ],
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }));
+      const save = vi.fn();
+      server.use(
+        graphql.query('B2BShoppingListDetails', () => HttpResponse.json(response)),
+        graphql.query('SearchProducts', () =>
+          HttpResponse.json(buildSearchProductsResponseWith({ data: { productsSearch: [] } })),
+        ),
+        graphql.query('GetQuotePackagingMetafields', () =>
+          HttpResponse.json(buildPackagingWith('WHATEVER_VALUES')),
+        ),
+        graphql.mutation('B2BUpdateShoppingListItems', ({ query }) => {
+          save(query);
+          return HttpResponse.json({
+            data: { shoppingListsItemsUpdate: { shoppingListsItem: product.node } },
+          });
+        }),
+      );
+      renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+        preloadedState: { company: b2bCompanyWithShoppingListPermissions },
+      });
+      const row = await screen.findByRole('row', { name: new RegExp(product.node.productName) });
+      await within(row).findByRole('cell', { name: '100' });
+      const quantity = within(row).getByRole('spinbutton');
+      await userEvent.click(quantity);
+      if (input !== undefined) {
+        fireEvent.change(quantity, { target: { value: input } });
+        expect(quantity).toHaveValue(expected);
+      }
+      await userEvent.tab();
+      await waitFor(() =>
+        expect(save).toHaveBeenCalledWith(expect.stringContaining(`quantity: ${expected}`)),
+      );
+    },
+  );
 });
 
 describe("when a product's quantity is increased", () => {

@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Delete, Edit, StickyNote2 } from '@mui/icons-material';
+import { Delete, StickyNote2 } from '@mui/icons-material';
 import { Box, FormControlLabel, Grid, styled, Switch, TextField, Typography } from '@mui/material';
 import cloneDeep from 'lodash-es/cloneDeep';
 
@@ -29,6 +29,8 @@ import { useB3Lang } from '@/lib/lang';
 import {
   formatPackagingQuantity,
   getPackagingMetafieldValue,
+  normalizeQuantityToBoxMultiple,
+  normalizeQuantityToBoxStep,
   packagingColumns,
 } from '@/pages/quote/components/quotePackaging';
 import { formatQuotePrice, formatQuoteUnitPrice } from '@/pages/quote/components/quotePriceFormat';
@@ -41,7 +43,7 @@ import {
 import { rolePermissionSelector, useAppSelector } from '@/store';
 import b2bGetVariantImageByVariantInfo from '@/utils/b2bGetVariantImageByVariantInfo';
 import { currencyFormat } from '@/utils/b3CurrencyFormat';
-import { getBCPrice, getDisplayPrice, getValidOptionsList } from '@/utils/b3Product/b3Product';
+import { getBCPrice, getDisplayPrice } from '@/utils/b3Product/b3Product';
 import { getProductOptionsFields, ProductsProps } from '@/utils/b3Product/shared/config';
 import { snackbar } from '@/utils/b3Tip';
 import {
@@ -51,7 +53,6 @@ import {
 
 import B3FilterSearch from '../../../components/filter/B3FilterSearch';
 
-import ChooseOptionsDialog from './ChooseOptionsDialog';
 import ShoppingDetailAddNotes from './ShoppingDetailAddNotes';
 import ShoppingDetailCard from './ShoppingDetailCard';
 
@@ -88,7 +89,6 @@ interface ListItemProps {
 
 interface ShoppingDetailTableProps {
   shoppingListInfo: any;
-  isRequestLoading: boolean;
   setIsRequestLoading: Dispatch<SetStateAction<boolean>>;
   shoppingListId: number | string;
   getShoppingListDetails: GetRequestList<SearchProps, CustomFieldItems>;
@@ -175,7 +175,6 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
 
   const {
     shoppingListInfo,
-    isRequestLoading,
     setIsRequestLoading,
     shoppingListId,
     getShoppingListDetails,
@@ -199,9 +198,6 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
 
   const paginationTableRef = useRef<PaginationTableRefProps | null>(null);
 
-  const [chooseOptionsOpen, setSelectedOptionsOpen] = useState(false);
-  const [optionsProduct, setOptionsProduct] = useState<any>(null);
-  const [editProductItemId, setEditProductItemId] = useState<number | string | null>(null);
   const [search, setSearch] = useState<SearchProps>({
     orderBy: `-${sortKeys[defaultSortKey]}`,
   });
@@ -314,23 +310,27 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
   );
 
   const handleUpdateProductQty = (id: number | string, value: number | string) => {
-    if (Number(value) < 0) return;
-    const currentItem = originProducts.find((item: ListItemProps) => {
-      const { node } = item;
-
-      return node.id === id;
-    });
-
-    const currentQty = currentItem?.node?.quantity || '';
-    setQtyNotChangeFlag(Number(currentQty) === Number(value));
-
+    if (!Number.isFinite(Number(value))) return;
     const listItems: ListItemProps[] = paginationTableRef.current?.getList() || [];
+    const currentItem = listItems.find(({ node }) => node.id === id);
+    if (!currentItem) return;
+    const quantity = Math.min(
+      1000000,
+      normalizeQuantityToBoxStep(
+        currentItem.node,
+        Math.max(1, Math.min(1000000, Math.ceil(Number(value)))),
+        Number(currentItem.node.quantity),
+        packagingByVariantId,
+      ),
+    );
+    const originalItem = originProducts.find(({ node }) => node.id === id);
+    setQtyNotChangeFlag(Number(originalItem?.node.quantity) === quantity);
     const listCacheItems: ListItemProps[] = paginationTableRef.current?.getCacheList() || [];
     const newListItems = listItems?.map((item: ListItemProps) => {
       const { node } = item;
       if (node?.id === id) {
-        node.quantity = `${Number(value)}`;
-        node.disableCurrentCheckbox = Number(value) === 0;
+        node.quantity = `${quantity}`;
+        node.disableCurrentCheckbox = quantity === 0;
       }
 
       return item;
@@ -338,8 +338,8 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
     const newListCacheItems = listCacheItems?.map((item: ListItemProps) => {
       const { node } = item;
       if (node?.id === id) {
-        node.quantity = `${Number(value)}`;
-        node.disableCurrentCheckbox = Number(value) === 0;
+        node.quantity = `${quantity}`;
+        node.disableCurrentCheckbox = quantity === 0;
       }
 
       return item;
@@ -372,45 +372,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
     });
   };
 
-  const handleChooseOptionsDialogCancel = () => {
-    setEditProductItemId('');
-    setSelectedOptionsOpen(false);
-  };
-
-  const handleOpenProductEdit = (product: any, _: number | string, itemId: number | string) => {
-    setEditProductItemId(itemId);
-    setOptionsProduct(product);
-    setSelectedOptionsOpen(true);
-  };
-
-  const handleChooseOptionsDialogConfirm = async (products: CustomFieldItems[]) => {
-    setIsRequestLoading(true);
-    const updateShoppingListItem = isB2BUser
-      ? updateB2BShoppingListsItem
-      : updateBcShoppingListsItem;
-    try {
-      const newOptionLists = getValidOptionsList(products[0].newSelectOptionList, products[0]);
-      const data = {
-        itemId: editProductItemId,
-        shoppingListId,
-        itemData: {
-          variantId: products[0].variantId,
-          quantity: products[0].quantity,
-          optionList: newOptionLists || [],
-        },
-      };
-
-      await updateShoppingListItem(data);
-      setSelectedOptionsOpen(false);
-      setEditProductItemId('');
-      snackbar.success(b3Lang('shoppingList.table.productUpdated'));
-      initSearch({ keepCheckedItems: true });
-    } finally {
-      setIsRequestLoading(false);
-    }
-  };
-
-  const handleUpdateShoppingListItem = async (itemId: number | string) => {
+  const handleUpdateShoppingListItem = async (itemId: number | string, quantity?: number) => {
     const listItems: ListItemProps[] = paginationTableRef.current?.getList() || [];
     const currentItem = listItems.find((item: ListItemProps) => {
       const { node } = item;
@@ -434,7 +396,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
 
     const itemData: CustomFieldItems = {
       variantId: currentNode?.variantId,
-      quantity: currentNode?.quantity ? Number(currentNode.quantity) : 0,
+      quantity: quantity ?? Number(currentNode?.quantity || 0),
       optionList: optionsList || [],
       productNote: notes,
     };
@@ -453,10 +415,22 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
   };
 
   const handleUpdateShoppingListItemQty = async (itemId: number | string) => {
-    if (qtyNotChangeFlag) return;
+    const items: ListItemProps[] = paginationTableRef.current?.getList() || [];
+    const item = items.find(({ node }) => node.itemId === itemId);
+    if (!item) return;
+    const quantity = Math.min(
+      1000000,
+      normalizeQuantityToBoxMultiple(
+        item.node,
+        Math.max(1, Math.min(1000000, Math.ceil(Number(item.node.quantity)))),
+        packagingByVariantId,
+      ),
+    );
+    if (qtyNotChangeFlag && quantity === Number(item.node.quantity)) return;
+    handleUpdateProductQty(item.node.id, quantity);
     setIsRequestLoading(true);
     try {
-      await handleUpdateShoppingListItem(itemId);
+      await handleUpdateShoppingListItem(itemId, quantity);
       snackbar.success(b3Lang('shoppingList.table.quantityUpdated'));
       setQtyNotChangeFlag(true);
       initSearch({ keepCheckedItems: true });
@@ -754,25 +728,11 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
       key: 'Total',
       title: b3Lang('shoppingList.table.total'),
       render: (row: CustomFieldItems) => {
-        const {
-          basePrice,
-          quantity,
-          itemId,
-          productsSearch: { options },
-          taxPrice = 0,
-        } = row;
+        const { basePrice, quantity, itemId, taxPrice = 0 } = row;
 
         const inTaxPrice = getBCPrice(Number(basePrice), Number(taxPrice));
 
         const totalPrice = inTaxPrice * Number(quantity);
-
-        const optionList = options || JSON.parse(row.optionList);
-
-        const canChangeOption =
-          optionList.length > 0 &&
-          !isReadForApprove &&
-          !isJuniorApprove &&
-          b2bAndBcShoppingListActionsPermissions;
 
         return (
           <Box>
@@ -818,35 +778,6 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
                     />
                   </Grid>
 
-                  <Grid
-                    item
-                    sx={{
-                      marginRight: canChangeOption ? '0.5rem' : '',
-                      marginLeft: canChangeOption ? '0.3rem' : '',
-                    }}
-                  >
-                    {canChangeOption && (
-                      <Edit
-                        sx={{
-                          cursor: 'pointer',
-                          color: 'rgba(0, 0, 0, 0.54)',
-                        }}
-                        onClick={() => {
-                          const { productsSearch, variantId, itemId, optionList, quantity } = row;
-
-                          handleOpenProductEdit(
-                            {
-                              ...productsSearch,
-                              selectOptions: optionList,
-                              quantity,
-                            },
-                            variantId,
-                            itemId,
-                          );
-                        }}
-                      />
-                    )}
-                  </Grid>
                   <Grid
                     item
                     sx={{
@@ -953,7 +884,6 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
             item={row}
             itemIndex={index}
             showPrice={showPrice}
-            onEdit={handleOpenProductEdit}
             onDelete={setDeleteItemId}
             checkBox={checkBox}
             setDeleteOpen={setDeleteOpen}
@@ -970,17 +900,6 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
             showBackorderDetails={showBackorderDetails}
           />
         )}
-      />
-
-      <ChooseOptionsDialog
-        isOpen={chooseOptionsOpen}
-        isLoading={isRequestLoading}
-        setIsLoading={setIsRequestLoading}
-        product={optionsProduct}
-        type="shoppingList"
-        onCancel={handleChooseOptionsDialogCancel}
-        onConfirm={handleChooseOptionsDialogConfirm}
-        isEdit
       />
 
       <ShoppingDetailAddNotes

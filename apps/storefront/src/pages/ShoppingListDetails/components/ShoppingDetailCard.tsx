@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { Delete, Edit, StickyNote2 } from '@mui/icons-material';
+import { Delete, StickyNote2 } from '@mui/icons-material';
 import { Box, CardContent, styled, TextField, Typography } from '@mui/material';
 
 import BackorderMessage from '@/components/BackorderMessage';
@@ -21,7 +21,6 @@ import { getProductOptionsFields } from '../../../utils/b3Product/shared/config'
 
 interface ShoppingDetailCardProps {
   item: any;
-  onEdit: (item: any, variantId: number | string, itemId: number | string) => void;
   onDelete: (itemId: number) => void;
   handleUpdateProductQty: (id: number | string, value: number | string) => void;
   handleUpdateShoppingListItem: (itemId: number | string) => void;
@@ -51,7 +50,6 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
   const b3Lang = useB3Lang();
   const {
     item: shoppingDetail,
-    onEdit,
     onDelete,
     checkBox,
     handleUpdateProductQty,
@@ -79,7 +77,6 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
     primaryImage,
     productName,
     variantSku,
-    productsSearch,
     productUrl,
     taxPrice = 0,
     productNote,
@@ -98,9 +95,6 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
 
   const optionList = JSON.parse(shoppingDetail.optionList);
   const optionsValue: CustomFieldItems[] = productFields.filter((item) => item.valueText);
-
-  const canChangeOption =
-    optionList.length > 0 && !isReadForApprove && b2bAndBcShoppingListActionsPermissions;
 
   const currentVariants = product.variants || [];
 
@@ -298,27 +292,6 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
               />
             )}
 
-            {canChangeOption && (
-              <Edit
-                sx={{
-                  marginRight: canChangeOption ? '0.5rem' : '',
-                  marginLeft: canChangeOption ? '0.3rem' : '',
-                  cursor: 'pointer',
-                  color: 'rgba(0, 0, 0, 0.54)',
-                }}
-                onClick={() => {
-                  onEdit(
-                    {
-                      ...productsSearch,
-                      selectOptions: optionList,
-                      quantity,
-                    },
-                    variantId,
-                    itemId,
-                  );
-                }}
-              />
-            )}
             {b2bAndBcShoppingListActionsPermissions && !isReadForApprove && (
               <Delete
                 sx={{

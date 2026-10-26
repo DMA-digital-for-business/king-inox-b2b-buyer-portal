@@ -936,7 +936,6 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
               isJuniorApprove={isJuniorApprove}
               setCheckedArr={setCheckedArr}
               shoppingListInfo={shoppingListInfo}
-              isRequestLoading={isRequestLoading}
               setIsRequestLoading={setIsRequestLoading}
               shoppingListId={id}
               getShoppingListDetails={getShoppingListDetails}
