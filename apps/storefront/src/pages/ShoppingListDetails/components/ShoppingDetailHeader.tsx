@@ -1,6 +1,6 @@
 import { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowBackIosNew } from '@mui/icons-material';
+import { ArrowBackIosNew, Download } from '@mui/icons-material';
 import { Box, Grid, styled, Typography } from '@mui/material';
 
 import CustomButton from '@/components/button/CustomButton';
@@ -36,6 +36,10 @@ interface ShoppingDetailHeaderProps {
     shoppingListBtn: string;
   };
   customColor: string;
+  onCheckout: () => void;
+  onDownloadPdf: () => void;
+  isGeneratingPdf: boolean;
+  isLoading: boolean;
 }
 
 function ShoppingDetailHeader({
@@ -47,6 +51,10 @@ function ShoppingDetailHeader({
   setOpenPage,
   openAPPParams,
   customColor,
+  onCheckout,
+  onDownloadPdf,
+  isGeneratingPdf,
+  isLoading,
 }: ShoppingDetailHeaderProps) {
   const b3Lang = useB3Lang();
   const [isMobile] = useMobile();
@@ -237,10 +245,31 @@ function ShoppingDetailHeader({
         <Grid
           item
           sx={{
-            textAlign: isMobile ? 'none' : 'end',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-end',
+            flexWrap: 'wrap',
+            gap: 1,
           }}
           {...gridOptions(4)}
         >
+          <CustomButton
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={onDownloadPdf}
+            disabled={isGeneratingPdf || isLoading || !shoppingListInfo}
+          >
+            {isGeneratingPdf
+              ? b3Lang('quoteDraft.pdf.generating')
+              : b3Lang('quoteDraft.button.downloadPDF')}
+          </CustomButton>
+          <CustomButton
+            variant="contained"
+            onClick={onCheckout}
+            disabled={isLoading || !shoppingListInfo}
+          >
+            {b3Lang('shoppingList.footer.proceedToCheckout')}
+          </CustomButton>
           {submitShoppingListPermission &&
             shoppingListInfo?.status === ShoppingListStatus.Draft && (
               <CustomButton

@@ -5,9 +5,15 @@ import { Box, CardContent, styled, TextField, Typography } from '@mui/material';
 import BackorderMessage from '@/components/BackorderMessage';
 import { PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useB3Lang } from '@/lib/lang';
+import {
+  formatPackagingQuantity,
+  getPackagingMetafieldValue,
+  packagingColumns,
+} from '@/pages/quote/components/quotePackaging';
+import { formatQuotePrice, formatQuoteUnitPrice } from '@/pages/quote/components/quotePriceFormat';
+import type { PackagingByVariantId } from '@/pages/quote/components/useQuotePackagingMetafields';
 import type { CatalogQuickVariantSku } from '@/shared/service/b2b/graphql/product';
 import b2bGetVariantImageByVariantInfo from '@/utils/b2bGetVariantImageByVariantInfo';
-import { currencyFormat } from '@/utils/b3CurrencyFormat';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
 import { getCatalogProductRowDisplayState } from '@/utils/catalogBackorderDisplay';
 
@@ -32,6 +38,7 @@ interface ShoppingDetailCardProps {
   inventoryBySku?: Record<string, CatalogQuickVariantSku>;
   backorderUiEnabled?: boolean;
   showBackorderDetails?: boolean;
+  packagingByVariantId: PackagingByVariantId;
 }
 
 const StyledImage = styled('img')(() => ({
@@ -61,6 +68,7 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
     inventoryBySku = {},
     backorderUiEnabled = false,
     showBackorderDetails = false,
+    packagingByVariantId,
   } = props;
 
   const {
@@ -198,10 +206,23 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
             }}
           >
             {b3Lang('shoppingList.shoppingDetailCard.price', {
-              price: showPrice(currencyFormat(price), shoppingDetail),
+              price: showPrice(formatQuoteUnitPrice(price), shoppingDetail),
             })}
           </Typography>
 
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, my: 1 }}>
+            <Typography variant="body2">
+              Misura: {getPackagingMetafieldValue(shoppingDetail, 'MISURA', packagingByVariantId)}
+            </Typography>
+            {packagingColumns.map(({ key, title }) => (
+              <Typography key={key} variant="body2">
+                {title}:{' '}
+                {formatPackagingQuantity(
+                  getPackagingMetafieldValue(shoppingDetail, key, packagingByVariantId),
+                )}
+              </Typography>
+            ))}
+          </Box>
           <TextField
             size="small"
             type="number"
@@ -249,7 +270,7 @@ function ShoppingDetailCard(props: ShoppingDetailCardProps) {
             }}
           >
             {b3Lang('shoppingList.shoppingDetailCard.total', {
-              total: showPrice(currencyFormat(total), shoppingDetail),
+              total: showPrice(formatQuotePrice(total), shoppingDetail),
             })}
           </Typography>
           <Box

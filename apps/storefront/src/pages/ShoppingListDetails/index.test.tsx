@@ -19,11 +19,15 @@ import {
 } from 'tests/test-utils';
 import { when } from 'vitest-when';
 
+import { CHECKOUT_URL } from '@/constants';
 import { SearchProductsResponse } from '@/shared/service/b2b/graphql/product';
 import { CustomerShoppingListB2B } from '@/shared/service/b2b/graphql/shoppingList';
 import { GetCart } from '@/shared/service/bc/graphql/cart';
 import { CompanyStatus, CustomerRole, ShoppingListStatus, UserTypes } from '@/types';
+import * as cartUtils from '@/utils/cartUtils';
 
+import AddToShoppingList from './components/AddToShoppingList';
+import * as shoppingListPdf from './shoppingListPdf';
 import ShoppingListDetailsContent from '.';
 
 vitest.mock('react-router-dom', async (importOriginal) => ({
@@ -62,6 +66,12 @@ interface VariantInfoResponse {
 }
 
 const { server } = startMockServer();
+
+beforeEach(() => {
+  server.use(
+    graphql.query('GetQuotePackagingMetafields', () => HttpResponse.json({ data: { site: {} } })),
+  );
+});
 
 type ShoppingListProductEdge =
   CustomerShoppingListB2B['data']['shoppingList']['products']['edges'][number];
@@ -305,71 +315,6 @@ const buildProductPriceWith = builder(() => ({
   bulkPricing: [],
 }));
 
-const buildShoppingListItemWith = builder(() => ({
-  itemId: faker.number.int(),
-  productId: faker.number.int(),
-  variantId: faker.number.int(),
-  productName: faker.commerce.productName(),
-  variantSku: faker.string.uuid(),
-  quantity: faker.number.int({ min: 1, max: 10 }),
-  optionList: JSON.stringify([]),
-  basePrice: faker.commerce.price(),
-  tax: '0.00',
-  discount: '0.00',
-}));
-
-const buildB2BShoppingListsItemsCreateResponseWith = builder(() => ({
-  data: {
-    shoppingListsItemsCreate: {
-      shoppingListsItems: bulk(buildShoppingListItemWith, 'WHATEVER_VALUES').times(
-        faker.number.int({ min: 1, max: 5 }),
-      ),
-    },
-  },
-}));
-
-const buildCSVProductWith = builder(() => ({
-  id: faker.string.uuid(),
-  products: {
-    productId: faker.number.int().toString(),
-    variantId: faker.number.int().toString(),
-    itemId: faker.number.int(),
-    productName: faker.commerce.productName(),
-    variantSku: faker.string.uuid(),
-    quantity: faker.number.int({ min: 1, max: 10 }),
-    basePrice: faker.commerce.price(),
-    option: [],
-    modifiers: [],
-    purchasingDisabled: '0',
-  },
-  qty: faker.number.int({ min: 1, max: 10 }).toString(),
-}));
-
-const buildProductUploadResponseWith = builder(() => ({
-  data: {
-    productUpload: {
-      result: {
-        errorFile: '',
-        errorProduct: [],
-        validProduct: bulk(buildCSVProductWith, 'WHATEVER_VALUES')
-          .times(faker.number.int({ min: 1, max: 5 }))
-          .map((product) => ({
-            ...product,
-            id: faker.number.int(),
-            products: {
-              ...product.products,
-              itemId: parseInt(product.products.variantId, 10),
-              id: faker.number.int(),
-            },
-            row: faker.number.int(),
-          })),
-        stockErrorFile: '',
-        stockErrorSkus: [],
-      },
-    },
-  },
-}));
-
 it('displays a summary of products within the shopping list', async () => {
   vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
@@ -446,8 +391,42 @@ it('displays the details of each product', async () => {
     ],
   });
 
+  const buildPackagingResponseWith = builder(() => ({
+    data: {
+      site: {
+        product_0: {
+          variant_0: {
+            edges: [
+              {
+                node: {
+                  entityId: lovelySocksProductEdge.node.variantId,
+                  metafields: {
+                    edges: [
+                      { node: { entityId: faker.number.int(), key: 'SCATOLA', value: '100' } },
+                      {
+                        node: { entityId: faker.number.int(), key: 'MASTER_CARTON', value: '1000' },
+                      },
+                      { node: { entityId: faker.number.int(), key: 'PALLET', value: '10000' } },
+                    ],
+                  },
+                  dimensions: {
+                    edges: [
+                      { node: { entityId: faker.number.int(), key: 'MISURA', value: 'DN 50' } },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  }));
   const searchProductsQuerySpy = vi.fn();
   server.use(
+    graphql.query('GetQuotePackagingMetafields', () =>
+      HttpResponse.json(buildPackagingResponseWith('WHATEVER_VALUES')),
+    ),
     graphql.query('B2BShoppingListDetails', () => HttpResponse.json(shoppingListResponse)),
     graphql.query('SearchProducts', ({ query }) => {
       searchProductsQuerySpy(query);
@@ -470,12 +449,16 @@ it('displays the details of each product', async () => {
 
   const row = screen.getByRole('row', { name: /Lovely socks/ });
 
+  expect(await within(row).findByText('DN 50')).toBeVisible();
+  expect(within(row).getByRole('cell', { name: '100' })).toBeVisible();
+  expect(within(row).getByRole('cell', { name: '1.000' })).toBeVisible();
+  expect(within(row).getByRole('cell', { name: '10.000' })).toBeVisible();
   expect(within(row).getByRole('img')).toHaveAttribute('src', 'https://example.com/socks.jpg');
   expect(within(row).getByText('Lovely socks')).toBeVisible();
   expect(within(row).getByText('Size: large')).toBeVisible();
   expect(within(row).getByText('LVLY-SK-123')).toBeVisible();
   expect(within(row).getByText('Decorative wool socks')).toBeVisible();
-  expect(within(row).getByRole('cell', { name: '$49.00' })).toBeVisible();
+  expect(within(row).getByRole('cell', { name: '4,900.00 %' })).toBeVisible();
   expect(within(row).getByRole('cell', { name: '2' })).toBeVisible();
   expect(within(row).getByRole('cell', { name: '$98.00' })).toBeVisible();
 });
@@ -523,7 +506,7 @@ describe('when the user clicks on a product name', () => {
   });
 });
 
-it('shows "Add to list" panel for draft shopping lists', async () => {
+it('hides the add-to-list panel for draft shopping lists', async () => {
   vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
   const draftStatusCode = 30;
@@ -550,7 +533,7 @@ it('shows "Add to list" panel for draft shopping lists', async () => {
   await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
 
   expect(screen.getByText('Shopping List 1')).toBeVisible();
-  expect(screen.getByText(/add to list/i)).toBeVisible();
+  expect(screen.queryByText(/add to list/i)).not.toBeInTheDocument();
 });
 
 it('hides "Add to list" panel from b2b users for rejected shopping lists', async () => {
@@ -933,6 +916,190 @@ describe('when the shopping list is ready for approval', () => {
 
     expect(screen.queryByRole('heading', { name: 'Add to list' })).not.toBeInTheDocument();
   });
+});
+
+it('downloads the complete shopping list PDF with measure, packaging and percentage prices', async () => {
+  const id = faker.number.int().toString();
+  vitest.mocked(useParams).mockReturnValue({ id });
+  const first = buildShoppingListProductEdgeWith({
+    node: { quantity: 2, basePrice: '0.49', tax: '0', optionList: '[]' },
+  });
+  const last = buildShoppingListProductEdgeWith({
+    node: { quantity: 3, basePrice: '0.25', tax: '0', optionList: '[]' },
+  });
+  const response = buildShoppingListGraphQLResponseWith({
+    data: { shoppingList: { products: { totalCount: 101, edges: [first] } } },
+  });
+  const buildPackagingWith = builder(() => ({
+    data: {
+      site: Object.fromEntries(
+        [first, last].map(({ node }, index) => [
+          `p${index}`,
+          {
+            variants: {
+              edges: [
+                {
+                  node: {
+                    entityId: node.variantId,
+                    sku: node.variantSku,
+                    packaging: { edges: [{ node: { key: 'SCATOLA', value: '100' } }] },
+                    dimensions: { edges: [{ node: { key: 'MISURA', value: 'DN 50' } }] },
+                    stock: { edges: [] },
+                  },
+                },
+              ],
+            },
+          },
+        ]),
+      ),
+    },
+  }));
+  const queries = vi.fn();
+  const download = vi.spyOn(shoppingListPdf, 'downloadShoppingListPdf').mockResolvedValue();
+  server.use(
+    graphql.query('B2BShoppingListDetails', ({ query }) => {
+      queries(query);
+      const requestedCount = Number(query.match(/first:\s*(\d+)/)?.[1]);
+      expect(requestedCount).toBeLessThanOrEqual(50);
+      let edges = Array.from({ length: requestedCount }, () => first);
+      if (query.includes('offset: 100')) edges = [last];
+      return HttpResponse.json({
+        data: {
+          shoppingList: {
+            ...response.data.shoppingList,
+            products: {
+              totalCount: 101,
+              edges,
+            },
+          },
+        },
+      });
+    }),
+    graphql.query('SearchProducts', () =>
+      HttpResponse.json(
+        buildSearchProductsResponseWith({
+          data: {
+            productsSearch: [first, last].map(({ node }) =>
+              buildSearchB2BProductWith({
+                id: node.productId,
+                name: node.productName,
+                isPriceHidden: false,
+                optionsV3: [],
+              }),
+            ),
+          },
+        }),
+      ),
+    ),
+    graphql.query('GetQuotePdfVariants', () =>
+      HttpResponse.json(buildPackagingWith('WHATEVER_VALUES')),
+    ),
+  );
+  renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    preloadedState: { company: b2bCompanyWithShoppingListPermissions },
+  });
+  const button = await screen.findByRole('button', { name: 'Download PDF' });
+  await waitFor(() => expect(button).toBeEnabled());
+  expect(screen.queryByRole('heading', { name: 'Add to list' })).not.toBeInTheDocument();
+  await userEvent.click(button);
+  await waitFor(() => expect(download).toHaveBeenCalled());
+  const pdf = download.mock.calls[0][0];
+  expect(pdf.rows).toHaveLength(101);
+  expect(pdf.rows[0].price).toBe('49.00 %');
+  expect(pdf.rows[0].measure).toBe('DN 50');
+  expect(pdf.rows[0].box).toBe('100');
+  expect(pdf.rows[100].price).toBe('25.00 %');
+  expect(queries).toHaveBeenCalledWith(stringContainingAll('first: 50', 'offset: 0'));
+  expect(queries).toHaveBeenCalledWith(stringContainingAll('first: 50', 'offset: 50'));
+  expect(queries).toHaveBeenCalledWith(stringContainingAll('first: 50', 'offset: 100'));
+});
+
+describe('checkout from any accessible shopping list', () => {
+  it.each(
+    [
+      ShoppingListStatus.Draft,
+      ShoppingListStatus.ReadyForApproval,
+      ShoppingListStatus.Approved,
+    ].flatMap((status) => [
+      { status, backorderEnabled: false },
+      { status, backorderEnabled: true },
+    ]),
+  )(
+    'opens checkout for status $status with backorders=$backorderEnabled without purchase permissions',
+    async ({ status, backorderEnabled }) => {
+      vitest.mocked(useParams).mockReturnValue({ id: faker.number.int().toString() });
+      const hrefSpy = vi.fn();
+      vi.spyOn(window, 'location', 'get').mockReturnValue(
+        Object.defineProperty({ ...window.location }, 'href', { set: hrefSpy }),
+      );
+      const cartResult = builder(() => ({ errors: undefined }));
+      const addToCart = vi
+        .spyOn(cartUtils, 'createOrUpdateExistingCart')
+        .mockResolvedValue(cartResult('WHATEVER_VALUES'));
+      const product = buildShoppingListProductEdgeWith({
+        node: { quantity: 1, optionList: '[]' },
+      });
+      const response = buildShoppingListGraphQLResponseWith({
+        data: { shoppingList: { status, products: { totalCount: 1, edges: [product] } } },
+      });
+      server.use(
+        graphql.query('B2BShoppingListDetails', () => HttpResponse.json(response)),
+        graphql.query('SearchProducts', () =>
+          HttpResponse.json(
+            buildSearchProductsResponseWith({
+              data: {
+                productsSearch: [
+                  buildSearchB2BProductWith({
+                    id: product.node.productId,
+                    name: product.node.productName,
+                    isPriceHidden: false,
+                    availability: 'available',
+                    optionsV3: [],
+                  }),
+                ],
+              },
+            }),
+          ),
+        ),
+        graphql.query('GetVariantInfoBySkus', () =>
+          HttpResponse.json(
+            buildVariantInfoResponseWith({
+              data: {
+                variantSku: [
+                  buildVariantInfoWith({
+                    variantSku: product.node.variantSku,
+                    isStock: '1',
+                    stock: 100,
+                    minQuantity: 0,
+                    maxQuantity: 100,
+                    purchasingDisabled: '0',
+                  }),
+                ],
+              },
+            }),
+          ),
+        ),
+        graphql.query('getCart', () =>
+          HttpResponse.json<GetCart>({ data: { site: { cart: null } } }),
+        ),
+      );
+      renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+        preloadedState: {
+          company: buildCompanyStateWith({
+            companyInfo: { status: CompanyStatus.APPROVED },
+            customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.JUNIOR_BUYER },
+            permissions: [],
+          }),
+          global: buildGlobalStateWith({ backorderEnabled }),
+        },
+      });
+      const row = await screen.findByRole('row', { name: new RegExp(product.node.productName) });
+      await userEvent.click(within(row).getByRole('checkbox'));
+      await userEvent.click(screen.getByRole('button', { name: /Proceed to checkout/i }));
+      await waitFor(() => expect(hrefSpy).toHaveBeenCalledWith(CHECKOUT_URL));
+      expect(addToCart).toHaveBeenCalled();
+    },
+  );
 });
 
 describe('when shopping list products verify inventory into add to cart', () => {
@@ -1325,7 +1492,7 @@ describe('Add to quote', () => {
       initialGlobalContext: { productQuoteEnabled: true, shoppingListEnabled: true },
     });
 
-    await screen.findByRole('heading', { name: /add to list/i });
+    await screen.findByRole('button', { name: /Proceed to checkout/i });
 
     const row = screen.getByRole('row', { name: /Lovely socks/ });
 
@@ -1461,7 +1628,7 @@ describe('Add to quote', () => {
       initialGlobalContext: { productQuoteEnabled: true, shoppingListEnabled: true },
     });
 
-    await screen.findByRole('heading', { name: /add to list/i });
+    await screen.findByRole('button', { name: /Proceed to checkout/i });
 
     const row = screen.getByRole('row', { name: /Lovely socks/ });
 
@@ -1602,7 +1769,7 @@ describe('Add to quote', () => {
       initialGlobalContext: { productQuoteEnabled: true, shoppingListEnabled: true },
     });
 
-    await screen.findByRole('heading', { name: /add to list/i });
+    await screen.findByRole('button', { name: /Proceed to checkout/i });
 
     const row = screen.getByRole('row', { name: /Lovely socks/ });
     const checkbox = within(row).getByRole('checkbox');
@@ -1735,7 +1902,7 @@ describe('Add to quote', () => {
       initialGlobalContext: { productQuoteEnabled: true, shoppingListEnabled: true },
     });
 
-    await screen.findByRole('heading', { name: /add to list/i });
+    await screen.findByRole('button', { name: /Proceed to checkout/i });
 
     const row = screen.getByRole('row', { name: /Lovely socks/ });
     const checkbox = within(row).getByRole('checkbox');
@@ -1744,288 +1911,6 @@ describe('Add to quote', () => {
     await userEvent.click(screen.getByRole('button', { name: /Add selected to/ }));
     await userEvent.click(screen.getByRole('menuitem', { name: /Add selected to quote/ }));
     expect(screen.getByText('Products were added to your quote')).toBeInTheDocument();
-  });
-});
-
-describe('CSV upload and add to quote flow', () => {
-  it('should successfully upload CSV products and add them to quote', async () => {
-    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
-
-    const initialShoppingList = buildShoppingListGraphQLResponseWith({
-      data: {
-        shoppingList: {
-          name: 'Shopping List 1',
-          id: '272989',
-          status: 0,
-          products: {
-            totalCount: 0,
-            edges: [],
-          },
-        },
-      },
-    });
-
-    const csvProducts = [
-      buildCSVProductWith({
-        id: 'CSV-001',
-        products: {
-          productId: '73737',
-          variantId: '12345',
-          itemId: 12346,
-          productName: 'CSV Product 1',
-          variantSku: 'CSV-001',
-          quantity: 2,
-          basePrice: '29.99',
-        },
-        qty: '2',
-      }),
-      buildCSVProductWith({
-        id: 'CSV-002',
-        products: {
-          productId: '73738',
-          variantId: '12346',
-          itemId: 12345,
-          productName: 'CSV Product 2',
-          variantSku: 'CSV-002',
-          quantity: 3,
-          basePrice: '19.99',
-        },
-        qty: '3',
-      }),
-    ];
-
-    const updatedShoppingList = buildShoppingListGraphQLResponseWith({
-      data: {
-        shoppingList: {
-          status: 0,
-          products: {
-            totalCount: csvProducts.length,
-            edges: csvProducts.map((csvProduct) =>
-              buildShoppingListProductEdgeWith({
-                node: {
-                  productId: parseInt(csvProduct.products.productId, 10),
-                  variantId: parseInt(csvProduct.products.variantId, 10),
-                  productName: csvProduct.products.productName,
-                  variantSku: csvProduct.products.variantSku,
-                  quantity: parseInt(csvProduct.qty, 10),
-                  basePrice: csvProduct.products.basePrice,
-                  tax: '0.00',
-                  discount: '0.00',
-                  optionList: '[]',
-                },
-              }),
-            ),
-          },
-        },
-      },
-    });
-
-    let currentShoppingList = initialShoppingList;
-
-    server.use(
-      graphql.query('B2BShoppingListDetails', () => {
-        return HttpResponse.json(currentShoppingList);
-      }),
-      graphql.mutation('B2BShoppingListsItemsCreate', () => {
-        const shoppingListProducts = csvProducts.map((csvProduct) =>
-          buildShoppingListProductEdgeWith({
-            node: {
-              itemId: csvProduct.products.itemId,
-              productId: parseInt(csvProduct.products.productId, 10),
-              variantId: parseInt(csvProduct.products.variantId, 10),
-              productName: csvProduct.products.productName,
-              variantSku: csvProduct.products.variantSku,
-              quantity: parseInt(csvProduct.qty, 10),
-              basePrice: '29.99',
-              tax: '0.00',
-              discount: '0.00',
-              optionList: JSON.stringify([]),
-              primaryImage: '',
-              productNote: '',
-            },
-          }),
-        );
-
-        // Update the current shopping list to include the newly added products
-        currentShoppingList = buildShoppingListGraphQLResponseWith({
-          data: {
-            shoppingList: {
-              name: 'Shopping List 1',
-              status: 30,
-              id: '272989',
-              products: {
-                totalCount: csvProducts.length,
-                edges: shoppingListProducts,
-              },
-            },
-          },
-        });
-
-        return HttpResponse.json(
-          buildB2BShoppingListsItemsCreateResponseWith({
-            data: {
-              shoppingListsItemsCreate: {
-                shoppingListsItems: csvProducts.map((csvProduct) =>
-                  buildShoppingListItemWith({
-                    itemId: parseInt(csvProduct.products.variantId, 10),
-                    productId: parseInt(csvProduct.products.productId, 10),
-                    variantId: parseInt(csvProduct.products.variantId, 10),
-                    productName: csvProduct.products.productName,
-                    variantSku: csvProduct.products.variantSku,
-                    quantity: parseInt(csvProduct.qty, 10),
-                  }),
-                ),
-              },
-            },
-          }),
-        );
-      }),
-      graphql.query('SearchProducts', () => {
-        const response = {
-          data: {
-            productsSearch: csvProducts.map((csvProduct) =>
-              buildSearchB2BProductWith({
-                id: parseInt(csvProduct.products.productId, 10),
-                name: csvProduct.products.productName,
-                sku: csvProduct.products.variantSku,
-                isPriceHidden: false,
-                variants: [
-                  buildSearchB2BProductVariantWith({
-                    sku: csvProduct.products.variantSku,
-                    variant_id: parseInt(csvProduct.products.variantId, 10),
-                  }),
-                ],
-              }),
-            ),
-          },
-        };
-        return HttpResponse.json(response);
-      }),
-      graphql.query('GetVariantInfoBySkus', () => {
-        const response = buildVariantInfoResponseWith({
-          data: {
-            variantSku: csvProducts.map((csvProduct) =>
-              buildVariantInfoWith({
-                productId: csvProduct.products.productId,
-                variantId: csvProduct.products.variantId,
-                variantSku: csvProduct.products.variantSku,
-                productName: csvProduct.products.productName,
-                isStock: '1',
-                stock: 100,
-                purchasingDisabled: '0',
-              }),
-            ),
-          },
-        });
-        return HttpResponse.json(response);
-      }),
-      graphql.query('priceProducts', () => {
-        return HttpResponse.json({
-          data: {
-            priceProducts: csvProducts.map((csvProduct) =>
-              buildProductPriceWith({
-                productId: parseInt(csvProduct.products.productId, 10),
-                variantId: parseInt(csvProduct.products.variantId, 10),
-                options: [],
-              }),
-            ),
-          },
-        });
-      }),
-      graphql.mutation('AddItemsToShoppingList', () => {
-        return HttpResponse.json({
-          data: {
-            shoppingListsItemsCreate: {
-              shoppingListsItems: csvProducts.map((csvProduct) =>
-                buildShoppingListItemWith({
-                  itemId: parseInt(csvProduct.products.variantId, 10),
-                  productId: parseInt(csvProduct.products.productId, 10),
-                  variantId: parseInt(csvProduct.products.variantId, 10),
-                  productName: csvProduct.products.productName,
-                  variantSku: csvProduct.products.variantSku,
-                  quantity: parseInt(csvProduct.qty, 10),
-                }),
-              ),
-            },
-          },
-        });
-      }),
-      graphql.mutation('ProductUpload', () => {
-        currentShoppingList = updatedShoppingList;
-        return HttpResponse.json(
-          buildProductUploadResponseWith({
-            data: {
-              productUpload: {
-                result: {
-                  validProduct: csvProducts.map((product, index) => ({
-                    ...product,
-                    id: 33223,
-                    products: {
-                      ...product.products,
-                      itemId: parseInt(product.products.variantId, 10),
-                      id: 33223,
-                    },
-                    row: index + 1,
-                  })),
-                },
-              },
-            },
-          }),
-        );
-      }),
-    );
-
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
-      preloadedState: { company: b2bCompanyWithShoppingListPermissions },
-      initialGlobalContext: {
-        productQuoteEnabled: true,
-        shoppingListEnabled: true,
-      },
-    });
-
-    await screen.findByRole('heading', { name: /add to list/i });
-
-    const uploadButton = screen.getByRole('button', { name: /bulk upload csv/i });
-    await userEvent.click(uploadButton);
-
-    const dialog = await screen.findByRole('dialog', { name: /bulk upload/i });
-
-    const csvContent = 'variant_sku,qty\nCSV-001,2\nCSV-002,3';
-    const file = new File([csvContent], 'products.csv', { type: 'text/csv' });
-
-    const dropzoneInput = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    if (!dropzoneInput) {
-      throw new Error('File input not found');
-    }
-
-    const files = [file];
-
-    await userEvent.upload(dropzoneInput, files);
-
-    await within(dialog).findByText('products.csv');
-    await within(dialog).findByText('products.csv');
-
-    const addToListButton = screen.getByRole('button', { name: /add to list/i });
-    await userEvent.click(addToListButton);
-
-    expect(await screen.findByText('CSV Product 1')).toBeVisible();
-    expect(await screen.findByText('CSV Product 2')).toBeVisible();
-
-    const row = screen.getByRole('row', { name: /CSV Product 1/i });
-
-    const checkbox = within(row).getByRole('checkbox');
-
-    await userEvent.click(checkbox);
-
-    expect(within(row).getByRole('checkbox')).toBeChecked();
-
-    await userEvent.click(screen.getByRole('button', { name: /Add selected to/ }));
-
-    const addToQuoteOption = screen.getByRole('menuitem', { name: /add selected to quote/i });
-    await userEvent.click(addToQuoteOption);
-
-    await screen.findByText(/products were added to your quote/i);
-    expect(screen.getByText(/view quote/i)).toBeVisible();
   });
 });
 
@@ -3788,11 +3673,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
   it('shows backorder lines when qty exceeds on hand', async () => {
     setupSearchAddToListModal();
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -3812,11 +3697,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
   it('does not show ATS error helper when qty exceeds available to sell', async () => {
     setupSearchAddToListModal();
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -3837,11 +3722,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
   it('hides backorder lines when qty is within on hand', async () => {
     setupSearchAddToListModal({ totalOnHand: 9, availableToSell: 10 });
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -3862,11 +3747,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
   it('hides backorder lines when messaging is disabled', async () => {
     setupSearchAddToListModal();
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: { company: b2bCompanyWithShoppingListPermissions },
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -3887,11 +3772,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
   it('still shows search results without backorder UI when inventory fetch fails', async () => {
     setupSearchAddToListModal({ inventoryFetchFails: true });
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -4058,11 +3943,11 @@ describe('when backorder messaging is enabled in add to list search modal', () =
       graphql.query('GetVariantInfoBySkus', ({ query }) => getVariantInfoBySkus({ query })),
     );
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const dialog = await openAddToListSearchDialog();
     const quantityInput = within(dialog).getByRole('spinbutton');
@@ -4287,11 +4172,11 @@ describe('when backorder messaging is enabled in choose options dialog', () => {
   it('shows backorder prompts when a variant is selected', async () => {
     setupChooseOptionsModal();
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: backorderPreloadedState,
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const chooseOptionsDialog = await openChooseOptionsDialog();
     const quantityInput = within(chooseOptionsDialog).getByRole('spinbutton');
@@ -4341,11 +4226,11 @@ describe('when backorder messaging is enabled in choose options dialog', () => {
   it('hides backorder lines when messaging is disabled', async () => {
     setupChooseOptionsModal();
 
-    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+    renderWithProviders(<AddToShoppingList updateList={() => {}} isB2BUser type="shoppingList" />, {
       preloadedState: { company: b2bCompanyWithShoppingListPermissions },
     });
 
-    await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+    await screen.findByRole('heading', { name: /add to list/i });
 
     const chooseOptionsDialog = await openChooseOptionsDialog();
     const quantityInput = within(chooseOptionsDialog).getByRole('spinbutton');

@@ -26,6 +26,13 @@ import { useBackorderStorefrontMessaging } from '@/hooks/useBackorderStorefrontM
 import { useMobile } from '@/hooks/useMobile';
 import { useSort } from '@/hooks/useSort';
 import { useB3Lang } from '@/lib/lang';
+import {
+  formatPackagingQuantity,
+  getPackagingMetafieldValue,
+  packagingColumns,
+} from '@/pages/quote/components/quotePackaging';
+import { formatQuotePrice, formatQuoteUnitPrice } from '@/pages/quote/components/quotePriceFormat';
+import { useQuotePackagingMetafields } from '@/pages/quote/components/useQuotePackagingMetafields';
 import { updateB2BShoppingListsItem, updateBcShoppingListsItem } from '@/shared/service/b2b';
 import {
   type CatalogQuickVariantSku,
@@ -88,13 +95,10 @@ interface ShoppingDetailTableProps {
   setCheckedArr: (values: ProductsProps[]) => void;
   isReadForApprove: boolean;
   isJuniorApprove: boolean;
-  allowJuniorPlaceOrder: boolean;
   setDeleteItemId: (itemId: number | string) => void;
   setDeleteOpen: (open: boolean) => void;
   isB2BUser: boolean;
-  productQuoteEnabled: boolean;
   isCanEditShoppingList: boolean;
-  isJuniorBuyer: boolean;
 }
 
 interface SearchProps {
@@ -115,8 +119,15 @@ interface PaginationTableRefProps extends HTMLInputElement {
 
 const StyledShoppingListTableContainer = styled('div')(() => ({
   backgroundColor: '#FFFFFF',
-  padding: '1rem',
+  padding: '16px',
+  width: '100%',
+  boxSizing: 'border-box',
+  border: '1px solid rgba(0, 0, 0, 0.12)',
   borderRadius: '4px',
+  overflow: 'hidden',
+  '& > .MuiCard-root': {
+    height: 'auto',
+  },
   boxShadow:
     '0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px rgba(0, 0, 0, 0.14), 0px 1px 3px rgba(0, 0, 0, 0.12)',
 
@@ -174,22 +185,17 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
     setDeleteOpen,
     isJuniorApprove,
     isB2BUser,
-    allowJuniorPlaceOrder,
-    productQuoteEnabled,
     isCanEditShoppingList,
-    isJuniorBuyer,
   } = props;
 
   const showInclusiveTaxPrice = useAppSelector(({ global }) => global.showInclusiveTaxPrice);
 
-  const { shoppingListCreateActionsPermission, submitShoppingListPermission } =
-    useAppSelector(rolePermissionSelector);
+  const { shoppingListCreateActionsPermission } = useAppSelector(rolePermissionSelector);
 
   const canShoppingListActions = isB2BUser
     ? shoppingListCreateActionsPermission && isCanEditShoppingList
     : true;
   const b2bAndBcShoppingListActionsPermissions = isB2BUser ? canShoppingListActions : true;
-  const b2bSubmitShoppingListPermission = isB2BUser ? submitShoppingListPermission : isJuniorBuyer;
 
   const paginationTableRef = useRef<PaginationTableRefProps | null>(null);
 
@@ -201,6 +207,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
   });
   const [qtyNotChangeFlag, setQtyNotChangeFlag] = useState<boolean>(true);
   const [originProducts, setOriginProducts] = useState<ListItemProps[]>([]);
+  const packagingByVariantId = useQuotePackagingMetafields(originProducts);
   const [shoppingListTotalPrice, setShoppingListTotalPrice] = useState<number>(0.0);
 
   const [addNoteOpen, setAddNoteOpen] = useState<boolean>(false);
@@ -630,8 +637,18 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
           </Box>
         );
       },
-      width: '45%',
+      width: '20%',
       isSortable: true,
+    },
+    {
+      key: 'Measure',
+      title: 'Misura',
+      render: (row) => (
+        <Typography sx={{ padding: '12px 0' }}>
+          {getPackagingMetafieldValue(row, 'MISURA', packagingByVariantId)}
+        </Typography>
+      ),
+      width: '10%',
     },
     {
       key: 'Price',
@@ -646,15 +663,30 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
               padding: '12px 0',
             }}
           >
-            {showPrice(currencyFormat(inTaxPrice), row)}
+            {showPrice(formatQuoteUnitPrice(inTaxPrice), row)}
           </Typography>
         );
       },
-      width: '15%',
+      width: '10%',
       style: {
         textAlign: 'right',
       },
     },
+    ...packagingColumns.map(
+      (column): TableColumnItem<ListItem> => ({
+        key: column.key,
+        title: column.title,
+        render: (row) => (
+          <Typography sx={{ padding: '12px 0' }}>
+            {formatPackagingQuantity(
+              getPackagingMetafieldValue(row, column.key, packagingByVariantId),
+            )}
+          </Typography>
+        ),
+        width: '10%',
+        style: { textAlign: 'right' },
+      }),
+    ),
     {
       key: 'Qty',
       title: b3Lang('shoppingList.table.quantity'),
@@ -749,7 +781,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
                 padding: '12px 0',
               }}
             >
-              {showPrice(currencyFormat(totalPrice), row)}
+              {showPrice(formatQuotePrice(totalPrice), row)}
             </Typography>
             <Box
               sx={{
@@ -903,12 +935,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
         showCheckbox
         showSelectAllCheckbox
         applyAllDisableCheckbox={false}
-        disableCheckbox={
-          disabledSelectAll ||
-          (b2bSubmitShoppingListPermission
-            ? !(allowJuniorPlaceOrder || productQuoteEnabled)
-            : (isReadForApprove || isJuniorApprove) && b2bAndBcShoppingListActionsPermissions)
-        }
+        disableCheckbox={disabledSelectAll}
         hover
         labelRowsPerPage={b3Lang('shoppingList.table.itemsPerPage')}
         showBorder={false}
@@ -937,6 +964,7 @@ function ShoppingDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>)
             handleUpdateShoppingListItem={handleUpdateShoppingListItemQty}
             isReadForApprove={isReadForApprove || isJuniorApprove}
             b2bAndBcShoppingListActionsPermissions={b2bAndBcShoppingListActionsPermissions}
+            packagingByVariantId={packagingByVariantId}
             inventoryBySku={inventoryBySku}
             backorderUiEnabled={backorderUiEnabled}
             showBackorderDetails={showBackorderDetails}

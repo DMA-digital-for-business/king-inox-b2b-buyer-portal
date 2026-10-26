@@ -19,7 +19,6 @@ interface ShoppingDetailFooterProps {
   isB2BUser: boolean;
   customColor: string;
   isCanEditShoppingList: boolean;
-  isJuniorBuyer: boolean;
   onDelete: () => void;
   onAddToCart: () => void;
   onAddToQuote: () => void;
@@ -36,7 +35,6 @@ function ShoppingDetailFooter({
   isB2BUser,
   customColor,
   isCanEditShoppingList,
-  isJuniorBuyer,
 }: ShoppingDetailFooterProps) {
   const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
@@ -46,11 +44,7 @@ function ShoppingDetailFooter({
   } = useContext(GlobalContext);
   const isAgenting = useAppSelector(({ b2bFeatures }) => b2bFeatures.masqueradeCompany.isAgenting);
 
-  const {
-    shoppingListCreateActionsPermission,
-    purchasabilityPermission,
-    submitShoppingListPermission,
-  } = useAppSelector(rolePermissionSelector);
+  const { shoppingListCreateActionsPermission } = useAppSelector(rolePermissionSelector);
   const ref = useRef<HTMLButtonElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -64,8 +58,6 @@ function ShoppingDetailFooter({
       };
 
   const b2bShoppingListActionsPermission = isB2BUser ? shoppingListCreateActionsPermission : true;
-  const isCanAddToCart = isB2BUser ? purchasabilityPermission : true;
-  const b2bSubmitShoppingListPermission = isB2BUser ? submitShoppingListPermission : isJuniorBuyer;
 
   const handleOpenBtnList = () => {
     if (selectedProductCount === 0) {
@@ -95,11 +87,6 @@ function ShoppingDetailFooter({
       key: 'add-selected-to-cart',
       handleClick: handleAddSelectedToCart,
     },
-    proceedToCheckout: {
-      name: b3Lang('shoppingList.footer.proceedToCheckout'),
-      key: 'add-select-to-checkout',
-      handleClick: handleAddSelectedToCart,
-    },
     addSelectedToQuote: {
       name: b3Lang('shoppingList.footer.addToQuote'),
       key: 'add-selected-to-quote',
@@ -107,30 +94,9 @@ function ShoppingDetailFooter({
     },
   };
 
-  const allowButtonList = () => {
-    if (!(shoppingListInfo?.status === ShoppingListStatus.Approved || !isB2BUser)) return [];
-
-    if (!isCanAddToCart && isB2BUser)
-      return productQuoteEnabled ? [buttons.addSelectedToQuote] : [];
-
-    if (b2bSubmitShoppingListPermission) {
-      if (allowJuniorPlaceOrder && productQuoteEnabled) {
-        return [buttons.proceedToCheckout, buttons.addSelectedToQuote];
-      }
-
-      if (allowJuniorPlaceOrder) return [buttons.proceedToCheckout];
-      if (productQuoteEnabled) {
-        return [buttons.addSelectedToQuote];
-      }
-      return [];
-    }
-
-    return productQuoteEnabled
-      ? [buttons.adSelectedToCart, buttons.addSelectedToQuote]
-      : [buttons.adSelectedToCart];
-  };
-
-  const buttonList = allowButtonList();
+  const buttonList = productQuoteEnabled
+    ? [buttons.adSelectedToCart, buttons.addSelectedToQuote]
+    : [buttons.adSelectedToCart];
 
   return (
     <Grid
@@ -143,7 +109,7 @@ function ShoppingDetailFooter({
         padding: isMobile ? '0 0 1rem 0' : '0 40px 1rem 40px',
         height: isMobile ? '8rem' : 'auto',
         marginLeft: 0,
-        display: 'flex',
+        display: 'none',
         flexWrap: 'nowrap',
         zIndex: '999',
       }}

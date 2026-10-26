@@ -772,6 +772,46 @@ describe('when user does not have "create_shopping_list" permission', () => {
   });
 });
 
+it('requests drafts for a buyer without the submit-for-approval permission', async () => {
+  const draft = buildB2BShoppingListNodeWith({ status: 30 });
+  const queries = vi.fn();
+  const buildDraftResponseWith = builder(() => ({
+    data: { shoppingLists: { totalCount: 1, edges: [{ node: draft }] } },
+  }));
+  server.use(
+    graphql.query('B2BCustomerShoppingLists', ({ query }) => {
+      queries(query);
+      return HttpResponse.json(buildDraftResponseWith('WHATEVER_VALUES'));
+    }),
+    graphql.query('GetShoppingListsCreatedByUser', () =>
+      HttpResponse.json({ data: { createdByUser: { results: [] } } }),
+    ),
+  );
+
+  renderWithProviders(<ShoppingLists />, {
+    preloadedState: {
+      company: buildCompanyStateWith({
+        companyInfo: { status: CompanyStatus.APPROVED },
+        customer: { role: CustomerRole.ADMIN, userType: UserTypes.MULTIPLE_B2C },
+        permissions: [],
+      }),
+    },
+  });
+
+  expect(await screen.findByRole('heading', { name: draft.name })).toBeInTheDocument();
+  expect(queries).toHaveBeenCalledWith(
+    stringContainingAll('status: [0,30,40]', 'isDefault: false'),
+  );
+
+  await userEvent.click(await screen.findByRole('button', { name: 'edit' }));
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getAllByRole('combobox')[1]);
+  await userEvent.click(screen.getByRole('option', { name: /Draft/i }));
+  await userEvent.click(screen.getByRole('button', { name: /Apply/i }));
+
+  await waitFor(() => expect(queries).toHaveBeenCalledWith(expect.stringContaining('status: 30')));
+});
+
 describe('when user filters shopping lists by status "rejected"', () => {
   // Status code 20 was previously misused as Rejected in the frontend, which is actually Deleted
   // For now when we filter by "Rejected" we also include "Deleted"

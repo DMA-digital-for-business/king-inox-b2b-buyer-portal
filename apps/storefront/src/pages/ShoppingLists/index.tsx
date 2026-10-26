@@ -115,14 +115,14 @@ function ShoppingLists() {
     },
   };
   const statusPermissions = !submitShoppingListPermission
-    ? [ShoppingListStatus.Approved, ShoppingListStatus.ReadyForApproval]
+    ? [ShoppingListStatus.Approved, ShoppingListStatus.Draft, ShoppingListStatus.ReadyForApproval]
     : '';
 
   const initSearch = {
     search: '',
     createdBy: '',
     status: statusPermissions,
-    isDefault: true,
+    isDefault: false,
   };
 
   const [filterSearch, setFilterSearch] = useState<ShoppingListSearch>(initSearch);
@@ -152,7 +152,7 @@ function ShoppingLists() {
       ...initSearch,
       createdBy: data.createdBy,
       status: getNewStatus,
-      isDefault: status === '',
+      isDefault: false,
     };
 
     setFilterSearch(search);

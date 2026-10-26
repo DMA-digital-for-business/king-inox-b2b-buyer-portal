@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { storefrontGQLRequest } from '@/shared/service/bc/graphql/client';
-import { QuoteItem } from '@/types/quotes';
 
 interface PackagingMetafieldNode {
   entityId: number;
@@ -85,7 +84,9 @@ function buildPackagingMap(site: Record<string, unknown>): PackagingByVariantId 
   return packagingByVariantId;
 }
 
-export function useQuotePackagingMetafields(items: QuoteItem[]): PackagingByVariantId {
+export function useQuotePackagingMetafields(
+  items: Array<{ node: { productId?: number | string; variantId?: number | string } }>,
+): PackagingByVariantId {
   const [packagingByVariantId, setPackagingByVariantId] = useState<PackagingByVariantId>({});
 
   const packagingTargets = useMemo(

@@ -1,13 +1,15 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Box, Grid, useTheme } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { v1 as uuid } from 'uuid';
 
 import B3Spin from '@/components/spin/B3Spin';
 import { CART_URL, CHECKOUT_URL, PRODUCT_DEFAULT_IMAGE } from '@/constants';
 import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
-import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
+import { formatPackagingQuantity } from '@/pages/quote/components/quotePackaging';
+import { formatQuotePrice, formatQuoteUnitPrice } from '@/pages/quote/components/quotePriceFormat';
+import { fetchQuotePdfVariants } from '@/pages/quote/components/useQuotePdfResources';
 import { GlobalContext } from '@/shared/global';
 import {
   deleteB2BShoppingListItem,
@@ -34,6 +36,7 @@ import b2bLogger from '@/utils/b3Logger';
 import {
   addQuoteDraftProducts,
   calculateProductListPrice,
+  getBCPrice,
   validProductQty,
 } from '@/utils/b3Product/b3Product';
 import {
@@ -67,7 +70,6 @@ import {
 import { type PageProps } from '../PageProps';
 import { getQuoteValidationErrorMessage } from '../quote/shared/getQuoteValidationErrorMessage';
 
-import AddToShoppingList from './components/AddToShoppingList';
 import ReAddToCart from './components/ReAddToCart';
 import ShoppingDetailDeleteItems from './components/ShoppingDetailDeleteItems';
 import ShoppingDetailFooter from './components/ShoppingDetailFooter';
@@ -77,6 +79,7 @@ import {
   ShoppingListDetailsContext,
   ShoppingListDetailsProvider,
 } from './context/ShoppingListDetailsContext';
+import { downloadShoppingListPdf } from './shoppingListPdf';
 
 interface TableRefProps extends HTMLInputElement {
   initSearch: () => void;
@@ -104,7 +107,7 @@ const getOptionsList = (options: Option[]) =>
 function useData() {
   const { id = '' } = useParams();
   const {
-    state: { openAPPParams, productQuoteEnabled = false },
+    state: { openAPPParams },
   } = useContext(GlobalContext);
   const isB2BUser = useAppSelector(isB2BUserSelector);
   const { currency_code: currencyCode } = useAppSelector(activeCurrencyInfoSelector);
@@ -117,11 +120,8 @@ function useData() {
   const theme = useTheme();
   const primaryColor = theme.palette.primary.main;
 
-  const {
-    shoppingListCreateActionsPermission,
-    purchasabilityPermission,
-    submitShoppingListPermission,
-  } = useAppSelector(rolePermissionSelector);
+  const { purchasabilityPermission, submitShoppingListPermission } =
+    useAppSelector(rolePermissionSelector);
 
   const isCanAddToCart = isB2BUser ? purchasabilityPermission : true;
 
@@ -149,11 +149,9 @@ function useData() {
   return {
     id,
     openAPPParams,
-    productQuoteEnabled,
     isB2BUser,
     isAgenting,
     primaryColor,
-    shoppingListCreateActionsPermission,
     submitShoppingListPermission,
     isCanAddToCart,
     getProducts,
@@ -203,11 +201,9 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
   const {
     id,
     openAPPParams,
-    productQuoteEnabled,
     isB2BUser,
     isAgenting,
     primaryColor,
-    shoppingListCreateActionsPermission,
     submitShoppingListPermission,
     isCanAddToCart,
     getProducts,
@@ -220,12 +216,14 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
   const customerGroupId = useAppSelector(({ company }) => company.customer.customerGroupId);
 
   const navigate = useNavigate();
-  const [isMobile] = useMobile();
   const { dispatch } = useContext(ShoppingListDetailsContext);
 
   const b3Lang = useB3Lang();
 
   const tableRef = useRef<TableRefProps | null>(null);
+  const checkoutRequested = useRef(false);
+  const pdfInProgress = useRef(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const isBackorderEnabled = useIsBackorderEnabled();
 
@@ -242,10 +240,6 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
   const [allowJuniorPlaceOrder, setAllowJuniorPlaceOrder] = useState<boolean>(false);
   const [isCanEditShoppingList, setIsCanEditShoppingList] = useState<boolean>(true);
-
-  const b2bAndBcShoppingListActionsPermissions = isB2BUser
-    ? shoppingListCreateActionsPermission && isCanEditShoppingList
-    : true;
 
   const submitShoppingList = useMemo(() => {
     if (isB2BUser && shoppingListInfo) {
@@ -387,10 +381,6 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
     }
   };
 
-  const updateList = () => {
-    tableRef.current?.initSearch();
-  };
-
   const handleCancelClick = () => {
     setDeleteOpen(false);
     setDeleteItemId('');
@@ -426,7 +416,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
       snackbar.success(b3Lang('shoppingList.productRemoved'));
     } finally {
       setIsRequestLoading(false);
-      updateList();
+      tableRef.current?.initSearch();
     }
   };
 
@@ -465,9 +455,10 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
   const shouldRedirectToCheckoutAfterRetry = (): void => {
     if (
-      allowJuniorPlaceOrder &&
-      submitShoppingListPermission &&
-      shoppingListInfo?.status === ShoppingListStatus.Approved
+      checkoutRequested.current ||
+      (allowJuniorPlaceOrder &&
+        submitShoppingListPermission &&
+        shoppingListInfo?.status === ShoppingListStatus.Approved)
     ) {
       window.location.href = CHECKOUT_URL;
     } else {
@@ -711,9 +702,10 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
   const shouldRedirectToCheckoutAfterAddToCart = () => {
     if (
-      allowJuniorPlaceOrder &&
-      b2bSubmitShoppingListPermission &&
-      shoppingListInfo?.status === ShoppingListStatus.Approved
+      checkoutRequested.current ||
+      (allowJuniorPlaceOrder &&
+        b2bSubmitShoppingListPermission &&
+        shoppingListInfo?.status === ShoppingListStatus.Approved)
     ) {
       window.location.href = CHECKOUT_URL;
     } else {
@@ -766,7 +758,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
       const cartInfo = await getCart();
       let res = null;
 
-      if (allowJuniorPlaceOrder && cartInfo.data.site.cart) {
+      if (!checkoutRequested.current && allowJuniorPlaceOrder && cartInfo.data.site.cart) {
         await deleteCart(deleteCartData(cartInfo.data.site.cart.entityId));
         res = await updateCart(cartInfo, validateSuccessArr);
       } else {
@@ -787,7 +779,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
   const handleAddToCartBackend = async () => {
     try {
       const cartInfo = await getCart();
-      if (allowJuniorPlaceOrder && cartInfo.data.site.cart) {
+      if (!checkoutRequested.current && allowJuniorPlaceOrder && cartInfo.data.site.cart) {
         await deleteCart(deleteCartData(cartInfo.data.site.cart.entityId));
         await updateCart(cartInfo, checkedArr);
       } else {
@@ -836,8 +828,75 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
     try {
       setIsRequestLoading(true);
       await addToCart();
+    } catch (error: unknown) {
+      if (error instanceof Error) snackbar.error(error.message);
     } finally {
       setIsRequestLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (pdfInProgress.current || !shoppingListInfo) return;
+    pdfInProgress.current = true;
+    setIsGeneratingPdf(true);
+    try {
+      const pageSize = 50;
+      const firstPage = await getShoppingList({ first: pageSize, offset: 0 });
+      const totalCount = Number(firstPage.products.totalCount);
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, Math.ceil(totalCount / pageSize) - 1) }, (_, index) =>
+          getShoppingList({ first: pageSize, offset: (index + 1) * pageSize }),
+        ),
+      );
+      const items: ListItemProps[] = [firstPage, ...remainingPages].flatMap(
+        (page) => page.products.edges,
+      );
+      if (items.length < totalCount) throw new Error(b3Lang('quoteDraft.pdf.downloadError'));
+      const products = await handleGetProductsById(items);
+      if (products.length !== items.length) throw new Error(b3Lang('quoteDraft.pdf.downloadError'));
+      await calculateProductListPrice(products, '2');
+      const variants = await fetchQuotePdfVariants(
+        products.map(({ node }) => ({ productId: node.productId, variantId: node.variantId })),
+      );
+      await downloadShoppingListPdf({
+        id,
+        name: shoppingListInfo.name,
+        description: shoppingListInfo.description || '',
+        company: shoppingListInfo.companyInfo?.companyName || '',
+        createdBy: [customerInfo?.firstName, customerInfo?.lastName].filter(Boolean).join(' '),
+        rows: products.map(({ node }) => {
+          const variant = variants[Number(node.variantId)];
+          const price = getBCPrice(Number(node.basePrice), Number(node.taxPrice || 0));
+          const hidden = node.productsSearch?.isPriceHidden;
+          return {
+            product: node.productName,
+            sku: node.variantSku,
+            measure: variant?.dimensions.MISURA || '-',
+            price: hidden ? '' : formatQuoteUnitPrice(price),
+            box: formatPackagingQuantity(variant?.packaging.SCATOLA || '-'),
+            masterCarton: formatPackagingQuantity(variant?.packaging.MASTER_CARTON || '-'),
+            pallet: formatPackagingQuantity(variant?.packaging.PALLET || '-'),
+            quantity: formatPackagingQuantity(String(node.quantity)),
+            total: hidden ? '' : formatQuotePrice(price * Number(node.quantity)),
+            note: node.productNote,
+          };
+        }),
+        labels: {
+          title: b3Lang('global.navMenu.shoppingList'),
+          product: b3Lang('quoteDraft.quoteTable.product'),
+          price: b3Lang('quoteDraft.quoteTable.price'),
+          quantity: b3Lang('quoteDraft.quoteTable.qty'),
+          total: b3Lang('quoteDraft.quoteTable.total'),
+          createdBy: b3Lang('shoppingList.header.createdBy'),
+          page: b3Lang('quoteDraft.pdf.page'),
+        },
+      });
+    } catch (error: unknown) {
+      b2bLogger.error(error);
+      snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
+    } finally {
+      pdfInProgress.current = false;
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -860,97 +919,50 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
           isAgenting={isAgenting}
           openAPPParams={openAPPParams}
           customColor={primaryColor}
+          onCheckout={() => {
+            checkoutRequested.current = true;
+            return handleAddProductsToCart();
+          }}
+          onDownloadPdf={handleDownloadPdf}
+          isGeneratingPdf={isGeneratingPdf}
+          isLoading={isRequestLoading}
         />
 
-        <Grid
-          container
-          spacing={2}
-          sx={{
-            marginTop: '0',
-            overflow: 'auto',
-            flexWrap: isMobile ? 'wrap' : 'nowrap',
-            paddingBottom: '20px',
-            marginBottom: isMobile ? '6rem' : 0,
-          }}
-        >
-          <Box
-            sx={
-              isMobile
-                ? {
-                    flexBasis: '100%',
-                    pl: '16px',
-                  }
-                : {
-                    flexBasis: '690px',
-                    flexGrow: 1,
-                    ml: '16px',
-                    pt: '16px',
-                  }
-            }
-          >
-            <B3Spin isSpinning={isRequestLoading} spinningHeight="auto">
-              <Grid
-                item
-                sx={
-                  isMobile
-                    ? {
-                        flexBasis: '100%',
-                      }
-                    : {
-                        flexBasis: '690px',
-                        flexGrow: 1,
-                      }
-                }
-              >
-                <ShoppingDetailTable
-                  ref={tableRef}
-                  isReadForApprove={isReadForApprove}
-                  isJuniorApprove={isJuniorApprove}
-                  allowJuniorPlaceOrder={allowJuniorPlaceOrder}
-                  setCheckedArr={setCheckedArr}
-                  shoppingListInfo={shoppingListInfo}
-                  isRequestLoading={isRequestLoading}
-                  setIsRequestLoading={setIsRequestLoading}
-                  shoppingListId={id}
-                  getShoppingListDetails={getShoppingListDetails}
-                  setDeleteOpen={setDeleteOpen}
-                  setDeleteItemId={setDeleteItemId}
-                  isB2BUser={isB2BUser}
-                  productQuoteEnabled={productQuoteEnabled}
-                  isCanEditShoppingList={isCanEditShoppingList}
-                  isJuniorBuyer={isJuniorBuyer}
-                />
-              </Grid>
-            </B3Spin>
-          </Box>
-
-          <Grid item sx={isMobile ? { flexBasis: '100%' } : { flexBasis: '340px' }}>
-            {b2bAndBcShoppingListActionsPermissions && !isReadForApprove && !isJuniorApprove && (
-              <AddToShoppingList
-                updateList={updateList}
-                type="shoppingList"
-                isB2BUser={isB2BUser}
-              />
-            )}
-          </Grid>
-        </Grid>
-
-        {!isReadForApprove &&
-          (allowJuniorPlaceOrder || productQuoteEnabled || !isJuniorApprove) && (
-            <ShoppingDetailFooter
+        <Box sx={{ width: '100%', py: 2 }}>
+          <B3Spin isSpinning={isRequestLoading} spinningHeight="auto">
+            <ShoppingDetailTable
+              ref={tableRef}
+              isReadForApprove={isReadForApprove}
+              isJuniorApprove={isJuniorApprove}
+              setCheckedArr={setCheckedArr}
               shoppingListInfo={shoppingListInfo}
-              allowJuniorPlaceOrder={allowJuniorPlaceOrder}
-              selectedSubTotal={calculateSubTotal(checkedArr)}
-              selectedProductCount={checkedArr.length}
-              onDelete={() => setDeleteOpen(true)}
-              onAddToCart={handleAddProductsToCart}
-              onAddToQuote={handleAddSelectedToQuote}
+              isRequestLoading={isRequestLoading}
+              setIsRequestLoading={setIsRequestLoading}
+              shoppingListId={id}
+              getShoppingListDetails={getShoppingListDetails}
+              setDeleteOpen={setDeleteOpen}
+              setDeleteItemId={setDeleteItemId}
               isB2BUser={isB2BUser}
-              customColor={primaryColor}
               isCanEditShoppingList={isCanEditShoppingList}
-              isJuniorBuyer={isJuniorBuyer}
             />
-          )}
+          </B3Spin>
+        </Box>
+
+        <ShoppingDetailFooter
+          shoppingListInfo={shoppingListInfo}
+          allowJuniorPlaceOrder={allowJuniorPlaceOrder}
+          selectedSubTotal={calculateSubTotal(checkedArr)}
+          selectedProductCount={checkedArr.length}
+          onDelete={() => setDeleteOpen(true)}
+          onAddToCart={() => {
+            checkoutRequested.current = false;
+            return handleAddProductsToCart();
+          }}
+          onAddToQuote={handleAddSelectedToQuote}
+          isB2BUser={isB2BUser}
+          customColor={primaryColor}
+          isCanEditShoppingList={isCanEditShoppingList}
+        />
       </Box>
 
       <ReAddToCart

@@ -74,7 +74,7 @@ const useGetFilterShoppingListStatus = () => {
     return [
       { value: 99, label: b3Lang('global.shoppingLists.status.all') },
       { value: ShoppingListStatus.Approved, label: b3Lang('global.shoppingLists.status.approved') },
-      ...(submitShoppingListPermission ? [draftStatus] : []),
+      draftStatus,
       {
         value: ShoppingListStatus.ReadyForApproval,
         label: b3Lang('global.shoppingLists.status.readyForApproval'),
