@@ -3,6 +3,7 @@ import {
   buildCompanyStateWith,
   buildGlobalStateWith,
   graphql,
+  http,
   HttpResponse,
   renderWithProviders,
   screen,
@@ -45,7 +46,12 @@ describe('LoginPage', () => {
   });
 
   describe('successful login and redirects', () => {
-    it('should redirect junior buyer to /shoppingLists after successful login', async () => {
+    beforeEach(() => {
+      window.location.assign('/login.php');
+      server.use(http.get('*/login/token/:token', () => new HttpResponse(null, { status: 200 })));
+    });
+
+    it('redirects junior buyer to /webshop after successful login', async () => {
       vi.mock('@/hooks/useB2BCallback');
 
       server.use(
@@ -70,7 +76,7 @@ describe('LoginPage', () => {
         companyRoleName: 'Junior Buyer',
       });
 
-      const { navigation } = renderLoginPage();
+      renderLoginPage();
 
       await userEvent.type(screen.getByLabelText('Email address *'), 'test@example.com');
       await userEvent.type(screen.getByLabelText('Password *'), 'Password123');
@@ -81,11 +87,11 @@ describe('LoginPage', () => {
       });
 
       await waitFor(() => {
-        expect(navigation).toHaveBeenCalledWith(expect.stringContaining('/shoppingLists'));
+        expect(window.location.pathname).toBe('/webshop');
       });
     });
 
-    it('should redirect SuperAdmin to /dashboard after successful login', async () => {
+    it('redirects SuperAdmin to /webshop after successful login', async () => {
       vi.mock('@/hooks/useB2BCallback');
 
       server.use(
@@ -110,7 +116,7 @@ describe('LoginPage', () => {
         companyRoleName: 'SuperAdmin',
       });
 
-      const { navigation } = renderLoginPage();
+      renderLoginPage();
 
       await userEvent.type(screen.getByLabelText('Email address *'), 'test@example.com');
       await userEvent.type(screen.getByLabelText('Password *'), 'Password123');
@@ -121,7 +127,7 @@ describe('LoginPage', () => {
       });
 
       await waitFor(() => {
-        expect(navigation).toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+        expect(window.location.pathname).toBe('/webshop');
       });
     });
   });

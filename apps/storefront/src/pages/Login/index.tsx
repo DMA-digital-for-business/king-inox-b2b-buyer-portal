@@ -134,7 +134,7 @@ function Login(props: PageProps) {
       const { token, storefrontLoginToken, errors } = await performB2BLogin(data);
 
       storeDispatch(setB2BToken(token));
-      customerLoginAPI(storefrontLoginToken);
+      await customerLoginAPI(storefrontLoginToken);
       dispatchEvent('on-login', { storefrontToken: storefrontLoginToken });
 
       if (
@@ -151,8 +151,8 @@ function Login(props: PageProps) {
         return;
       }
 
-      const info = await getCurrentCustomerInfo(token);
-      navigateAfterSuccessfulLogin(navigate, info, quoteDetailToCheckoutUrl);
+      await getCurrentCustomerInfo(token);
+      navigateAfterSuccessfulLogin(navigate, quoteDetailToCheckoutUrl);
     } catch (error: unknown) {
       if (isCompanyError(error)) {
         snackbar.error(b3Lang(COMPANY_STATUS_MAPPINGS[error.reason]));
