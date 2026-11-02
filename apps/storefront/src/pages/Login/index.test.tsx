@@ -55,7 +55,8 @@ describe('LoginPage', () => {
       vi.mock('@/hooks/useB2BCallback');
 
       server.use(
-        graphql.mutation('Login', () => {
+        graphql.mutation('Login', ({ variables }) => {
+          expect(variables.loginData).toEqual(expect.objectContaining({ redirectUrl: '/webshop' }));
           return HttpResponse.json({
             data: {
               login: {

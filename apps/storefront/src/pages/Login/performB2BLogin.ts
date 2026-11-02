@@ -17,6 +17,7 @@ export async function performB2BLogin(
       password: data.password,
       storeHash,
       channelId,
+      redirectUrl: '/webshop',
     },
   });
   return { token, storefrontLoginToken, errors };
