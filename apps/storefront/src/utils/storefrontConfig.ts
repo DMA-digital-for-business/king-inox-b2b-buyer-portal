@@ -337,7 +337,10 @@ const setStorefrontConfig = async (dispatch: DispatchProps) => {
 
   if (featureFlags['LOCAL-3191.B2B_multi_language']) {
     getLocales()
-      .then((res) => store.dispatch(setLocales(res.data.site.settings.locales)))
+      .then((res) => {
+        console.log("🚀 ~ file: storefrontConfig.ts:246 ~ getLocales ~ res", res)
+        store.dispatch(setLocales(res.data.site.settings.locales));
+      })
       .catch(() => {});
   }
 

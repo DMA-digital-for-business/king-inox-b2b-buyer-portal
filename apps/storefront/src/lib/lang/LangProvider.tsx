@@ -55,13 +55,15 @@ function LangProvider({ children, customText = {} }: LangProviderProps) {
   const normalizedLocaleCode = activeLocaleCode.split('-')[0];
   const localizedMessages = locales[normalizedLocaleCode as keyof typeof locales] ?? {};
   const localeMessages = { ...locales.en, ...localizedMessages };
+  // Channel customizations are not locale-specific, including persisted API translations.
+  // Apply them only to the channel language so they cannot replace another locale's messages.
+  const useChannelCustomizations = normalizedLocaleCode === (bcLanguage ?? 'en').split('-')[0];
+  const messages = useChannelCustomizations
+    ? { ...localeMessages, ...customText, ...translations }
+    : localeMessages;
 
   return (
-    <IntlProvider
-      defaultLocale="en"
-      locale={normalizedLocaleCode}
-      messages={{ ...localeMessages, ...customText, ...translations }}
-    >
+    <IntlProvider defaultLocale="en" locale={normalizedLocaleCode} messages={messages}>
       {children}
     </IntlProvider>
   );
