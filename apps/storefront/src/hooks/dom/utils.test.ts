@@ -9,10 +9,14 @@ import {
 } from '@/shared/service/b2b/graphql/product';
 import { getProductOptionList } from '@/utils/b3AddToShoppingList';
 import b2bLogger from '@/utils/b3Logger';
-import { addQuoteDraftProduce } from '@/utils/b3Product/b3Product';
+import {
+  addQuoteDraftProduce,
+  calculateProductsPrice,
+  validProductQty,
+} from '@/utils/b3Product/b3Product';
 import { globalSnackbar } from '@/utils/b3Tip';
 
-import { addProductFromProductPageToQuote } from './utils';
+import { addProductFromProductPageToQuote, addProductsToDraftQuote } from './utils';
 
 const { server } = startMockServer();
 
@@ -44,6 +48,8 @@ vi.mock('@/utils/b3Product/b3Product', async (importOriginal) => {
   return {
     ...original,
     addQuoteDraftProduce: vi.fn(),
+    calculateProductsPrice: vi.fn(original.calculateProductsPrice),
+    validProductQty: vi.fn(original.validProductQty),
   };
 });
 
@@ -235,6 +241,30 @@ beforeEach(() => {
 
   vi.mocked(getProductOptionList).mockReturnValue([]);
   vi.mocked(addQuoteDraftProduce).mockResolvedValue(undefined);
+});
+
+describe('creating a quote from the cart', () => {
+  it('opens the draft directly without showing the products added toast', async () => {
+    const product = builder(() => ({
+      sku: faker.string.alphanumeric(10),
+      productEntityId: faker.number.int({ min: 1 }),
+      variantEntityId: faker.number.int({ min: 1 }),
+      quantity: faker.number.int({ min: 1, max: 5 }),
+    }))('WHATEVER_VALUES');
+    const cartId = faker.string.uuid();
+    searchProduct.mockReturnValueOnce(buildSearchB2BProductWith('WHATEVER_VALUES'));
+    vi.mocked(calculateProductsPrice).mockResolvedValueOnce([]);
+    vi.mocked(validProductQty).mockReturnValueOnce(true);
+
+    await addProductsToDraftQuote([product], setOpenPage, b3Lang, cartId);
+
+    expect(setOpenPage).toHaveBeenCalledWith({
+      isOpen: true,
+      openUrl: '/quoteDraft',
+      params: { quoteBtn: 'add' },
+    });
+    expect(globalSnackbar.success).not.toHaveBeenCalled();
+  });
 });
 
 describe('addProductFromProductPageToQuote', () => {

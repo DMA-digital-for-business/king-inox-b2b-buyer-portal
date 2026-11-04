@@ -175,7 +175,11 @@ const addProductsToDraftQuote = async (
 
   if (isSuccess) {
     // Save the shopping cart id, used to clear the shopping cart after submitting the quote
-    if (cartId) B3LStorage.set('cartToQuoteId', cartId);
+    if (cartId) {
+      B3LStorage.set('cartToQuoteId', cartId);
+      gotoQuoteDraft(setOpenPage);
+      return;
+    }
 
     globalSnackbar.success(b3Lang('quoteDraft.notification.productPlural'), {
       action: {
