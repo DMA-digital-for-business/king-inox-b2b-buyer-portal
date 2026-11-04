@@ -870,5 +870,6 @@
   "quoteDraft.pdf.king.vatNumber": "USt-IdNr.",
   "orderDetail.pdf.title": "Auftragsbestätigung",
   "orderDetail.pdf.confirmed": "BESTELLUNG BESTÄTIGT",
-  "orderDetail.pdf.acceptance": "Die Bestellung gilt als angenommen, sofern nicht innerhalb von 24 Stunden eine gegenteilige Mitteilung erfolgt."
+  "orderDetail.pdf.acceptance": "Die Bestellung gilt als angenommen, sofern nicht innerhalb von 24 Stunden eine gegenteilige Mitteilung erfolgt.",
+  "intl.global.fileUpload.fileUploadFailure": "Die Datei konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut."
 }

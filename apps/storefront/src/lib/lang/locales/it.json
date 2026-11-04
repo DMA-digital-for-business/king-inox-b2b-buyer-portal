@@ -868,5 +868,6 @@
   "quoteDraft.pdf.king.vatNumber": "P. Iva",
   "orderDetail.pdf.title": "Conferma d’Ordine",
   "orderDetail.pdf.confirmed": "ORDINE CONFERMATO",
-  "orderDetail.pdf.acceptance": "L'ordine si intende accettato salvo diversa comunicazione entro 24 ore."
+  "orderDetail.pdf.acceptance": "L'ordine si intende accettato salvo diversa comunicazione entro 24 ore.",
+  "intl.global.fileUpload.fileUploadFailure": "Caricamento del file non riuscito. Riprova."
 }

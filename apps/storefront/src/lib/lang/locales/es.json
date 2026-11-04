@@ -870,5 +870,6 @@
   "quoteDraft.pdf.king.vatNumber": "N.º IVA",
   "orderDetail.pdf.title": "Confirmación de pedido",
   "orderDetail.pdf.confirmed": "PEDIDO CONFIRMADO",
-  "orderDetail.pdf.acceptance": "El pedido se considera aceptado salvo notificación en contrario en un plazo de 24 horas."
+  "orderDetail.pdf.acceptance": "El pedido se considera aceptado salvo notificación en contrario en un plazo de 24 horas.",
+  "intl.global.fileUpload.fileUploadFailure": "No se pudo cargar el archivo. Inténtelo de nuevo."
 }

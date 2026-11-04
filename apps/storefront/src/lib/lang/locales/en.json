@@ -870,5 +870,6 @@
   "quoteDraft.pdf.king.vatNumber": "VAT No.",
   "orderDetail.pdf.title": "Order Confirmation",
   "orderDetail.pdf.confirmed": "ORDER CONFIRMED",
-  "orderDetail.pdf.acceptance": "The order is deemed accepted unless otherwise notified within 24 hours."
+  "orderDetail.pdf.acceptance": "The order is deemed accepted unless otherwise notified within 24 hours.",
+  "intl.global.fileUpload.fileUploadFailure": "File upload failed. Please try again."
 }

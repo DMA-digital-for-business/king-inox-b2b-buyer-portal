@@ -131,4 +131,40 @@ describe('LangProvider', () => {
     expect(screen.getByText(navigationLabel)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
   });
+
+  it.each([
+    ['en', 'My orders'],
+    ['it', 'I miei ordini'],
+  ])(
+    'uses the %s dictionary when it is the default locale of a multilingual channel',
+    (code, label) => {
+      const fullPath = `https://store.example.com/${code}`;
+      vi.stubGlobal('location', { href: `${fullPath}/cart.php#/orders` });
+      const customLabel = faker.lorem.sentence();
+      const store = setupStore({
+        global: buildGlobalWith({
+          locales: [
+            buildLocaleWith({ code, isDefault: true, fullPath }),
+            buildLocaleWith({ code: 'fr', fullPath: 'https://store.example.com/fr' }),
+          ],
+        }),
+        lang: buildLangWith({ translations: { 'global.navMenu.orders': customLabel } }),
+      });
+
+      render(
+        <GlobalContext.Provider
+          value={{ state: { ...initState, bcLanguage: code }, dispatch: vi.fn() }}
+        >
+          <Provider store={store}>
+            <LangProvider customText={{ 'global.orders.title': customLabel }}>
+              <TestOrders />
+            </LangProvider>
+          </Provider>
+        </GlobalContext.Provider>,
+      );
+
+      expect(screen.getAllByText(label)).toHaveLength(2);
+      expect(screen.queryByText(customLabel)).not.toBeInTheDocument();
+    },
+  );
 });

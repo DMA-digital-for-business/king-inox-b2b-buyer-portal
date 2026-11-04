@@ -56,8 +56,9 @@ function LangProvider({ children, customText = {} }: LangProviderProps) {
   const localizedMessages = locales[normalizedLocaleCode as keyof typeof locales] ?? {};
   const localeMessages = { ...locales.en, ...localizedMessages };
   // Channel customizations are not locale-specific, including persisted API translations.
-  // Apply them only to the channel language so they cannot replace another locale's messages.
-  const useChannelCustomizations = normalizedLocaleCode === (bcLanguage ?? 'en').split('-')[0];
+  // In a multilingual channel, even the default locale may differ from their content language.
+  const useChannelCustomizations =
+    availableLocales.length <= 1 && normalizedLocaleCode === (bcLanguage ?? 'en').split('-')[0];
   const messages = useChannelCustomizations
     ? { ...localeMessages, ...customText, ...translations }
     : localeMessages;

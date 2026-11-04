@@ -870,5 +870,6 @@
   "quoteDraft.pdf.king.vatNumber": "N° TVA",
   "orderDetail.pdf.title": "Confirmation de commande",
   "orderDetail.pdf.confirmed": "COMMANDE CONFIRMÉE",
-  "orderDetail.pdf.acceptance": "La commande est réputée acceptée sauf notification contraire dans les 24 heures."
+  "orderDetail.pdf.acceptance": "La commande est réputée acceptée sauf notification contraire dans les 24 heures.",
+  "intl.global.fileUpload.fileUploadFailure": "Le téléversement du fichier a échoué. Veuillez réessayer."
 }
