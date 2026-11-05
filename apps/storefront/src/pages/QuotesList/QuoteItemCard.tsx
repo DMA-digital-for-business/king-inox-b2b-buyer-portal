@@ -11,8 +11,8 @@ import { useB3Lang } from '@/lib/lang';
 import { DisplayCurrency } from '@/types/currency';
 import { displayFormat } from '@/utils/b3DateFormat';
 
-import QuoteStatus from '../quote/components/QuoteStatus';
 import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
+import QuoteStatus from '../quote/components/QuoteStatus';
 
 interface ListItem {
   [key: string]: string | Object | undefined;
@@ -84,7 +84,9 @@ export function QuoteItemCard(props: QuoteItemCardProps) {
       key: 'expiredAt',
       title: b3Lang('quotes.quoteItemCard.expirationDate'),
       render: () =>
-        `${Number(item.status) !== 0 ? displayFormat(Number(item.expiredAt)) : item.expiredAt}`,
+        Number(item.status) === 1 && Number(item.expiredAt) > 0
+          ? String(displayFormat(Number(item.expiredAt)))
+          : '—',
     },
     {
       key: 'totalAmount',

@@ -24,6 +24,7 @@ interface QuoteDetailHeaderProps {
   status: string;
   quoteNumber: string;
   issuedAt: number;
+  expiredAt?: number;
   exportPdf: () => void;
   printQuote: () => Promise<void>;
   role: string | number;
@@ -34,7 +35,8 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
   const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
 
-  const { status, quoteNumber, issuedAt, exportPdf, printQuote, role, salesRepInfo } = props;
+  const { status, quoteNumber, issuedAt, expiredAt, exportPdf, printQuote, role, salesRepInfo } =
+    props;
 
   const {
     state: {
@@ -166,6 +168,17 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
               </Typography>
               <span>{`${issuedAt ? displayFormat(Number(issuedAt)) : ''}`}</span>
             </StyledCreateName>
+            {Number(status) === 1 && !!expiredAt && expiredAt > 0 && (
+              <StyledCreateName>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ marginRight: '0.5rem', fontSize: '16px' }}
+                >
+                  {b3Lang('quoteDetail.header.expirationDate')}
+                </Typography>
+                <span>{String(displayFormat(Number(expiredAt)))}</span>
+              </StyledCreateName>
+            )}
           </Box>
         </Grid>
         {Number(role) !== 100 && (

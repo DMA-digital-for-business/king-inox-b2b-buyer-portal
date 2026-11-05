@@ -998,6 +998,7 @@ function QuoteDetail() {
           status={quoteDetail.status}
           quoteNumber={quoteDetail.quoteNumber}
           issuedAt={quoteDetail.createdAt}
+          expiredAt={quoteDetail.expiredAt}
           exportPdf={exportPdf}
           printQuote={printQuote}
           role={role}

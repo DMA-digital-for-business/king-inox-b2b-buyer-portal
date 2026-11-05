@@ -243,9 +243,9 @@ describe('when the user is a B2B customer', () => {
     expect(within(row).getByRole('cell', { name: 'Many Socks' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Fred Salesman' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Sam Shopper' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '1 January 2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '2 February 2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '3 March 2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '01/01/2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '02/02/2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '03/03/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '$101.99' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Open' })).toBeInTheDocument();
   });
@@ -902,9 +902,9 @@ describe('when the user is a B2C customer', () => {
     expect(within(row).getByRole('cell', { name: 'Many Socks' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Fred Salesman' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Sam Shopper' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '1 January 2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '2 February 2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '3 March 2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '01/01/2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '02/02/2025' })).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '03/03/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '$101.99' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Open' })).toBeInTheDocument();
   });

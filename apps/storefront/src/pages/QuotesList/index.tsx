@@ -248,6 +248,15 @@ const useColumnList = (
         isSortable: true,
       },
       {
+        key: 'expiredAt',
+        title: b3Lang('quotes.quoteItemCard.expirationDate'),
+        render: (item: ListItem) =>
+          Number(item.status) === 1 && Number(item.expiredAt) > 0
+            ? String(displayFormat(Number(item.expiredAt)))
+            : '—',
+        isSortable: true,
+      },
+      {
         key: 'totalAmount',
         title: b3Lang('quotes.subtotal'),
         render: getTotalAmount,

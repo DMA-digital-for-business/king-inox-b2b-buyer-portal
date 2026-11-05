@@ -409,10 +409,45 @@ describe('when the user is a B2B customer', () => {
     expect(await screen.findByText('Ordered')).toBeInTheDocument();
 
     expect(screen.getByRole('heading', { name: 'Issued on:' })).toBeInTheDocument();
-    expect(screen.getByText('2 February 2025')).toBeInTheDocument();
+    expect(screen.getByText('02/02/2025')).toBeInTheDocument();
 
     expect(screen.queryByRole('heading', { name: 'Expiration date:' })).not.toBeInTheDocument();
-    expect(screen.queryByText('3 March 2025')).not.toBeInTheDocument();
+    expect(screen.queryByText('03/03/2025')).not.toBeInTheDocument();
+  });
+
+  it('displays the expiration date for an active quote', async () => {
+    const quote = buildQuoteWith({
+      data: {
+        quote: {
+          id: '272989',
+          status: 1,
+          createdAt: getUnixTime(new Date('2 February 2025')),
+          expiredAt: getUnixTime(new Date('3 March 2025')),
+        },
+      },
+    });
+
+    server.use(
+      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+      graphql.query('SearchProducts', () =>
+        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+      ),
+      graphql.query('getQuoteExtraFields', () =>
+        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+      ),
+    );
+
+    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+
+    renderWithProviders(<QuoteDetail />, { preloadedState });
+
+    expect(await screen.findByText('Open')).toBeInTheDocument();
+
+    expect(screen.getByRole('heading', { name: 'Issued on:' })).toBeInTheDocument();
+    expect(screen.getByText('02/02/2025')).toBeInTheDocument();
+
+    expect(screen.getByRole('heading', { name: 'Expiration date:' })).toBeInTheDocument();
+    expect(screen.getByText('03/03/2025')).toBeInTheDocument();
   });
 
   it('displays a summary of the products within the quote', async () => {
