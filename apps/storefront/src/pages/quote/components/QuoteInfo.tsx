@@ -195,15 +195,28 @@ function QuoteInfo({
             status={status}
             info={contactInfo as unknown as QuoteInfoItemType}
           />
-          <QuoteInfoAndExtrafieldsItem status={status} quoteInfo={quoteAndExtraFieldsInfo} />
+          {status !== 'Draft' && (
+            <QuoteInfoAndExtrafieldsItem status={status} quoteInfo={quoteAndExtraFieldsInfo} />
+          )}
         </Box>
 
-        <QuoteInfoItem
-          title={b3Lang('global.quoteInfo.billing')}
-          flag="Billing"
-          status={status}
-          info={billingAddress as unknown as QuoteInfoItemType}
-        />
+        {status === 'Draft' ? (
+          <Box
+            sx={{
+              width: isMobile ? '100%' : '33.3%',
+              paddingLeft: isMobile ? 0 : '10px',
+            }}
+          >
+            <QuoteInfoAndExtrafieldsItem status={status} quoteInfo={quoteAndExtraFieldsInfo} />
+          </Box>
+        ) : (
+          <QuoteInfoItem
+            title={b3Lang('global.quoteInfo.billing')}
+            flag="Billing"
+            status={status}
+            info={billingAddress as unknown as QuoteInfoItemType}
+          />
+        )}
 
         <QuoteInfoItem
           title={b3Lang('global.quoteInfo.shipping')}

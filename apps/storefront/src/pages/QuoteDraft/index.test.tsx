@@ -842,7 +842,7 @@ it('displays buyer information for users with not addresses permission', async (
 });
 
 describe('when there is a billing address assigned', () => {
-  it('displays the billing address', async () => {
+  it('hides the billing address in the draft summary', async () => {
     server.use(
       graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
       graphql.query('Addresses', () =>
@@ -874,19 +874,14 @@ describe('when there is a billing address assigned', () => {
       preloadedState: { ...preloadedState, quoteInfo },
     });
 
-    const billing = await screen.findByRole('article', { name: 'Billing' });
+    await screen.findByRole('article', { name: 'Shipping' });
 
-    expect(within(billing).getByText('ABC Inc Headquarters')).toBeInTheDocument();
-    expect(within(billing).getByText('Joey Johnson')).toBeInTheDocument();
-    expect(within(billing).getByText('123 Main St')).toBeInTheDocument();
-    expect(within(billing).getByText('Apt 4B')).toBeInTheDocument();
-    expect(within(billing).getByText('Springfield, IL, 62701, USA')).toBeInTheDocument();
-    expect(within(billing).getByText('04747666333')).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: 'Billing' })).not.toBeInTheDocument();
   });
 });
 
 describe('when there is no billing address assigned', () => {
-  it('displays a message of "Please add billing address"', async () => {
+  it('does not request a billing address', async () => {
     server.use(
       graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
       graphql.query('Addresses', () =>
@@ -903,9 +898,10 @@ describe('when there is no billing address assigned', () => {
       preloadedState: { ...preloadedState, quoteInfo },
     });
 
-    const billing = await screen.findByRole('article', { name: 'Billing' });
+    await screen.findByRole('article', { name: 'Shipping' });
 
-    expect(within(billing).getByText('Please add billing address')).toBeInTheDocument();
+    expect(screen.queryByText('Please add billing address')).not.toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: 'Billing' })).not.toBeInTheDocument();
   });
 });
 

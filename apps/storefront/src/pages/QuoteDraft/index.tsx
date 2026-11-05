@@ -418,7 +418,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const getAddress = () => {
     const addressSaveInfo = {
       shippingAddress,
-      billingAddress,
+      billingAddress: quoteInfoOrigin.billingAddress || billingAddress,
     };
 
     if (billingRef?.current) {
@@ -801,7 +801,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         if (!data) return;
       }
 
-      const currentAddresses = billingRef?.current ? getAddress() : info;
+      const currentAddresses = shippingRef.current ? getAddress() : info;
 
       if (!hasShippingAddress(currentAddresses.shippingAddress)) {
         snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequired'));
@@ -1277,22 +1277,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
                 }}
               >
                 <QuoteAddress
-                  title={b3Lang('quoteDraft.section.billing')}
-                  info={quoteInfoOrigin?.billingAddress}
-                  addressList={addressList}
-                  pr={isMobile ? 0 : '8px'}
-                  ref={billingRef}
-                  role={role}
-                  accountFormFields={accountFormFields}
-                  shippingSameAsBilling={shippingSameAsBilling}
-                  type="billing"
-                  setBillingChange={setBillingChange}
-                />
-                <QuoteAddress
                   title={b3Lang('quoteDraft.section.shipping')}
                   info={quoteInfoOrigin?.shippingAddress}
                   addressList={addressList}
-                  pl={isMobile ? 0 : '8px'}
                   ref={shippingRef}
                   role={role}
                   accountFormFields={accountFormFields}
