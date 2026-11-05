@@ -5,6 +5,7 @@ import { LoginConfig } from './helper';
 
 export async function performB2BLogin(
   data: LoginConfig,
+  redirectUrl: string,
 ): Promise<{ token: string; storefrontLoginToken: string; errors?: { message: string }[] }> {
   const {
     login: {
@@ -17,7 +18,7 @@ export async function performB2BLogin(
       password: data.password,
       storeHash,
       channelId,
-      redirectUrl: '/webshop',
+      redirectUrl,
     },
   });
   return { token, storefrontLoginToken, errors };

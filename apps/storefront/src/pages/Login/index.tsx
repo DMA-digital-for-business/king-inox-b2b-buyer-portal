@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, Box } from '@mui/material';
 
@@ -66,6 +67,7 @@ function Login(props: PageProps) {
   });
   const navigate = useNavigate();
   const b3Lang = useB3Lang();
+  const { locale } = useIntl();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const {
@@ -131,7 +133,8 @@ function Login(props: PageProps) {
         return;
       }
 
-      const { token, storefrontLoginToken, errors } = await performB2BLogin(data);
+      const redirectUrl = `/${locale}/webshop`;
+      const { token, storefrontLoginToken, errors } = await performB2BLogin(data, redirectUrl);
 
       storeDispatch(setB2BToken(token));
       await customerLoginAPI(storefrontLoginToken);
@@ -152,7 +155,7 @@ function Login(props: PageProps) {
       }
 
       await getCurrentCustomerInfo(token);
-      navigateAfterSuccessfulLogin(navigate, quoteDetailToCheckoutUrl);
+      navigateAfterSuccessfulLogin(navigate, quoteDetailToCheckoutUrl, redirectUrl);
     } catch (error: unknown) {
       if (isCompanyError(error)) {
         snackbar.error(b3Lang(COMPANY_STATUS_MAPPINGS[error.reason]));

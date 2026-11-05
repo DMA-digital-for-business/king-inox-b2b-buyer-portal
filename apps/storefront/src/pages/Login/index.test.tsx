@@ -1,7 +1,9 @@
 import userEvent from '@testing-library/user-event';
 import {
   buildCompanyStateWith,
+  builder,
   buildGlobalStateWith,
+  faker,
   graphql,
   http,
   HttpResponse,
@@ -11,6 +13,7 @@ import {
   waitFor,
 } from 'tests/test-utils';
 
+import locales from '@/lib/lang/locales';
 import { CustomerRole } from '@/types';
 import { snackbar } from '@/utils/b3Tip';
 import { getCurrentCustomerInfo } from '@/utils/loginInfo';
@@ -51,48 +54,75 @@ describe('LoginPage', () => {
       server.use(http.get('*/login/token/:token', () => new HttpResponse(null, { status: 200 })));
     });
 
-    it('redirects junior buyer to /webshop after successful login', async () => {
-      vi.mock('@/hooks/useB2BCallback');
+    it.each(['en', 'it', 'fr', 'es', 'de'] as const)(
+      'redirects junior buyer to /%s/webshop after successful login',
+      async (language) => {
+        vi.mock('@/hooks/useB2BCallback');
+        window.location.assign(`/${language}/login.php`);
+        const redirectUrl = `/${language}/webshop`;
+        const credentials = builder(() => ({
+          email: faker.internet.email(),
+          password: faker.internet.password({ length: 12 }),
+        }))('WHATEVER_VALUES');
 
-      server.use(
-        graphql.mutation('Login', ({ variables }) => {
-          expect(variables.loginData).toEqual(expect.objectContaining({ redirectUrl: '/webshop' }));
-          return HttpResponse.json({
-            data: {
-              login: {
-                result: {
-                  storefrontLoginToken: '456',
-                  token: '123',
-                  permissions: [{ code: '1', permissionLevel: 1 }],
+        server.use(
+          graphql.mutation('Login', ({ variables }) => {
+            expect(variables.loginData).toEqual(expect.objectContaining({ redirectUrl }));
+            return HttpResponse.json({
+              data: {
+                login: {
+                  result: {
+                    storefrontLoginToken: '456',
+                    token: '123',
+                    permissions: [{ code: '1', permissionLevel: 1 }],
+                  },
                 },
               },
-            },
-          });
-        }),
-      );
+            });
+          }),
+        );
 
-      vi.mocked(getCurrentCustomerInfo).mockResolvedValue({
-        userType: 5,
-        role: 2,
-        companyRoleName: 'Junior Buyer',
-      });
+        vi.mocked(getCurrentCustomerInfo).mockResolvedValue({
+          userType: 5,
+          role: 2,
+          companyRoleName: 'Junior Buyer',
+        });
 
-      renderLoginPage();
+        renderLoginPage({
+          preloadedState: {
+            global: buildGlobalStateWith({
+              locales: [
+                {
+                  code: language,
+                  isDefault: true,
+                  fullPath: `${window.location.origin}/${language}`,
+                },
+              ],
+            }),
+          },
+        });
 
-      await userEvent.type(screen.getByLabelText('Email address *'), 'test@example.com');
-      await userEvent.type(screen.getByLabelText('Password *'), 'Password123');
-      await userEvent.keyboard('{Enter}');
+        await userEvent.type(
+          screen.getByLabelText(`${locales[language]['global.loginText.emailAddress']} *`),
+          credentials.email,
+        );
+        await userEvent.type(
+          screen.getByLabelText(`${locales[language]['login.loginText.password']} *`),
+          credentials.password,
+        );
+        await userEvent.keyboard('{Enter}');
 
-      await waitFor(() => {
-        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
-      });
+        await waitFor(() => {
+          expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+        });
 
-      await waitFor(() => {
-        expect(window.location.pathname).toBe('/webshop');
-      });
-    });
+        await waitFor(() => {
+          expect(window.location.pathname).toBe(redirectUrl);
+        });
+      },
+    );
 
-    it('redirects SuperAdmin to /webshop after successful login', async () => {
+    it('redirects SuperAdmin to /en/webshop after successful login', async () => {
       vi.mock('@/hooks/useB2BCallback');
 
       server.use(
@@ -128,7 +158,7 @@ describe('LoginPage', () => {
       });
 
       await waitFor(() => {
-        expect(window.location.pathname).toBe('/webshop');
+        expect(window.location.pathname).toBe('/en/webshop');
       });
     });
   });
