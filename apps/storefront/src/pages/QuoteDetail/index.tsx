@@ -314,6 +314,7 @@ function QuoteDetail() {
     totalAmount: 0,
   });
   const [isRequestLoading, setIsRequestLoading] = useState(false);
+  const [isPrintingPdf, setIsPrintingPdf] = useState(false);
   const [isShowFooter, setIsShowFooter] = useState(false);
   const [quoteDetailTax, setQuoteDetailTax] = useState(0);
   const [noBuyerProductName, setNoBuyerProductName] = useState({
@@ -870,14 +871,14 @@ function QuoteDetail() {
       return;
     }
 
-    setIsRequestLoading(true);
+    setIsPrintingPdf(true);
     try {
       await printQuotePdf(await buildCurrentQuotePdfData(), printWindow);
     } catch {
       printWindow.close();
       snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
     } finally {
-      setIsRequestLoading(false);
+      setIsPrintingPdf(false);
     }
   };
 
@@ -1009,7 +1010,10 @@ function QuoteDetail() {
     quotePurchasabilityPermissionInfo;
 
   return (
-    <QuoteLoading busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading}>
+    <QuoteLoading
+      busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
+      coverContent={isAutoDownloadingPdf || isPrintingPdf}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -1022,7 +1026,7 @@ function QuoteDetail() {
           quoteNumber={quoteDetail.quoteNumber}
           issuedAt={quoteDetail.createdAt}
           expiredAt={quoteDetail.expiredAt}
-          busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading}
+          busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
           exportPdf={exportPdf}
           printQuote={printQuote}
           role={role}

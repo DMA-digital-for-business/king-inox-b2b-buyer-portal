@@ -804,7 +804,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   }, [billingChange, shippingSameAsBilling]);
 
   return (
-    <QuoteLoading busy={loading || isGeneratingPdf}>
+    <QuoteLoading busy={loading || isGeneratingPdf} coverContent={isGeneratingPdf}>
       <Box
         sx={{
           mb: '60px',
