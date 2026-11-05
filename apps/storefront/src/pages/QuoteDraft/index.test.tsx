@@ -475,6 +475,8 @@ it('opens the draft before downloading and skips the submission confirmation', a
     data: { quoteCreate: { quote: { createdAt: String(faker.date.recent().getTime()) } } },
   });
   const createdQuote = response.data.quoteCreate.quote;
+  const initialCartCount = faker.number.int({ min: 1, max: 99 });
+  const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))('WHATEVER_VALUES');
   let completeSubmission: () => void = () => {};
   const pendingSubmission = new Promise<void>((resolve) => {
     completeSubmission = resolve;
@@ -494,13 +496,13 @@ it('opens the draft before downloading and skips the submission confirmation', a
       return HttpResponse.json(response);
     }),
     graphql.mutation('DeleteCart', () =>
-      HttpResponse.json({ data: { cart: { deleteCart: { deletedCartEntityId: null } } } }),
+      HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
     ),
   );
   const quoteInfo = buildQuoteInfoStateWith({
     draftQuoteInfo: { contactInfo: { email: customerEmail } },
   });
-  const { navigation } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+  const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
     preloadedState: {
       ...preloadedState,
       quoteInfo,
@@ -515,6 +517,7 @@ it('opens the draft before downloading and skips the submission confirmation', a
       }),
       global: buildGlobalStateWith({
         backorderEnabled: true,
+        cartNumber: initialCartCount,
         quoteSubmissionResponse: { value: '1' },
       }),
     },
@@ -525,12 +528,14 @@ it('opens the draft before downloading and skips the submission confirmation', a
   expect(downloadButton).toBeDisabled();
   expect(downloadQuotePdf).not.toHaveBeenCalled();
   expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
+  expect(store.getState().global.cartNumber).toBe(initialCartCount);
   completeSubmission();
   await waitFor(() => {
     expect(navigation).toHaveBeenCalledWith(
       `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
     );
   });
+  expect(store.getState().global.cartNumber).toBe(0);
   expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
 });
 

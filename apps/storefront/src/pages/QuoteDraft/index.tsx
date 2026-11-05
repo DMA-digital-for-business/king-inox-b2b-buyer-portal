@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowBackIosNew, Download } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
+import Cookies from 'js-cookie';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
 
@@ -23,6 +24,7 @@ import {
   isB2BUserSelector,
   resetDraftQuoteInfo,
   resetDraftQuoteList,
+  setCartNumber,
   setDraftQuoteInfo,
   setDraftQuoteRecipients,
   setQuoteUserId,
@@ -752,7 +754,14 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         const cartId = B3LStorage.get('cartToQuoteId');
         const deleteCartObject = deleteCartData(cartId);
 
-        await deleteCart(deleteCartObject);
+        const deletedCart = await deleteCart(deleteCartObject);
+        if (deletedCart?.errors?.length) {
+          throw new Error(deletedCart.errors[0].message);
+        }
+        if (deletedCart?.data?.cart?.deleteCart?.deletedCartEntityId) {
+          dispatch(setCartNumber(0));
+          Cookies.remove('cartId');
+        }
       }
 
       if (downloadPdf || quoteSubmissionResponseInfo.value === '0') {
