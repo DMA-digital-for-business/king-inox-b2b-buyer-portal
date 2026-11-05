@@ -47,6 +47,7 @@ interface ListItemProps {
 
 interface ShoppingDetailTableProps {
   total: number;
+  formattedTotal?: string;
   productList: ProductInfoProps[];
   getQuoteTableDetails: GetRequestList<SearchProps, ProductInfoProps>;
   quoteReviewedBySalesRep: boolean;
@@ -114,6 +115,7 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
   const b3Lang = useB3Lang();
   const {
     total,
+    formattedTotal,
     productList,
     getQuoteTableDetails,
     getTaxRate,
@@ -440,7 +442,8 @@ function QuoteDetailTable(props: ShoppingDetailTableProps, ref: Ref<unknown>) {
             fontSize: '24px',
           }}
         >
-          {b3Lang('quoteDetail.table.totalProducts', { total: total || 0 })}
+          <span>{b3Lang('quoteDetail.table.totalProducts', { total: total || 0 })}</span>
+          {formattedTotal && ` (${b3Lang('quoteDraft.quoteTable.total')} ${formattedTotal})`}
         </Typography>
         {isBackorderMessagingContextEnabled &&
           hasAnyBackorderDisplay &&

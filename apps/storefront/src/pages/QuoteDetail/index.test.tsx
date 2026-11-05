@@ -555,11 +555,12 @@ describe('when the user is a B2B customer', () => {
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '$399.99' })).toBeInTheDocument();
   });
 
-  it('displays a quote summary', async () => {
+  it.each([1, 4])('displays the total in the appropriate section for status %s', async (status) => {
     const quote = buildQuoteWith({
       data: {
         quote: {
           id: '272989',
+          status,
           productsList: [buildQuoteProductWith('WHATEVER_VALUES')],
           currency: { token: '$', location: 'left', decimalToken: '.', decimalPlaces: 2 },
           displayDiscount: true,
@@ -587,9 +588,22 @@ describe('when the user is a B2B customer', () => {
     renderWithProviders(<QuoteDetail />, {
       preloadedState: {
         ...preloadedState,
-        global: { ...preloadedState.global, backorderEnabled: false },
+        global: {
+          ...preloadedState.global,
+          backorderEnabled: false,
+          blockPendingQuoteNonPurchasableOOS: { isEnableProduct: false },
+        },
       },
     });
+
+    if (status === 1) {
+      const productCount = await screen.findByText('1 product');
+      expect(productCount.parentElement).toHaveTextContent('1 product (Total $1,025.00)');
+      expect(screen.queryByRole('heading', { name: 'Quote summary' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Message')).not.toBeInTheDocument();
+      expect(screen.queryByText('Attachment')).not.toBeInTheDocument();
+      return;
+    }
 
     expect(await screen.findByRole('heading', { name: 'Quote summary' })).toBeInTheDocument();
 

@@ -25,6 +25,7 @@ interface InfoProps {
   billingAddress: BillingAddress;
   handleEditInfoClick?: () => void;
   status?: string;
+  showQuoteInfoColumn?: boolean;
 }
 
 type Keys = string | string[];
@@ -163,9 +164,11 @@ function QuoteInfo({
   billingAddress,
   handleEditInfoClick,
   status,
+  showQuoteInfoColumn = false,
 }: InfoProps) {
   const b3Lang = useB3Lang();
   const [isMobile] = useMobile();
+  const quoteInfoInOwnColumn = status === 'Draft' || showQuoteInfoColumn;
 
   return (
     <Container
@@ -195,12 +198,12 @@ function QuoteInfo({
             status={status}
             info={contactInfo as unknown as QuoteInfoItemType}
           />
-          {status !== 'Draft' && (
+          {!quoteInfoInOwnColumn && (
             <QuoteInfoAndExtrafieldsItem status={status} quoteInfo={quoteAndExtraFieldsInfo} />
           )}
         </Box>
 
-        {status === 'Draft' ? (
+        {quoteInfoInOwnColumn ? (
           <Box
             sx={{
               width: isMobile ? '100%' : '33.3%',

@@ -54,7 +54,7 @@ import {
 } from '../quote/components/quotePdf';
 import { pdfExtraField } from '../quote/components/quotePdfData';
 import { getQuotePdfTemplateLabels } from '../quote/components/quotePdfLabels';
-import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
+import { formatQuoteConvertedPrice, formatQuoteSummaryPrice } from '../quote/components/quotePriceFormat';
 import QuoteTermsAndConditions from '../quote/components/QuoteTermsAndConditions';
 import { useQuotePdfResources } from '../quote/components/useQuotePdfResources';
 import {
@@ -1004,6 +1004,17 @@ function QuoteDetail() {
     ? isEnableProductShowCheckoutBackendFlow
     : isEnableProductShowCheckoutFrontendFlow;
 
+  const isOpenQuote = Number(quoteDetail.status) === 1;
+  const formattedQuoteTotal = shouldHidePrice
+    ? b3Lang('quoteDraft.quoteSummary.tbd')
+    : formatQuoteSummaryPrice(
+        formatQuoteConvertedPrice(Number(quoteSummary.totalAmount), {
+          currency: displayCurrency,
+          isConversionRate: false,
+          useCurrentCurrency: !!displayCurrency,
+        }),
+      );
+
   useScrollBar(false);
 
   const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
@@ -1039,6 +1050,7 @@ function QuoteDetail() {
           }}
         >
           <QuoteInfo
+            showQuoteInfoColumn={isOpenQuote}
             quoteAndExtraFieldsInfo={quoteAndExtraFieldsInfo}
             contactInfo={quoteDetail.contactInfo}
             shippingAddress={quoteDetail.shippingAddress}
@@ -1052,7 +1064,7 @@ function QuoteDetail() {
           rowSpacing={0}
           sx={{
             overflow: 'auto',
-            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            flexWrap: isMobile || isOpenQuote ? 'wrap' : 'nowrap',
             paddingBottom: '20px',
             marginBottom: isMobile ? '6rem' : 0,
             marginTop: isMobile ? 0 : '1rem',
@@ -1063,7 +1075,7 @@ function QuoteDetail() {
         >
           <Grid
             item
-            xs={isMobile ? 12 : 8}
+            xs={isMobile || isOpenQuote ? 12 : 8}
             rowSpacing={0}
             sx={
               isMobile
@@ -1072,7 +1084,7 @@ function QuoteDetail() {
                     pl: '16px',
                   }
                 : {
-                    mr: '16px',
+                    mr: isOpenQuote ? 0 : '16px',
                   }
             }
           >
@@ -1086,6 +1098,7 @@ function QuoteDetail() {
               }
             >
               <QuoteDetailTable
+                formattedTotal={isOpenQuote ? formattedQuoteTotal : undefined}
                 total={productList.length}
                 productList={productList}
                 currency={displayCurrency}
@@ -1099,7 +1112,7 @@ function QuoteDetail() {
           </Grid>
           <Grid
             item
-            xs={isMobile ? 12 : 4}
+            xs={isMobile || isOpenQuote ? 12 : 4}
             rowSpacing={0}
             sx={
               isMobile
@@ -1111,21 +1124,23 @@ function QuoteDetail() {
                   }
             }
           >
-            <Box
-              sx={{
-                marginBottom: '1rem',
-              }}
-            >
-              <QuoteDetailSummary
-                shouldHidePrice={shouldHidePrice}
-                quoteSummary={quoteSummary}
-                quoteDetailTax={quoteDetailTax}
-                status={quoteDetail.status}
-                quoteDetail={quoteDetail}
-                currency={displayCurrency}
-                hasBackorderedItems={hasBackorderedItems}
-              />
-            </Box>
+            {!isOpenQuote && (
+              <Box
+                sx={{
+                  marginBottom: '1rem',
+                }}
+              >
+                <QuoteDetailSummary
+                  shouldHidePrice={shouldHidePrice}
+                  quoteSummary={quoteSummary}
+                  quoteDetailTax={quoteDetailTax}
+                  status={quoteDetail.status}
+                  quoteDetail={quoteDetail}
+                  currency={displayCurrency}
+                  hasBackorderedItems={hasBackorderedItems}
+                />
+              </Box>
+            )}
 
             {quoteDetail.notes && (
               <Box
@@ -1138,34 +1153,38 @@ function QuoteDetail() {
               </Box>
             )}
 
-            <Box
-              sx={{
-                marginBottom: '1rem',
-                displayPrint: 'none',
-              }}
-            >
-              <Message
-                id={id}
-                status={quoteDetail.status}
-                isB2BUser={isB2BUser}
-                email={emailAddress || ''}
-                msgs={quoteDetail?.trackingHistory || []}
-              />
-            </Box>
+            {!isOpenQuote && (
+              <Box
+                sx={{
+                  marginBottom: '1rem',
+                  displayPrint: 'none',
+                }}
+              >
+                <Message
+                  id={id}
+                  status={quoteDetail.status}
+                  isB2BUser={isB2BUser}
+                  email={emailAddress || ''}
+                  msgs={quoteDetail?.trackingHistory || []}
+                />
+              </Box>
+            )}
 
-            <Box
-              sx={{
-                marginBottom: '1rem',
-                displayPrint: 'none',
-              }}
-            >
-              <QuoteAttachment
-                allowUpload={Number(quoteDetail.status) !== 4}
-                quoteId={quoteDetail.id}
-                status={quoteDetail.status}
-                defaultFileList={fileList}
-              />
-            </Box>
+            {!isOpenQuote && (
+              <Box
+                sx={{
+                  marginBottom: '1rem',
+                  displayPrint: 'none',
+                }}
+              >
+                <QuoteAttachment
+                  allowUpload={Number(quoteDetail.status) !== 4}
+                  quoteId={quoteDetail.id}
+                  status={quoteDetail.status}
+                  defaultFileList={fileList}
+                />
+              </Box>
+            )}
 
             {quoteDetail.legalTerms && (
               <Box
