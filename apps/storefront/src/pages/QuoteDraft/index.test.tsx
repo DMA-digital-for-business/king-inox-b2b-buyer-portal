@@ -30,6 +30,7 @@ import {
 import { QuoteInfoState } from '@/store/slices/quoteInfo';
 import { CompanyStatus, CustomerRole, UserTypes } from '@/types';
 import { CreateQuoteResponse, QuoteInfo, QuoteItem } from '@/types/quotes';
+import { B3LStorage } from '@/utils/b3Storage';
 
 import { downloadQuotePdf } from '../quote/components/quotePdf';
 
@@ -466,151 +467,20 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
 });
 
-it('downloads one PDF with the current unsaved quote information', async () => {
-  const measure = faker.string.alphanumeric();
-  const code = faker.string.alphanumeric();
-  const vatNumber = `IT${faker.string.numeric(11)}`;
-  const carriage = faker.lorem.words();
-  const payment = faker.lorem.words();
-  const packing = faker.lorem.words();
-  const yourCodeOptionId = faker.number.int();
-  const yourCode = faker.string.uuid();
-  const oracleId = faker.string.numeric(8);
-  const draftProduct = buildDraftQuoteItemWith({
-    node: {
-      productId: faker.number.int({ min: 1, max: 10000 }),
-      variantId: faker.number.int({ min: 1, max: 10000 }),
-      variantSku: faker.string.alphanumeric(),
-      basePrice: 1.25,
-      taxPrice: 0,
-      quantity: 20,
-      optionList: JSON.stringify([
-        { optionId: `attribute[${yourCodeOptionId}]`, optionValue: faker.string.uuid() },
-      ]),
-      productsSearch: buildProductWith({
-        allOptions: [
-          {
-            id: yourCodeOptionId,
-            name: faker.lorem.word(),
-            display_name: 'Il vostro codice',
-            type: 'text',
-            sort_order: faker.number.int(),
-            option_values: [],
-            required: false,
-            isVariantOption: false,
-          },
-        ],
-      }),
-    },
+it('opens the draft before downloading and skips the submission confirmation', async () => {
+  vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
+  vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
+  set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
+  const response = buildQuoteCreateResponseWith({
+    data: { quoteCreate: { quote: { createdAt: String(faker.date.recent().getTime()) } } },
   });
-  const quoteInfo = buildQuoteInfoStateWith({
-    draftQuoteList: [draftProduct],
-    draftQuoteInfo: {
-      billingAddress: buildAddressWith({ country: fakeCountry.countryCode }),
-      shippingAddress: buildAddressWith({ country: fakeCountry.countryCode, addressId: 51 }),
-    },
+  const createdQuote = response.data.quoteCreate.quote;
+  let completeSubmission: () => void = () => {};
+  const pendingSubmission = new Promise<void>((resolve) => {
+    completeSubmission = resolve;
   });
-  const company = buildCompanyStateWith({
-    companyInfo: {
-      id: String(faker.number.int({ min: 1, max: 10000 })),
-      status: CompanyStatus.APPROVED,
-    },
-    customer: {
-      b2bId: faker.number.int({ min: 1, max: 10000 }),
-      userType: UserTypes.MULTIPLE_B2C,
-      role: CustomerRole.SENIOR_BUYER,
-      emailAddress: customerEmail,
-    },
-    permissions: [{ code: 'create_quote', permissionLevel: 2 }],
-  });
-  const firstAddressPage = bulk(buildAddressWith, 'WHATEVER_VALUES')
-    .times(50)
-    .map((address, index) => ({ node: { ...address, id: index + 1 } }));
+  const createQuote = vi.fn();
   server.use(
-    graphql.query('GetQuotePdfCustomerOracle', () =>
-      HttpResponse.json({
-        data: {
-          customer: {
-            entityId: company.customer.id,
-            customerOracleMetafields: {
-              edges: [{ node: { key: 'CUSTOMER_ID', value: oracleId } }],
-            },
-          },
-        },
-      }),
-    ),
-    graphql.query('GetQuotePdfVariants', () =>
-      HttpResponse.json({
-        data: {
-          site: {
-            p0: {
-              variants: {
-                edges: [
-                  {
-                    node: {
-                      entityId: draftProduct.node.variantId,
-                      sku: draftProduct.node.variantSku,
-                      customCodes: {
-                        edges: [
-                          {
-                            node: {
-                              key: 'CUSTOM_CODES',
-                              value: `${oracleId}-other=OTHER|${oracleId}=${yourCode}`,
-                            },
-                          },
-                        ],
-                      },
-                      dimensions: { edges: [{ node: { key: 'MISURA', value: measure } }] },
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        },
-      }),
-    ),
-    graphql.query('GetQuotePdfAddresses', ({ query }) => {
-      expect(query).toContain('first: 50');
-      if (query.includes('offset: 0')) {
-        return HttpResponse.json({
-          data: { addresses: { edges: firstAddressPage, pageInfo: { hasNextPage: true } } },
-        });
-      }
-      expect(query).toContain('offset: 50');
-      return HttpResponse.json({
-        data: {
-          addresses: {
-            edges: [
-              {
-                node: {
-                  id: quoteInfo.draftQuoteInfo.shippingAddress.addressId,
-                  extraFields: [
-                    { fieldName: 'SPEDIZIONE', fieldValue: carriage },
-                    { fieldName: 'METODO PAGAMENTO', fieldValue: payment },
-                    { fieldName: 'METODO PAGAMENTO IMBALLO', fieldValue: packing },
-                  ],
-                },
-              },
-            ],
-            pageInfo: { hasNextPage: false },
-          },
-        },
-      });
-    }),
-    graphql.query('GetQuotePdfCompany', () =>
-      HttpResponse.json({
-        data: {
-          pdfCompany: {
-            id: company.companyInfo.id,
-            extraFields: [
-              { fieldName: 'CODICE CLIENTE ERP', fieldValue: code },
-              { fieldName: 'PARTITA IVA', fieldValue: vatNumber },
-            ],
-          },
-        },
-      }),
-    ),
     graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
     graphql.query('Addresses', () =>
       HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
@@ -618,57 +488,50 @@ it('downloads one PDF with the current unsaved quote information', async () => {
     graphql.query('getQuoteExtraFields', () =>
       HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
     ),
-  );
-
-  const editedTitle = faker.commerce.productName();
-  let finishDownload: (() => void) | undefined;
-  vi.mocked(downloadQuotePdf).mockImplementation(
-    () =>
-      new Promise<void>((resolve) => {
-        finishDownload = resolve;
-      }),
-  );
-
-  renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
-    preloadedState: { ...preloadedState, company, quoteInfo },
-  });
-
-  await userEvent.click(await screen.findByRole('button', { name: 'Edit info' }));
-  const titleInput = screen.getByRole('textbox', { name: 'Quote Title' });
-  await userEvent.clear(titleInput);
-  await userEvent.type(titleInput, editedTitle);
-  const downloadButton = screen.getByRole('button', { name: 'Download PDF' });
-  expect(downloadButton).toHaveStyle({ color: '#ff7a1a', borderColor: '#ff7a1a' });
-  await userEvent.click(downloadButton);
-
-  await waitFor(() => expect(downloadQuotePdf).toHaveBeenCalledTimes(1));
-  expect(downloadQuotePdf).toHaveBeenCalledWith(
-    expect.objectContaining({
-      logoUrl: expect.stringContaining('logo-king-inox'),
-      quoteTitle: editedTitle,
-      isDraft: true,
-      customerCode: code,
-      customerVatNumber: vatNumber,
-      commercialTerms: { carriage, payment, packing },
-      lines: [
-        expect.objectContaining({
-          yourCode,
-          unitPrice: '125.00',
-          totalPrice: '$25.00',
-          variantData: expect.objectContaining({ dimensions: { MISURA: measure } }),
-        }),
-      ],
+    graphql.mutation('CreateQuote', async () => {
+      createQuote();
+      await pendingSubmission;
+      return HttpResponse.json(response);
     }),
+    graphql.mutation('DeleteCart', () =>
+      HttpResponse.json({ data: { cart: { deleteCart: { deletedCartEntityId: null } } } }),
+    ),
   );
-
-  const generatingButton = screen.getByRole('button', { name: 'Creating PDF...' });
-  expect(generatingButton).toBeDisabled();
-  expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
-
-  finishDownload?.();
-  await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteInfo: { contactInfo: { email: customerEmail } },
   });
+  const { navigation } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+    preloadedState: {
+      ...preloadedState,
+      quoteInfo,
+      company: buildCompanyStateWith({
+        companyInfo: { status: CompanyStatus.APPROVED },
+        customer: {
+          userType: UserTypes.MULTIPLE_B2C,
+          role: CustomerRole.SENIOR_BUYER,
+          emailAddress: customerEmail,
+        },
+        permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+      }),
+      global: buildGlobalStateWith({
+        backorderEnabled: true,
+        quoteSubmissionResponse: { value: '1' },
+      }),
+    },
+  });
+  const downloadButton = await screen.findByRole('button', { name: 'Download PDF' });
+  await userEvent.dblClick(downloadButton);
+  await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
+  expect(downloadButton).toBeDisabled();
+  expect(downloadQuotePdf).not.toHaveBeenCalled();
+  expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
+  completeSubmission();
+  await waitFor(() => {
+    expect(navigation).toHaveBeenCalledWith(
+      `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
+    );
+  });
+  expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
 });
 
 it('displays a summary of the products within the quote draft', async () => {
@@ -710,7 +573,7 @@ it('displays a summary of the products within the quote draft', async () => {
   expect(within(rowOfDenimJacket).getByRole('cell', { name: '$399.99' })).toBeInTheDocument();
 });
 
-it('displays a quote summary', async () => {
+it('displays the total beside the product count without summary or attachments', async () => {
   server.use(
     graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
     graphql.query('Addresses', () =>
@@ -737,19 +600,10 @@ it('displays a quote summary', async () => {
     preloadedState: { ...preloadedState, quoteInfo },
   });
 
-  const quoteSummary = await screen.findByRole('article', { name: 'Quote summary' });
-
-  expect(within(quoteSummary).getByText('Sub total')).toBeInTheDocument();
-  expect(within(quoteSummary).getByText('$100.00')).toBeInTheDocument();
-
-  expect(within(quoteSummary).getByText('Shipping')).toBeInTheDocument();
-  expect(within(quoteSummary).getByText('TBD')).toBeInTheDocument();
-
-  expect(within(quoteSummary).getByText('Estimated Tax')).toBeInTheDocument();
-  expect(within(quoteSummary).getByText('$25.00')).toBeInTheDocument();
-
-  expect(within(quoteSummary).getByText('Grand total')).toBeInTheDocument();
-  expect(within(quoteSummary).getByText('$125.00')).toBeInTheDocument();
+  const productCount = await screen.findByText('2 products');
+  expect(productCount.parentElement).toHaveTextContent('2 products (Total $125.00)');
+  expect(screen.queryByRole('article', { name: 'Quote summary' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Attachment')).not.toBeInTheDocument();
 });
 
 it('displays the buyer info', async () => {
@@ -2508,7 +2362,7 @@ describe('when the user is a B2B customer', () => {
 
       await userEvent.click(await screen.findByRole('button', { name: /Submit/i }));
       expect(await screen.findByRole('button', { name: 'Submitting your quote…' })).toBeDisabled();
-      expect(screen.getByText(/Keep this page open until you see the confirmation/)).toBeVisible();
+      expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
       expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
       completeSubmission();
 

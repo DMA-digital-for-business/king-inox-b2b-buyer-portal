@@ -1,11 +1,10 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Box, Button, Grid } from '@mui/material';
 import copy from 'copy-to-clipboard';
 import { get } from 'lodash-es';
 
-import B3Spin from '@/components/spin/B3Spin';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
@@ -42,6 +41,7 @@ import QuoteDetailHeader from '../quote/components/QuoteDetailHeader';
 import QuoteDetailSummary from '../quote/components/QuoteDetailSummary';
 import QuoteDetailTable from '../quote/components/QuoteDetailTable';
 import QuoteInfo from '../quote/components/QuoteInfo';
+import QuoteLoading from '../quote/components/QuoteLoading';
 import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
 import {
@@ -332,6 +332,10 @@ function QuoteDetail() {
   const showInclusiveTaxPrice = useAppSelector(({ global }) => global.showInclusiveTaxPrice);
 
   const location = useLocation();
+  const [isAutoDownloadingPdf, setIsAutoDownloadingPdf] = useState(
+    location.state?.downloadPdf === true,
+  );
+  const autoDownloadStarted = useRef(false);
 
   const isBackorderEnabled = useIsBackorderEnabled();
 
@@ -625,6 +629,7 @@ function QuoteDetail() {
       // table's empty-state fallback in getQuoteTableDetails still has items to render.
       return { ...quote, productsList: productsWithMoreInfo ?? quote.productsList };
     } catch (error: unknown) {
+      setIsAutoDownloadingPdf(false);
       if (error instanceof Error) {
         snackbar.error(error.message);
       }
@@ -840,6 +845,24 @@ function QuoteDetail() {
     }
   };
 
+  useEffect(() => {
+    if (
+      !isAutoDownloadingPdf ||
+      autoDownloadStarted.current ||
+      isRequestLoading ||
+      !quoteDetail.id
+    ) {
+      return;
+    }
+
+    autoDownloadStarted.current = true;
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
+    });
+    exportPdf().finally(() => setIsAutoDownloadingPdf(false));
+  });
+
   const printQuote = async () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -886,7 +909,7 @@ function QuoteDetail() {
   useEffect(() => {
     const { state } = location;
 
-    if (!state) return;
+    if (!state || state.downloadPdf) return;
 
     setTimeout(() => {
       snackbar.success(
@@ -986,7 +1009,7 @@ function QuoteDetail() {
     quotePurchasabilityPermissionInfo;
 
   return (
-    <B3Spin isSpinning={isRequestLoading || quoteCheckoutLoading}>
+    <QuoteLoading busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading}>
       <Box
         sx={{
           display: 'flex',
@@ -999,6 +1022,7 @@ function QuoteDetail() {
           quoteNumber={quoteDetail.quoteNumber}
           issuedAt={quoteDetail.createdAt}
           expiredAt={quoteDetail.expiredAt}
+          busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading}
           exportPdf={exportPdf}
           printQuote={printQuote}
           role={role}
@@ -1182,7 +1206,7 @@ function QuoteDetail() {
             </Footer>
           )}
       </Box>
-    </B3Spin>
+    </QuoteLoading>
   );
 }
 

@@ -206,14 +206,15 @@ describe('when the user is a B2B customer', () => {
         }),
       },
     });
-    await userEvent.click(await screen.findByRole('button', { name: /Download/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
+      await userEvent.click(screen.getByRole('button', { name: /Download/ }));
     expect(
       await screen.findByText('A shipping address is required before downloading the quote.'),
     ).toBeInTheDocument();
     expect(downloadQuotePdf).not.toHaveBeenCalled();
   });
 
-  it('downloads and prints the quote with the client-side PDF generator', async () => {
+  it.each(['manual', 'automatic'])('downloads and prints the saved quote (%s)', async (mode) => {
     const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
     const yourCode = faker.string.uuid();
     const oracleId = faker.string.numeric(8);
@@ -327,8 +328,10 @@ describe('when the user is a B2B customer', () => {
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
     renderWithProviders(<QuoteDetail />, {
+      initialEntries: [{ pathname: '/quoteDetail/272989', state: { downloadPdf: mode === 'automatic' } }],
       preloadedState: {
         ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
         company: buildCompanyStateWith({
           companyInfo: { status: CompanyStatus.APPROVED },
           customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
@@ -336,11 +339,16 @@ describe('when the user is a B2B customer', () => {
       },
     });
 
-    await userEvent.click(await screen.findByRole('button', { name: /Download/ }));
+    if (mode === 'manual') {
+      await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
+      await userEvent.click(screen.getByRole('button', { name: /Download/ }));
+    }
 
     await waitFor(() => {
       expect(downloadQuotePdf).toHaveBeenCalledWith(
         expect.objectContaining({
+          quoteNumber: quote.data.quote.quoteNumber,
+          isDraft: false,
           quoteTitle: quote.data.quote.quoteTitle,
           salesRep: {
             name: salesRep.salesRepName,
@@ -367,7 +375,11 @@ describe('when the user is a B2B customer', () => {
       );
     });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Print' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
+    const downloadButton = screen.getByRole('button', { name: /Download/ });
+    const printButton = screen.getByRole('button', { name: 'Print' });
+    expect(downloadButton.compareDocumentPosition(printButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    await userEvent.click(printButton);
 
     await waitFor(() => {
       expect(printQuotePdf).toHaveBeenCalledWith(
@@ -378,6 +390,7 @@ describe('when the user is a B2B customer', () => {
       );
     });
     expect(openWindow).toHaveBeenCalledWith('', '_blank');
+    expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
   });
 
   it('displays the quote status and issue date without an expiration date', async () => {

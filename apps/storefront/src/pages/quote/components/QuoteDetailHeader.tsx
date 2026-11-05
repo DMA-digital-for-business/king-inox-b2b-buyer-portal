@@ -21,6 +21,7 @@ const StyledCreateName = styled('div')(() => ({
 }));
 
 interface QuoteDetailHeaderProps {
+  busy?: boolean;
   status: string;
   quoteNumber: string;
   issuedAt: number;
@@ -35,8 +36,7 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
   const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
 
-  const { status, quoteNumber, issuedAt, expiredAt, exportPdf, printQuote, role, salesRepInfo } =
-    props;
+  const { busy = false, status, quoteNumber, issuedAt, expiredAt, exportPdf, printQuote, role, salesRepInfo } = props;
 
   const {
     state: {
@@ -190,23 +190,10 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
             }}
             {...gridOptions(4)}
           >
-            <Box>
-              <CustomButton
-                variant="contained"
-                sx={{
-                  marginRight: '1rem',
-                  displayPrint: 'none',
-                  backgroundColor: CTA_BUTTON_COLOR,
-                  '&:hover': {
-                    backgroundColor: CTA_BUTTON_COLOR,
-                  },
-                }}
-                onClick={printQuote}
-              >
-                {b3Lang('quoteDetail.header.print')}
-              </CustomButton>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <CustomButton
                 variant="outlined"
+                disabled={busy}
                 onClick={exportPdf}
                 sx={{
                   minHeight: '44px',
@@ -248,6 +235,20 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
                     fill="white"
                   />
                 </SvgIcon>
+              </CustomButton>
+              <CustomButton
+                disabled={busy}
+                variant="contained"
+                sx={{
+                  displayPrint: 'none',
+                  backgroundColor: CTA_BUTTON_COLOR,
+                  '&:hover': {
+                    backgroundColor: CTA_BUTTON_COLOR,
+                  },
+                }}
+                onClick={printQuote}
+              >
+                {b3Lang('quoteDetail.header.print')}
               </CustomButton>
             </Box>
           </Grid>

@@ -160,11 +160,11 @@ const getThresholdWarning = (row: QuoteItem['node'], b3Lang: LangFormatFunction)
 interface QuoteTableProps {
   total: number;
   items: QuoteItem[];
-  updateSummary: () => void;
+  formattedTotal: string;
   packagingByVariantId?: PackagingByVariantId;
 }
 
-function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: QuoteTableProps) {
+function QuoteTable({ total, items, formattedTotal, packagingByVariantId = {} }: QuoteTableProps) {
   const b3Lang = useB3Lang();
   const dispatch = useAppDispatch();
   const {
@@ -206,7 +206,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
         },
       }),
     );
-    updateSummary();
   };
 
   const handleInputProductQty = async (item: QuoteItem['node'], quantity: number) => {
@@ -255,7 +254,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
 
   const handleDeleteClick = (id: string) => {
     dispatch(deleteProductFromDraftQuoteList(id));
-    updateSummary();
   };
 
   const handleChooseOptionsDialogCancel = () => {
@@ -332,7 +330,6 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
     setSelectedOptionsOpen(false);
 
     dispatch(setDraftProduct({ id: optionsProductId, product: newProducts[0] }));
-    updateSummary();
 
     snackbar.success(b3Lang('quoteDraft.quoteTable.productUpdated'));
   };
@@ -593,7 +590,8 @@ function QuoteTable({ total, items, updateSummary, packagingByVariantId = {} }: 
             fontSize: '24px',
           }}
         >
-          {b3Lang('quoteDraft.quoteTable.totalProducts', { total: total || 0 })}
+          <span>{b3Lang('quoteDraft.quoteTable.totalProducts', { total: total || 0 })}</span>{' '}
+          ({b3Lang('quoteDraft.quoteTable.total')} {formattedTotal})
         </Typography>
         {showBackorderToggle && (
           <FormControlLabel

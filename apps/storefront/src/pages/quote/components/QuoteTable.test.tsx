@@ -5,7 +5,6 @@ import {
   renderWithProviders,
   screen,
 } from 'tests/test-utils';
-import { vi } from 'vitest';
 
 import { Product } from '@/types';
 import { QuoteItem } from '@/types/quotes';
@@ -119,7 +118,7 @@ const withBackorderContextAndMessaging = (featureEnabled: boolean) => ({
 describe('QuoteTable backorder messaging', () => {
   it('does not display an edit action for product rows', () => {
     renderWithProviders(
-      <QuoteTable total={1} items={[lineItemWithBackorder]} updateSummary={vi.fn()} />,
+      <QuoteTable total={1} items={[lineItemWithBackorder]} formattedTotal={faker.commerce.price()} />,
       withBackorderContextAndMessaging(false),
     );
 
@@ -128,9 +127,8 @@ describe('QuoteTable backorder messaging', () => {
   });
 
   it('shows the backorder details toggle when items are backordered for display and messaging is enabled', () => {
-    const updateSummary = vi.fn();
     renderWithProviders(
-      <QuoteTable total={1} items={[lineItemWithBackorder]} updateSummary={updateSummary} />,
+      <QuoteTable total={1} items={[lineItemWithBackorder]} formattedTotal={faker.commerce.price()} />,
       withBackorderContextAndMessaging(true),
     );
 
@@ -138,9 +136,8 @@ describe('QuoteTable backorder messaging', () => {
   });
 
   it('hides the backorder details toggle when storefront backorder messaging is disabled, even with backordered items', () => {
-    const updateSummary = vi.fn();
     renderWithProviders(
-      <QuoteTable total={1} items={[lineItemWithBackorder]} updateSummary={updateSummary} />,
+      <QuoteTable total={1} items={[lineItemWithBackorder]} formattedTotal={faker.commerce.price()} />,
       withBackorderContextAndMessaging(false),
     );
 
@@ -148,7 +145,6 @@ describe('QuoteTable backorder messaging', () => {
   });
 
   it('displays packaging metafield columns and values for each product row', () => {
-    const updateSummary = vi.fn();
     const measure = faker.string.alphanumeric(10);
     const buildMetafieldWith = builder(() => ({
       entityId: faker.number.int(),
@@ -165,7 +161,7 @@ describe('QuoteTable backorder messaging', () => {
           },
         ]}
         packagingByVariantId={{ 2: [buildMetafieldWith('WHATEVER_VALUES')] }}
-        updateSummary={updateSummary}
+        formattedTotal={faker.commerce.price()}
       />,
       withBackorderContextAndMessaging(false),
     );
