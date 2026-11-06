@@ -490,8 +490,8 @@ it('opens the draft before downloading and skips the submission confirmation', a
     graphql.query('getQuoteExtraFields', () =>
       HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
     ),
-    graphql.mutation('CreateQuote', async () => {
-      createQuote();
+    graphql.mutation('CreateQuote', async ({ variables }) => {
+      createQuote(variables.quoteData);
       await pendingSubmission;
       return HttpResponse.json(response);
     }),
@@ -525,6 +525,11 @@ it('opens the draft before downloading and skips the submission confirmation', a
   const downloadButton = await screen.findByRole('button', { name: 'Download PDF' });
   await userEvent.dblClick(downloadButton);
   await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
+  expect(createQuote).toHaveBeenCalledWith(
+    expect.objectContaining({
+      extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
+    }),
+  );
   expect(downloadButton).toBeDisabled();
   expect(downloadQuotePdf).not.toHaveBeenCalled();
   expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
@@ -4839,13 +4844,23 @@ describe('when the user is a B2B customer', () => {
           buildAddressWith({ addressId: DEFAULT_SHIPPING_ADDRESS_ID }),
         ),
       );
-      await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+      await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
       await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
       expect(mutationData).toContain(DEFAULT_BILLING_ADDRESS_ID);
       expect(mutationData).toContain(DEFAULT_SHIPPING_ADDRESS_ID);
+      expect(JSON.parse(mutationData).extraFields).toEqual(
+        expect.arrayContaining([
+          { fieldName: 'DESTINAZIONE KING', value: 'ERP' },
+          { fieldName: 'send_to_king_timestampa', value: expect.any(String) },
+        ]),
+      );
+      const timestamp = JSON.parse(mutationData).extraFields.find(
+        (field: { fieldName: string }) => field.fieldName === 'send_to_king_timestampa',
+      ).value;
+      expect(new Date(timestamp).toISOString()).toBe(timestamp);
     });
 
     it('should submit the quote with the billing address id as 0 when default billing address modified', async () => {

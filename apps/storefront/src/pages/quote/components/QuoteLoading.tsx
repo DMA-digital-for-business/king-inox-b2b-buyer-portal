@@ -7,9 +7,15 @@ interface QuoteLoadingProps {
   busy: boolean;
   children: ReactNode;
   coverContent?: boolean;
+  loadingLabel?: string;
 }
 
-export default function QuoteLoading({ busy, children, coverContent = false }: QuoteLoadingProps) {
+export default function QuoteLoading({
+  busy,
+  children,
+  coverContent = false,
+  loadingLabel,
+}: QuoteLoadingProps) {
   const b3Lang = useB3Lang();
   const covered = busy && coverContent;
 
@@ -68,7 +74,9 @@ export default function QuoteLoading({ busy, children, coverContent = false }: Q
             }}
           >
             <CircularProgress size={44} thickness={3} sx={{ color: '#ff7a1a' }} />
-            <Typography variant="body2">{b3Lang('quoteDraft.pdf.generating')}</Typography>
+            <Typography variant="body2">
+              {loadingLabel ?? b3Lang('quoteDraft.pdf.generating')}
+            </Typography>
           </Box>
         </Box>
       )}

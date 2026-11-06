@@ -716,7 +716,16 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         taxTotal: allTaxPrice.toFixed(decimalPlaces),
         currency: displayCurrency,
         referenceNumber: `${info.referenceNumber}` || '',
-        extraFields: info.extraFields || [],
+        extraFields: [
+          ...(info.extraFields || []).filter(
+            (field: QuoteExtraFields) =>
+              field.fieldName !== 'DESTINAZIONE KING' && field.fieldName !== 'send_to_king_timestampa',
+          ),
+          { fieldName: 'DESTINAZIONE KING', value: downloadPdf ? 'HUBSPOT' : 'ERP' },
+          ...(!downloadPdf
+            ? [{ fieldName: 'send_to_king_timestampa', value: new Date().toISOString() }]
+            : []),
+        ],
         recipients: info.recipients || [],
       };
 

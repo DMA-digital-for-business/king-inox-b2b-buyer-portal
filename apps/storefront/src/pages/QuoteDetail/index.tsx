@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Box, Button, Grid } from '@mui/material';
+import { Box, Button, Grid, Typography } from '@mui/material';
 import copy from 'copy-to-clipboard';
 import { get } from 'lodash-es';
 
@@ -11,7 +11,12 @@ import { useMobile } from '@/hooks/useMobile';
 import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
-import { getB2BQuoteDetail, getBcQuoteDetail, searchProducts } from '@/shared/service/b2b';
+import {
+  getB2BQuoteDetail,
+  getBcQuoteDetail,
+  searchProducts,
+  updateQuote,
+} from '@/shared/service/b2b';
 import type { ProductValidationError } from '@/shared/service/request/b3Fetch';
 import {
   activeCurrencyInfoSelector,
@@ -20,7 +25,7 @@ import {
   useAppSelector,
 } from '@/store';
 import { QuoteExtraFieldsData } from '@/types/quotes';
-import { verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
+import { verifyCreatePermission, verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import { displayFormat } from '@/utils/b3DateFormat';
 import { getBCPrice, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
@@ -54,7 +59,10 @@ import {
 } from '../quote/components/quotePdf';
 import { pdfExtraField } from '../quote/components/quotePdfData';
 import { getQuotePdfTemplateLabels } from '../quote/components/quotePdfLabels';
-import { formatQuoteConvertedPrice, formatQuoteSummaryPrice } from '../quote/components/quotePriceFormat';
+import {
+  formatQuoteConvertedPrice,
+  formatQuoteSummaryPrice,
+} from '../quote/components/quotePriceFormat';
 import QuoteTermsAndConditions from '../quote/components/QuoteTermsAndConditions';
 import { useQuotePdfResources } from '../quote/components/useQuotePdfResources';
 import {
@@ -297,6 +305,9 @@ function QuoteDetail() {
   );
 
   const [quoteDetail, setQuoteDetail] = useState<any>({});
+  const [originalExtraFields, setOriginalExtraFields] = useState<QuoteExtraFieldsData[]>([]);
+  const [isSendingToKing, setIsSendingToKing] = useState(false);
+  const sendingToKing = useRef(false);
   const [productList, setProductList] = useState<ProductInfoProps[]>([]);
   const hasBackorderedItems = productList.some((item) => (item.quantityBackordered ?? 0) > 0);
   const [fileList, setFileList] = useState<FileObjects[]>([]);
@@ -313,7 +324,7 @@ function QuoteDetail() {
     shipping: 0,
     totalAmount: 0,
   });
-  const [isRequestLoading, setIsRequestLoading] = useState(false);
+  const [isRequestLoading, setIsRequestLoading] = useState(true);
   const [isPrintingPdf, setIsPrintingPdf] = useState(false);
   const [isShowFooter, setIsShowFooter] = useState(false);
   const [quoteDetailTax, setQuoteDetailTax] = useState(0);
@@ -551,6 +562,7 @@ function QuoteDetail() {
 
     try {
       const quote = await getQuote();
+      setOriginalExtraFields(quote.extraFields || []);
       const productsWithMoreInfo = await fetchProductsWithSearch(quote.productsList).catch(
         () => undefined,
       );
@@ -1005,6 +1017,39 @@ function QuoteDetail() {
     : isEnableProductShowCheckoutFrontendFlow;
 
   const isOpenQuote = Number(quoteDetail.status) === 1;
+  const canSendToKing =
+    !isB2BUser ||
+    verifyCreatePermission(
+      b2bPermissionsMap.quotesCreateActionsPermission,
+      Number(selectCompanyHierarchyId),
+    );
+  const sentToKingField = originalExtraFields.find(
+    (field) => field.fieldName === 'send_to_king_timestampa',
+  );
+  const sentToKingDate = sentToKingField ? new Date(String(sentToKingField.fieldValue)) : null;
+  const sendToKing = async () => {
+    if (!canSendToKing || sentToKingField || sendingToKing.current) return;
+    sendingToKing.current = true;
+    setIsSendingToKing(true);
+    try {
+      const extraFields = [
+        ...originalExtraFields
+          .filter((field) => field.fieldName !== 'DESTINAZIONE KING')
+          .map((field) => ({ fieldName: field.fieldName, value: field.fieldValue })),
+        { fieldName: 'DESTINAZIONE KING', value: 'ERP' },
+        { fieldName: 'send_to_king_timestampa', value: new Date().toISOString() },
+      ];
+      await updateQuote({ id: quoteDetail.id, quoteData: { extraFields } });
+      setOriginalExtraFields(
+        extraFields.map((field) => ({ fieldName: field.fieldName, fieldValue: field.value })),
+      );
+    } catch {
+      snackbar.error(b3Lang('quoteDetail.sendToKing.error'));
+    } finally {
+      sendingToKing.current = false;
+      setIsSendingToKing(false);
+    }
+  };
   const formattedQuoteTotal = shouldHidePrice
     ? b3Lang('quoteDraft.quoteSummary.tbd')
     : formatQuoteSummaryPrice(
@@ -1023,7 +1068,12 @@ function QuoteDetail() {
   return (
     <QuoteLoading
       busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
-      coverContent={isAutoDownloadingPdf || isPrintingPdf}
+      coverContent={isAutoDownloadingPdf || isPrintingPdf || isRequestLoading}
+      loadingLabel={
+        isAutoDownloadingPdf || isPrintingPdf
+          ? b3Lang('quoteDraft.pdf.generating')
+          : b3Lang('global.tips.loading')
+      }
     >
       <Box
         sx={{
@@ -1040,6 +1090,28 @@ function QuoteDetail() {
           busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
           exportPdf={exportPdf}
           printQuote={printQuote}
+          sendAction={
+            isOpenQuote &&
+            canSendToKing &&
+            Number(role) !== 100 && (
+              <Box sx={{ textAlign: 'right', displayPrint: 'none' }}>
+                <Button
+                  variant="contained"
+                  disabled={isRequestLoading || isSendingToKing || !!sentToKingField}
+                  onClick={sendToKing}
+                >
+                  {b3Lang('quoteDraft.button.submit')}
+                </Button>
+                {sentToKingDate && !Number.isNaN(sentToKingDate.getTime()) && (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {b3Lang('quoteDetail.sendToKing.sentAt', {
+                      date: sentToKingDate.toLocaleString(pdfLocale),
+                    })}
+                  </Typography>
+                )}
+              </Box>
+            )
+          }
           role={role}
           salesRepInfo={quoteDetail.salesRepInfo}
         />

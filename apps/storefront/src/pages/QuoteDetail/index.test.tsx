@@ -163,6 +163,89 @@ describe('when the user is a B2B customer', () => {
     global: buildGlobalStateWith('WHATEVER_VALUES'),
   };
 
+  it.each(['downloaded', 'sent', 'failed'] as const)(
+    'handles sending a %s quote to King inox',
+    async (mode) => {
+      const sentAt = faker.date.recent().toISOString();
+      const customValue = faker.string.uuid();
+      const quote = buildQuoteWith({
+        data: {
+          quote: {
+            id: '272989',
+            status: 1,
+            extraFields: [
+              {
+                fieldName: 'DESTINAZIONE KING',
+                fieldValue: mode === 'sent' ? 'ERP' : 'HUBSPOT',
+              },
+              { fieldName: 'custom', fieldValue: customValue },
+              ...(mode === 'sent'
+                ? [{ fieldName: 'send_to_king_timestampa', fieldValue: sentAt }]
+                : []),
+            ],
+          },
+        },
+      });
+      const update = vitest.fn();
+      server.use(
+        graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+        graphql.query('SearchProducts', () =>
+          HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+        ),
+        graphql.query('getQuoteExtraFields', () =>
+          HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+        ),
+        graphql.operation(({ query }) => {
+          if (!query.includes('quoteUpdate(')) return undefined;
+          update(query);
+          if (mode === 'failed') return HttpResponse.json({ errors: [{ message: 'Send failed' }] });
+          return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
+        }),
+      );
+      vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+      renderWithProviders(<QuoteDetail />, {
+        preloadedState: {
+          ...preloadedState,
+          global: { ...preloadedState.global, backorderEnabled: false },
+          company: buildCompanyStateWith({
+            companyInfo: { status: CompanyStatus.APPROVED },
+            permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+            customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+          }),
+        },
+      });
+      const send = await screen.findByRole('button', { name: 'Submit' });
+      expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
+      const download = screen.getByRole('button', { name: /Download/ });
+      expect(download.compareDocumentPosition(send)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      if (mode === 'sent') {
+        expect(send).toBeDisabled();
+        expect(
+          screen.getByText(`Sent to King inox on ${new Date(sentAt).toLocaleString('en')}`),
+        ).toBeInTheDocument();
+        expect(update).not.toHaveBeenCalled();
+        return;
+      }
+      await waitFor(() => expect(send).toBeEnabled());
+      await userEvent.click(send);
+      await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+      const query = update.mock.calls[0][0];
+      expect(query).toContain('send_to_king_timestampa');
+      expect(query).toContain('ERP');
+      expect(query).toContain(customValue);
+      expect(query).not.toContain('HUBSPOT');
+      if (mode === 'failed') {
+        expect(
+          await screen.findByText('Unable to send to King inox. Please try again.'),
+        ).toBeInTheDocument();
+        expect(send).toBeEnabled();
+      } else {
+        await waitFor(() => expect(send).toBeDisabled());
+        expect(screen.getByText(/Sent to King inox on/)).toBeInTheDocument();
+      }
+    },
+  );
+
   it('displays the quote number as the page "title"', async () => {
     const quote = buildQuoteWith({ data: { quote: { id: '272989', quoteNumber: '911911' } } });
 
@@ -207,7 +290,7 @@ describe('when the user is a B2B customer', () => {
       },
     });
     await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
-      await userEvent.click(screen.getByRole('button', { name: /Download/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Download/ }));
     expect(
       await screen.findByText('A shipping address is required before downloading the quote.'),
     ).toBeInTheDocument();
@@ -255,7 +338,7 @@ describe('when the user is a B2B customer', () => {
         quote: {
           id: '272989',
           salesRepInfo: salesRep,
-          status: 1,
+          status: mode === 'automatic' ? 1 : 2,
           createdAt: getUnixTime(issuedAt),
           expiredAt: getUnixTime(expirationDate),
           quoteNumber: faker.string.numeric(),
@@ -328,7 +411,9 @@ describe('when the user is a B2B customer', () => {
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
     renderWithProviders(<QuoteDetail />, {
-      initialEntries: [{ pathname: '/quoteDetail/272989', state: { downloadPdf: mode === 'automatic' } }],
+      initialEntries: [
+        { pathname: '/quoteDetail/272989', state: { downloadPdf: mode === 'automatic' } },
+      ],
       preloadedState: {
         ...preloadedState,
         global: { ...preloadedState.global, backorderEnabled: false },
@@ -375,10 +460,17 @@ describe('when the user is a B2B customer', () => {
       );
     });
 
+    if (mode === 'automatic') {
+      expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
+      return;
+    }
+
     await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
     const downloadButton = screen.getByRole('button', { name: /Download/ });
     const printButton = screen.getByRole('button', { name: 'Print' });
-    expect(downloadButton.compareDocumentPosition(printButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(downloadButton.compareDocumentPosition(printButton)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     await userEvent.click(printButton);
 
     await waitFor(() => {

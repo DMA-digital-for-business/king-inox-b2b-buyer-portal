@@ -125,11 +125,6 @@ function useData() {
         createdBy: item.email ? `${item.name} (${item.email})` : `${item.name}`,
       })) || [];
 
-    const newCreatedBySalesReps =
-      createdByUsers?.createdByUser?.results?.salesRep.map((item: any) => ({
-        salesRep: `${item.salesRep || item.salesRepEmail}`,
-      })) || [];
-
     return [
       ...getFilters(),
       {
@@ -142,21 +137,6 @@ function useData() {
         replaceOptions: {
           label: 'createdBy',
           value: 'createdBy',
-        },
-        xs: 12,
-        variant: 'filled',
-        size: 'small',
-      },
-      {
-        name: 'salesRep',
-        label: b3Lang('quotes.salesRep'),
-        required: false,
-        default: '',
-        fieldType: 'dropdown',
-        options: newCreatedBySalesReps,
-        replaceOptions: {
-          label: 'salesRep',
-          value: 'salesRep',
         },
         xs: 12,
         variant: 'filled',
@@ -222,13 +202,6 @@ const useColumnList = (
         width: '15%',
       },
       {
-        key: 'salesRep',
-        title: b3Lang('quotes.salesRep'),
-        render: (item: ListItem) => `${item.salesRep || item.salesRepEmail}`,
-        isSortable: true,
-        width: '15%',
-      },
-      {
         key: 'createdBy',
         title: b3Lang('quotes.createdBy'),
         isSortable: true,
@@ -238,13 +211,6 @@ const useColumnList = (
         title: b3Lang('quotes.dateCreated'),
         render: (item: ListItem) =>
           `${Number(item.status) !== 0 ? displayFormat(Number(item.createdAt)) : item.createdAt}`,
-        isSortable: true,
-      },
-      {
-        key: 'updatedAt',
-        title: b3Lang('quotes.lastUpdate'),
-        render: (item: ListItem) =>
-          `${Number(item.status) !== 0 ? displayFormat(Number(item.updatedAt)) : item.updatedAt}`,
         isSortable: true,
       },
       {
@@ -287,7 +253,6 @@ function QuotesList() {
     q: '',
     orderBy: `-${sortKeys[defaultSortKey]}`,
     createdBy: '',
-    salesRep: '',
     status: '',
     dateCreatedBeginAt: '',
     dateCreatedEndAt: '',
@@ -365,9 +330,9 @@ function QuotesList() {
           },
         };
 
-        const { status, createdBy, salesRep, dateCreatedBeginAt, dateCreatedEndAt } = filterData;
+        const { status, createdBy, dateCreatedBeginAt, dateCreatedEndAt } = filterData;
 
-        const showDraft = !status && !salesRep && !dateCreatedBeginAt && !dateCreatedEndAt;
+        const showDraft = !status && !dateCreatedBeginAt && !dateCreatedEndAt;
 
         if (createdBy && showDraft) {
           const getCreatedByReg = /^[^(]+/;
@@ -400,7 +365,6 @@ function QuotesList() {
     const search: Partial<FilterSearchProps> = {
       createdBy: value?.createdBy || '',
       status: value?.status || '',
-      salesRep: value?.salesRep || '',
       dateCreatedBeginAt: value?.startValue || '',
       dateCreatedEndAt: value?.endValue || '',
     };

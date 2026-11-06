@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { ReactNode, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew, ArrowDownward } from '@mui/icons-material';
 import { Box, Grid, styled, SvgIcon, Typography, useTheme } from '@mui/material';
@@ -28,6 +28,7 @@ interface QuoteDetailHeaderProps {
   expiredAt?: number;
   exportPdf: () => void;
   printQuote: () => Promise<void>;
+  sendAction?: ReactNode;
   role: string | number;
   salesRepInfo: { [key: string]: string };
 }
@@ -36,7 +37,18 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
   const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
 
-  const { busy = false, status, quoteNumber, issuedAt, expiredAt, exportPdf, printQuote, role, salesRepInfo } = props;
+  const {
+    busy = false,
+    status,
+    quoteNumber,
+    issuedAt,
+    expiredAt,
+    exportPdf,
+    printQuote,
+    sendAction,
+    role,
+    salesRepInfo,
+  } = props;
 
   const {
     state: {
@@ -170,10 +182,7 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
             </StyledCreateName>
             {Number(status) === 1 && !!expiredAt && expiredAt > 0 && (
               <StyledCreateName>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ marginRight: '0.5rem', fontSize: '16px' }}
-                >
+                <Typography variant="subtitle2" sx={{ marginRight: '0.5rem', fontSize: '16px' }}>
                   {b3Lang('quoteDetail.header.expirationDate')}
                 </Typography>
                 <span>{String(displayFormat(Number(expiredAt)))}</span>
@@ -190,7 +199,7 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
             }}
             {...gridOptions(4)}
           >
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <CustomButton
                 variant="outlined"
                 disabled={busy}
@@ -236,20 +245,24 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
                   />
                 </SvgIcon>
               </CustomButton>
-              <CustomButton
-                disabled={busy}
-                variant="contained"
-                sx={{
-                  displayPrint: 'none',
-                  backgroundColor: CTA_BUTTON_COLOR,
-                  '&:hover': {
-                    backgroundColor: CTA_BUTTON_COLOR,
-                  },
-                }}
-                onClick={printQuote}
-              >
-                {b3Lang('quoteDetail.header.print')}
-              </CustomButton>
+              {Number(status) === 1
+                ? sendAction
+                : status !== '' &&
+                  !busy && (
+                    <CustomButton
+                      variant="contained"
+                      sx={{
+                        displayPrint: 'none',
+                        backgroundColor: CTA_BUTTON_COLOR,
+                        '&:hover': {
+                          backgroundColor: CTA_BUTTON_COLOR,
+                        },
+                      }}
+                      onClick={printQuote}
+                    >
+                      {b3Lang('quoteDetail.header.print')}
+                    </CustomButton>
+                  )}
             </Box>
           </Grid>
         )}

@@ -1,4 +1,6 @@
 {
+  "quoteDetail.sendToKing.sentAt": "Sent to King inox on {date}",
+  "quoteDetail.sendToKing.error": "Unable to send to King inox. Please try again.",
   "global.tips.loading": "Loading...",
   "global.button.back": "Back",
   "global.button.next": "Continue",

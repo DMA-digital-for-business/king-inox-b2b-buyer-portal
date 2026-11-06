@@ -196,10 +196,14 @@ describe('when the user is a B2B customer', () => {
 
     expect(within(table).getByRole('columnheader', { name: 'Quote #' })).toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Title' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Sales rep' })).toBeInTheDocument();
+    expect(
+      within(table).queryByRole('columnheader', { name: 'Sales rep' }),
+    ).not.toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Created by' })).toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Date created' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Last update' })).toBeInTheDocument();
+    expect(
+      within(table).queryByRole('columnheader', { name: 'Last update' }),
+    ).not.toBeInTheDocument();
     expect(
       within(table).getByRole('columnheader', { name: 'Expiration date' }),
     ).toBeInTheDocument();
@@ -241,10 +245,9 @@ describe('when the user is a B2B customer', () => {
 
     expect(within(row).getByRole('cell', { name: '123456789' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Many Socks' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: 'Fred Salesman' })).toBeInTheDocument();
+    expect(within(row).queryByRole('cell', { name: 'Fred Salesman' })).not.toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Sam Shopper' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '01/01/2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '02/02/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '03/03/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '$101.99' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Open' })).toBeInTheDocument();
@@ -423,18 +426,14 @@ describe('when the user is a B2B customer', () => {
       expect(allDraftQuoteCells[0]).toHaveTextContent('—');
       // Title
       expect(allDraftQuoteCells[1]).toHaveTextContent('—');
-      // Sales rep
-      expect(allDraftQuoteCells[2]).toHaveTextContent('—');
       // Draft quotes are created by the current user in state
-      expect(allDraftQuoteCells[3]).toHaveTextContent('John Doe');
+      expect(allDraftQuoteCells[2]).toHaveTextContent('John Doe');
       // Date created
-      expect(allDraftQuoteCells[4]).toHaveTextContent('—');
-      // Last update
-      expect(allDraftQuoteCells[5]).toHaveTextContent('—');
+      expect(allDraftQuoteCells[3]).toHaveTextContent('—');
       // Expiration date
-      expect(allDraftQuoteCells[6]).toHaveTextContent('—');
+      expect(allDraftQuoteCells[4]).toHaveTextContent('—');
       // Subtotal is the sum of all the items in the draft quote
-      expect(allDraftQuoteCells[7]).toHaveTextContent('$200.00');
+      expect(allDraftQuoteCells[5]).toHaveTextContent('$200.00');
     });
   });
 
@@ -860,10 +859,14 @@ describe('when the user is a B2C customer', () => {
 
     expect(within(table).getByRole('columnheader', { name: 'Quote #' })).toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Title' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Sales rep' })).toBeInTheDocument();
+    expect(
+      within(table).queryByRole('columnheader', { name: 'Sales rep' }),
+    ).not.toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Created by' })).toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Date created' })).toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Last update' })).toBeInTheDocument();
+    expect(
+      within(table).queryByRole('columnheader', { name: 'Last update' }),
+    ).not.toBeInTheDocument();
     expect(
       within(table).getByRole('columnheader', { name: 'Expiration date' }),
     ).toBeInTheDocument();
@@ -900,10 +903,9 @@ describe('when the user is a B2C customer', () => {
 
     expect(within(row).getByRole('cell', { name: '123456789' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Many Socks' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: 'Fred Salesman' })).toBeInTheDocument();
+    expect(within(row).queryByRole('cell', { name: 'Fred Salesman' })).not.toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Sam Shopper' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '01/01/2025' })).toBeInTheDocument();
-    expect(within(row).getByRole('cell', { name: '02/02/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '03/03/2025' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: '$101.99' })).toBeInTheDocument();
     expect(within(row).getByRole('cell', { name: 'Open' })).toBeInTheDocument();
