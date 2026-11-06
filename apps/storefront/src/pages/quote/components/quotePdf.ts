@@ -79,7 +79,7 @@ export interface QuotePdfData {
   customerVatNumber?: string;
   salesRep?: { name?: string | null; email?: string | null; phone?: string | null };
   currencyCode?: string;
-  commercialTerms?: { carriage?: string; payment?: string; packing?: string };
+  commercialTerms?: { carriage?: string; payment?: string; packing?: string; port?: string };
   logoUrl?: string;
   quoteTitle: string;
   referenceNumber: string;
@@ -719,10 +719,15 @@ export function buildQuotePdfDocument(
               {
                 stack: [
                   term(t.carriage, data.commercialTerms?.carriage),
+                  term(t.port, data.commercialTerms?.port),
+                ],
+              },
+              {
+                stack: [
+                  term(t.payment, data.commercialTerms?.payment),
                   term(t.packingTerms, data.commercialTerms?.packing),
                 ],
               },
-              { stack: [term(t.payment, data.commercialTerms?.payment)] },
             ],
             columnGap: 22,
           },

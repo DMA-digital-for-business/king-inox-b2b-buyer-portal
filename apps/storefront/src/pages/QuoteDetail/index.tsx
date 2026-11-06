@@ -785,6 +785,7 @@ function QuoteDetail() {
       customerVatNumber: pdfExtraField(resources.companyFields, 'PARTITA IVA'),
       currencyCode: displayCurrency?.currencyCode,
       commercialTerms: {
+        port: pdfExtraField(shippingFields, 'DESCRIZIONE PORTO'),
         carriage: pdfExtraField(shippingFields, 'SPEDIZIONE'),
         payment: pdfExtraField(shippingFields, 'METODO PAGAMENTO'),
         packing: pdfExtraField(shippingFields, 'METODO PAGAMENTO IMBALLO'),

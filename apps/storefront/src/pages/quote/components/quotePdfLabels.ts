@@ -31,6 +31,7 @@ const quotePdfTemplateLabelKeys = [
   'weight',
   'currency',
   'carriage',
+  'port',
   'payment',
   'packingTerms',
   'signature',

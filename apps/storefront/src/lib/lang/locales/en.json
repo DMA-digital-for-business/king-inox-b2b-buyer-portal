@@ -859,6 +859,7 @@
   "quoteDraft.pdf.king.cbam": "Prices may change due to legal obligations arising from the Carbon Border Adjustment Mechanism (CBAM) or similar regulations.",
   "quoteDraft.pdf.king.weight": "Total weight",
   "quoteDraft.pdf.king.currency": "Currency",
+  "quoteDraft.pdf.king.port": "Freight terms",
   "quoteDraft.pdf.king.carriage": "Carriage",
   "quoteDraft.pdf.king.payment": "Payment terms",
   "quoteDraft.pdf.king.packingTerms": "Packing",
