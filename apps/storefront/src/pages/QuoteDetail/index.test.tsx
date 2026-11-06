@@ -310,7 +310,7 @@ describe('when the user is a B2B customer', () => {
     renderWithProviders(<QuoteDetail />, { preloadedState });
 
     expect(await screen.findByText('#911911')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Quote', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Quote', level: 1 })).toBeInTheDocument();
   });
 
   it('shows a warning instead of downloading the saved quote PDF without a shipping address', async () => {

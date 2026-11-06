@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowBackIosNew, Download } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { ArrowBackIosNew, ShoppingCartCheckout } from '@mui/icons-material';
+import { Box, Button, Typography } from '@mui/material';
 import Cookies from 'js-cookie';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
@@ -15,9 +15,15 @@ import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
 import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
+import QuoteDownloadButton from '@/pages/quote/components/QuoteDownloadButton';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 import { GlobalContext } from '@/shared/global';
-import { createQuote, getB2BCustomerAddresses, getBCCustomerAddresses } from '@/shared/service/b2b';
+import {
+  createQuote,
+  getB2BCustomerAddresses,
+  getBCCustomerAddresses,
+  updateQuote,
+} from '@/shared/service/b2b';
 import { deleteCart } from '@/shared/service/bc/graphql/cart';
 import {
   activeCurrencyInfoSelector,
@@ -43,9 +49,7 @@ import {
 import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import b2bLogger from '@/utils/b3Logger';
-import {
-  getVariantInfoOOSAndPurchase,
-} from '@/utils/b3Product/b3Product';
+import { getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
 import { B3LStorage } from '@/utils/b3Storage';
 import { snackbar } from '@/utils/b3Tip';
 import { channelId, storeHash } from '@/utils/basicConfig';
@@ -95,8 +99,6 @@ interface AddressRefProps extends HTMLInputElement {
   getContactInfoValue: () => any;
   setShippingInfoValue: (address: any) => void;
 }
-
-
 
 type QuoteSubmissionDataRefType = {
   id: string;
@@ -197,7 +199,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
   const [isMobile] = useMobile();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const submissionInProgress = useRef(false);
@@ -413,7 +414,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       if (!contactInfo) return false;
 
       const currentRecipients = saveInfo?.recipients || [];
-      if (contactInfo.ccEmail.trim().length) {
+      if (typeof contactInfo.ccEmail === 'string' && contactInfo.ccEmail.trim().length) {
         saveInfo.recipients = uniq(concat(currentRecipients, [contactInfo.ccEmail]));
       }
 
@@ -540,7 +541,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     };
   };
 
-  const handleSubmit = async (downloadPdf = false) => {
+  const handleSubmit = async (downloadPdf = false, convertToOrder = false) => {
     if (submissionInProgress.current || loading) {
       return;
     }
@@ -548,7 +549,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     submissionInProgress.current = true;
     setIsGeneratingPdf(downloadPdf);
     setLoading(true);
-    setIsSubmitting(true);
 
     try {
       const info = cloneDeep(quoteInfoOrigin);
@@ -719,10 +719,14 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         extraFields: [
           ...(info.extraFields || []).filter(
             (field: QuoteExtraFields) =>
-              field.fieldName !== 'DESTINAZIONE KING' && field.fieldName !== 'send_to_king_timestampa',
+              field.fieldName !== 'DESTINAZIONE KING' &&
+              field.fieldName !== 'send_to_king_timestampa',
           ),
-          { fieldName: 'DESTINAZIONE KING', value: downloadPdf ? 'HUBSPOT' : 'ERP' },
-          ...(!downloadPdf
+          {
+            fieldName: 'DESTINAZIONE KING',
+            value: downloadPdf || convertToOrder ? 'HUBSPOT' : 'ERP',
+          },
+          ...(!downloadPdf && !convertToOrder
             ? [{ fieldName: 'send_to_king_timestampa', value: new Date().toISOString() }]
             : []),
         ],
@@ -757,6 +761,11 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         },
       } = response;
 
+      if (convertToOrder) {
+        await updateQuote({ id, quoteData: { status: '1' } });
+        console.log('TODO: convertire il preventivo in ordine', id);
+      }
+
       quoteSubmissionDataRef.current = { id, createdAt, uuid };
 
       if (id) {
@@ -773,7 +782,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         }
       }
 
-      if (downloadPdf || quoteSubmissionResponseInfo.value === '0') {
+      if (downloadPdf || convertToOrder || quoteSubmissionResponseInfo.value === '0') {
         handleAfterSubmit(quoteSubmissionDataRef.current, downloadPdf);
       } else {
         setQuoteSubmissionResponseOpen(true);
@@ -781,10 +790,10 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     } catch (error: any) {
       b2bLogger.error(error);
       if (downloadPdf) snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
+      if (convertToOrder) snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
     } finally {
       submissionInProgress.current = false;
       setLoading(false);
-      setIsSubmitting(false);
       setIsGeneratingPdf(false);
     }
   };
@@ -875,6 +884,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
+            gap: 2,
+            flexWrap: 'wrap',
           }}
         >
           <Box
@@ -899,98 +910,36 @@ function QuoteDraft({ setOpenPage }: PageProps) {
             <QuoteStatus code="0" />
           </Box>
           {quotesActionsPermission && (
-            <Box>
-              {isMobile ? (
-                <Box
-                  sx={{
-                    position: 'fixed',
-                    left: 0,
-                    bottom: 0,
-                    background: '#FFF',
-                    width: '100%',
-                    display: 'flex',
-                    gap: '8px',
-                    p: '8px 5%',
-                    zIndex: 100,
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CustomButton
-                    variant="outlined"
-                    size="small"
-                    disabled={loading || isGeneratingPdf}
-                    startIcon={<Download />}
-                    sx={{
-                      height: '38px',
-                      flex: 1,
-                      color: '#ff7a1a',
-                      borderColor: '#ff7a1a',
-                      backgroundColor: '#ffffff',
-                      '&:hover': {
-                        color: '#ff7a1a',
-                        borderColor: '#ff7a1a',
-                        backgroundColor: '#ffffff',
-                      },
-                    }}
-                    onClick={() => handleSubmit(true)}
-                  >
-                    {isGeneratingPdf
-                      ? b3Lang('quoteDraft.pdf.generating')
-                      : b3Lang('quoteDraft.button.downloadPDF')}
-                  </CustomButton>
-                  <CustomButton
-                    variant="contained"
-                    size="small"
-                    disabled={loading}
-                    sx={{
-                      height: '38px',
-                      flex: 1,
-                    }}
-                    onClick={() => handleSubmit()}
-                  >
-                    {isSubmitting
-                      ? b3Lang('quoteDraft.submission.loading')
-                      : b3Lang('quoteDraft.button.submit')}
-                  </CustomButton>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-                  <CustomButton
-                    variant="outlined"
-                    size="small"
-                    disabled={loading || isGeneratingPdf}
-                    startIcon={<Download />}
-                    sx={{
-                      padding: '8px 22px',
-                      alignSelf: 'center',
-                      color: '#ff7a1a',
-                      borderColor: '#ff7a1a',
-                      backgroundColor: '#ffffff',
-                      '&:hover': {
-                        color: '#ff7a1a',
-                        borderColor: '#ff7a1a',
-                        backgroundColor: '#ffffff',
-                      },
-                    }}
-                    onClick={() => handleSubmit(true)}
-                  >
-                    {isGeneratingPdf
-                      ? b3Lang('quoteDraft.pdf.generating')
-                      : b3Lang('quoteDraft.button.downloadPDF')}
-                  </CustomButton>
-                  <CustomButton
-                    variant="contained"
-                    size="small"
-                    disabled={loading}
-                    sx={{ padding: '8px 22px', alignSelf: 'center' }}
-                    onClick={() => handleSubmit()}
-                  >
-                    {isSubmitting
-                      ? b3Lang('quoteDraft.submission.loading')
-                      : b3Lang('quoteDraft.button.submit')}
-                  </CustomButton>
-                </Box>
-              )}
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexWrap: 'wrap',
+                justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                mb: 3,
+                '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: '44px' },
+              }}
+            >
+              <QuoteDownloadButton
+                disabled={loading || isGeneratingPdf}
+                onClick={() => handleSubmit(true)}
+              />
+              <Button variant="contained" disabled={loading} onClick={() => handleSubmit()}>
+                {b3Lang('quoteDetail.requestOffer')}
+              </Button>
+              <Button
+                variant="contained"
+                disabled={loading}
+                startIcon={<ShoppingCartCheckout />}
+                sx={{
+                  backgroundColor: '#15803d',
+                  color: '#ffffff',
+                  '&:hover': { backgroundColor: '#166534' },
+                }}
+                onClick={() => handleSubmit(false, true)}
+              >
+                {b3Lang('quoteDetail.convertToOrder')}
+              </Button>
             </Box>
           )}
         </Box>

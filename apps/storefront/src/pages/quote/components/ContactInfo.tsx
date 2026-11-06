@@ -294,7 +294,7 @@ function ContactInfo(
     },
     {
       title: b3Lang('quoteDraft.quoteInfo.title'),
-      infos: quoteInfo,
+      infos: quoteInfo.filter((field) => field.name !== 'ccEmail'),
       style: {
         mt: '20px',
       },

@@ -459,90 +459,115 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
       }),
     },
   });
-  await userEvent.click(await screen.findByRole('button', { name: 'Download PDF' }));
+  await userEvent.click(await screen.findByRole('button', { name: /Download/ }));
   expect(
     await screen.findByText('A shipping address is required before downloading the quote.'),
   ).toBeInTheDocument();
   expect(downloadQuotePdf).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled();
 });
 
-it('opens the draft before downloading and skips the submission confirmation', async () => {
-  vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
-  vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
-  set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
-  const response = buildQuoteCreateResponseWith({
-    data: { quoteCreate: { quote: { createdAt: String(faker.date.recent().getTime()) } } },
-  });
-  const createdQuote = response.data.quoteCreate.quote;
-  const initialCartCount = faker.number.int({ min: 1, max: 99 });
-  const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))('WHATEVER_VALUES');
-  let completeSubmission: () => void = () => {};
-  const pendingSubmission = new Promise<void>((resolve) => {
-    completeSubmission = resolve;
-  });
-  const createQuote = vi.fn();
-  server.use(
-    graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
-    graphql.query('Addresses', () =>
-      HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
-    ),
-    graphql.query('getQuoteExtraFields', () =>
-      HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
-    ),
-    graphql.mutation('CreateQuote', async ({ variables }) => {
-      createQuote(variables.quoteData);
-      await pendingSubmission;
-      return HttpResponse.json(response);
-    }),
-    graphql.mutation('DeleteCart', () =>
-      HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
-    ),
-  );
-  const quoteInfo = buildQuoteInfoStateWith({
-    draftQuoteInfo: { contactInfo: { email: customerEmail } },
-  });
-  const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
-    preloadedState: {
-      ...preloadedState,
-      quoteInfo,
-      company: buildCompanyStateWith({
-        companyInfo: { status: CompanyStatus.APPROVED },
-        customer: {
-          userType: UserTypes.MULTIPLE_B2C,
-          role: CustomerRole.SENIOR_BUYER,
-          emailAddress: customerEmail,
-        },
-        permissions: [{ code: 'create_quote', permissionLevel: 2 }],
-      }),
-      global: buildGlobalStateWith({
-        backorderEnabled: true,
-        cartNumber: initialCartCount,
-        quoteSubmissionResponse: { value: '1' },
-      }),
-    },
-  });
-  const downloadButton = await screen.findByRole('button', { name: 'Download PDF' });
-  await userEvent.dblClick(downloadButton);
-  await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
-  expect(createQuote).toHaveBeenCalledWith(
-    expect.objectContaining({
-      extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
-    }),
-  );
-  expect(downloadButton).toBeDisabled();
-  expect(downloadQuotePdf).not.toHaveBeenCalled();
-  expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
-  expect(store.getState().global.cartNumber).toBe(initialCartCount);
-  completeSubmission();
-  await waitFor(() => {
-    expect(navigation).toHaveBeenCalledWith(
-      `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
+it.each(['download', 'convert'] as const)(
+  'opens the draft for %s and skips the submission confirmation',
+  async (action) => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const update = vi.fn();
+    vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
+    vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
+    set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
+    const response = buildQuoteCreateResponseWith({
+      data: { quoteCreate: { quote: { createdAt: String(faker.date.recent().getTime()) } } },
+    });
+    const createdQuote = response.data.quoteCreate.quote;
+    const initialCartCount = faker.number.int({ min: 1, max: 99 });
+    const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))(
+      'WHATEVER_VALUES',
     );
-  });
-  expect(store.getState().global.cartNumber).toBe(0);
-  expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
-});
+    let completeSubmission: () => void = () => {};
+    const pendingSubmission = new Promise<void>((resolve) => {
+      completeSubmission = resolve;
+    });
+    const createQuote = vi.fn();
+    server.use(
+      graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
+      graphql.query('Addresses', () =>
+        HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
+      ),
+      graphql.query('getQuoteExtraFields', () =>
+        HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
+      ),
+      graphql.mutation('CreateQuote', async ({ variables }) => {
+        createQuote(variables.quoteData);
+        await pendingSubmission;
+        return HttpResponse.json(response);
+      }),
+      graphql.operation(({ query }) => {
+        if (!query.includes('quoteUpdate(')) return undefined;
+        update(query);
+        return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
+      }),
+      graphql.mutation('DeleteCart', () =>
+        HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
+      ),
+    );
+    const quoteInfo = buildQuoteInfoStateWith({
+      draftQuoteInfo: { contactInfo: { email: customerEmail } },
+    });
+    const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+      preloadedState: {
+        ...preloadedState,
+        quoteInfo,
+        company: buildCompanyStateWith({
+          companyInfo: { status: CompanyStatus.APPROVED },
+          customer: {
+            userType: UserTypes.MULTIPLE_B2C,
+            role: CustomerRole.SENIOR_BUYER,
+            emailAddress: customerEmail,
+          },
+          permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+        }),
+        global: buildGlobalStateWith({
+          backorderEnabled: true,
+          cartNumber: initialCartCount,
+          quoteSubmissionResponse: { value: '1' },
+        }),
+      },
+    });
+    expect(await screen.findByRole('button', { name: 'Request offer' })).toBeInTheDocument();
+    const downloadButton = await screen.findByRole('button', {
+      name: action === 'download' ? /Download/ : 'Convert to order',
+    });
+    await userEvent.dblClick(downloadButton);
+    await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
+    expect(createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
+      }),
+    );
+    expect(downloadButton).toBeDisabled();
+    expect(downloadQuotePdf).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Keep this page open until you see the confirmation/),
+    ).not.toBeInTheDocument();
+    expect(store.getState().global.cartNumber).toBe(initialCartCount);
+    completeSubmission();
+    await waitFor(() => {
+      expect(navigation).toHaveBeenCalledWith(
+        `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
+      );
+    });
+    expect(store.getState().global.cartNumber).toBe(0);
+    expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
+    if (action === 'convert') {
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(update.mock.calls[0][0]).toContain('status: "1"');
+      expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', createdQuote.id);
+    } else {
+      expect(update).not.toHaveBeenCalled();
+    }
+    log.mockRestore();
+  },
+);
 
 it('displays a summary of the products within the quote draft', async () => {
   server.use(
@@ -2211,7 +2236,7 @@ describe('when the user is a B2B customer', () => {
 
       await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
 
-      await userEvent.click(await screen.findByRole('button', { name: /Submit/i }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
 
       expect(window.b2b.callbacks.dispatchEvent).toHaveBeenCalledWith('on-quote-create', {
         channelId: 1,
@@ -2370,9 +2395,11 @@ describe('when the user is a B2B customer', () => {
 
       await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
 
-      await userEvent.click(await screen.findByRole('button', { name: /Submit/i }));
-      expect(await screen.findByRole('button', { name: 'Submitting your quote…' })).toBeDisabled();
-      expect(screen.queryByText(/Keep this page open until you see the confirmation/)).not.toBeInTheDocument();
+      await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
+      expect(await screen.findByRole('button', { name: 'Request offer' })).toBeDisabled();
+      expect(
+        screen.queryByText(/Keep this page open until you see the confirmation/),
+      ).not.toBeInTheDocument();
       expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
       completeSubmission();
 
@@ -2499,7 +2526,7 @@ describe('when the user is a B2B customer', () => {
 
       navigation.mockClear();
 
-      await userEvent.click(await screen.findByRole('button', { name: /Submit/i }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
 
       expect(window.b2b.callbacks.dispatchEvent).toHaveBeenCalledWith('on-quote-create', {
         channelId: 1,
@@ -4796,7 +4823,7 @@ describe('when the user is a B2B customer', () => {
       );
 
       await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       expect(
         await screen.findByText('A shipping address is required before submitting the quote.'),
@@ -4845,7 +4872,7 @@ describe('when the user is a B2B customer', () => {
         ),
       );
       await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -4874,7 +4901,7 @@ describe('when the user is a B2B customer', () => {
       );
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
 
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -4898,7 +4925,7 @@ describe('when the user is a B2B customer', () => {
       await userEvent.click(screen.getAllByRole('button', { name: 'Choose address' })[0]);
 
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -4922,7 +4949,7 @@ describe('when the user is a B2B customer', () => {
         screen.getByLabelText('My shipping address is the same as my billing address'),
       );
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -4950,7 +4977,7 @@ describe('when the user is a B2B customer', () => {
       await userEvent.click(screen.getAllByRole('button', { name: 'Choose address' })[0]);
 
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => {
         expect(createQuoteMutation).toHaveBeenCalled();
@@ -4989,7 +5016,7 @@ describe('when the user is a B2B customer', () => {
       );
 
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -5045,7 +5072,7 @@ describe('when the user is a B2B customer', () => {
       );
 
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
@@ -5100,7 +5127,7 @@ describe('when the user is a B2B customer', () => {
       );
 
       await userEvent.click(screen.getByRole('button', { name: 'Save info' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Request offer' }));
 
       await waitFor(() => expect(createQuoteMutation).toHaveBeenCalled());
       const mutationData = createQuoteMutation.mock.calls[0][0];
