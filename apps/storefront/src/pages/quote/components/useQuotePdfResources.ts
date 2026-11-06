@@ -43,6 +43,9 @@ interface ResourceOptions {
   companyFields?: PdfExtraField[];
 }
 
+const PDF_VARIANTS_PER_REQUEST = 5;
+const PDF_VARIANT_REQUEST_CONCURRENCY = 3;
+
 const metafieldValues = (connection?: MetafieldConnection) =>
   Object.fromEntries((connection?.edges || []).map(({ node }) => [node.key, node.value]));
 
@@ -66,16 +69,17 @@ export async function fetchQuotePdfVariants(
             Number(other.variantId) === Number(item.variantId),
         ) === index,
     );
-  // Bound query complexity for quotes with many lines.
-  const batches = Array.from({ length: Math.ceil(targets.length / 20) }, (_, index) =>
-    targets.slice(index * 20, (index + 1) * 20),
+  // Nested metafield connections made batches of 20 exceed BigCommerce's 10,000 limit.
+  const batches = Array.from(
+    { length: Math.ceil(targets.length / PDF_VARIANTS_PER_REQUEST) },
+    (_, index) =>
+      targets.slice(index * PDF_VARIANTS_PER_REQUEST, (index + 1) * PDF_VARIANTS_PER_REQUEST),
   );
-  const results = await Promise.all(
-    batches.map(async (batch) => {
-      const result: Record<number, PdfVariantData> = {};
-      const selections = batch
-        .map(
-          ({ productId, variantId }, index) => `
+  const fetchBatch = async (batch: VariantTarget[]) => {
+    const result: Record<number, PdfVariantData> = {};
+    const selections = batch
+      .map(
+        ({ productId, variantId }, index) => `
       p${index}: product(entityId: ${Number(productId)}) {
         variants(entityIds: [${Number(variantId)}], first: 1) {
           edges { node { entityId sku
@@ -86,39 +90,49 @@ export async function fetchQuotePdfVariants(
           } }
         }
       }`,
-        )
-        .join('\n');
-      const response = await storefrontGQLRequest<{
-        data?: {
-          site?: Record<string, { variants?: { edges?: Array<{ node: VariantNode }> } } | null>;
+      )
+      .join('\n');
+    const response = await storefrontGQLRequest<{
+      data?: {
+        site?: Record<string, { variants?: { edges?: Array<{ node: VariantNode }> } } | null>;
+      };
+      errors?: Array<{ message: string }>;
+    }>({
+      query: `query GetQuotePdfVariants { site { ${selections} } }`,
+    });
+    if (response.errors?.length) throw new Error(response.errors[0].message);
+    Object.values(response.data?.site || {}).forEach((product) => {
+      const variant = product?.variants?.edges?.[0]?.node;
+      if (variant)
+        result[variant.entityId] = {
+          sku: variant.sku,
+          packaging: metafieldValues(variant.packaging),
+          dimensions: metafieldValues(variant.dimensions),
+          stock: metafieldValues(variant.stock),
+          ...(customerOracleId
+            ? {
+                yourCode: getQuotePdfCustomCode(
+                  metafieldValues(variant.customCodes).CUSTOM_CODES,
+                  customerOracleId,
+                ),
+              }
+            : {}),
         };
-        errors?: Array<{ message: string }>;
-      }>({
-        query: `query GetQuotePdfVariants { site { ${selections} } }`,
-      });
-      if (response.errors?.length) throw new Error(response.errors[0].message);
-      Object.values(response.data?.site || {}).forEach((product) => {
-        const variant = product?.variants?.edges?.[0]?.node;
-        if (variant)
-          result[variant.entityId] = {
-            sku: variant.sku,
-            packaging: metafieldValues(variant.packaging),
-            dimensions: metafieldValues(variant.dimensions),
-            stock: metafieldValues(variant.stock),
-            ...(customerOracleId
-              ? {
-                  yourCode: getQuotePdfCustomCode(
-                    metafieldValues(variant.customCodes).CUSTOM_CODES,
-                    customerOracleId,
-                  ),
-                }
-              : {}),
-          };
-      });
-      return result;
-    }),
+    });
+    return result;
+  };
+  const variants: Record<number, PdfVariantData> = {};
+  const fetchNextBatch = async (index: number): Promise<void> => {
+    if (index >= batches.length) return;
+    Object.assign(variants, await fetchBatch(batches[index]));
+    await fetchNextBatch(index + PDF_VARIANT_REQUEST_CONCURRENCY);
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(batches.length, PDF_VARIANT_REQUEST_CONCURRENCY) }, (_, index) =>
+      fetchNextBatch(index),
+    ),
   );
-  return Object.assign({}, ...results);
+  return variants;
 }
 
 async function fetchPdfVariantsForCustomer(items: VariantTarget[]) {

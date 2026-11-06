@@ -1,4 +1,12 @@
-import { builder, faker, graphql, HttpResponse, startMockServer } from 'tests/test-utils';
+import {
+  builder,
+  bulk,
+  delay,
+  faker,
+  graphql,
+  HttpResponse,
+  startMockServer,
+} from 'tests/test-utils';
 
 import { getQuotePdfCustomCode, pdfExtraField, quotePdfDelivery } from './quotePdfData';
 import { fetchQuotePdfVariants } from './useQuotePdfResources';
@@ -97,6 +105,81 @@ describe('quote PDF resources', () => {
       stock: {},
       packaging: {},
     });
+  });
+
+  it('loads every variant of a large quote without exceeding the query complexity limit', async () => {
+    const firstTarget = buildTargetWith('WHATEVER_VALUES');
+    const targets = bulk(buildTargetWith, 'WHATEVER_VALUES')
+      .times(23)
+      .map((target, index) => ({
+        ...target,
+        variantId: firstTarget.variantId + index,
+      }));
+    const oracleId = faker.string.numeric(8);
+    const code = faker.string.uuid();
+    const field = buildFieldWith('WHATEVER_VALUES');
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    let requests = 0;
+    server.use(
+      graphql.query('GetQuotePdfVariants', async ({ query }) => {
+        const selections = [
+          ...query.matchAll(
+            /p(\d+): product\(entityId: \d+\)\s*\{\s*variants\(entityIds: \[(\d+)\]/g,
+          ),
+        ];
+        requests += 1;
+        if (selections.length * 811 > 10000) {
+          return HttpResponse.json({ errors: [{ message: 'The query is too complex' }] });
+        }
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await delay(20);
+        activeRequests -= 1;
+        const metafields = { edges: [{ node: { key: field.fieldName, value: field.fieldValue } }] };
+        return HttpResponse.json({
+          data: {
+            site: Object.fromEntries(
+              selections.map(([, alias, id]) => [
+                `p${alias}`,
+                {
+                  variants: {
+                    edges: [
+                      {
+                        node: {
+                          entityId: Number(id),
+                          packaging: metafields,
+                          dimensions: metafields,
+                          stock: metafields,
+                          customCodes: {
+                            edges: [
+                              { node: { key: 'CUSTOM_CODES', value: `${oracleId}=${code}` } },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ]),
+            ),
+          },
+        });
+      }),
+    );
+
+    const variants = await fetchQuotePdfVariants([...targets, targets[0]], oracleId);
+    expect(Object.keys(variants)).toHaveLength(targets.length);
+    targets.forEach(({ variantId }) => {
+      expect(variants[variantId]).toEqual({
+        packaging: { [field.fieldName]: field.fieldValue },
+        dimensions: { [field.fieldName]: field.fieldValue },
+        stock: { [field.fieldName]: field.fieldValue },
+        yourCode: code,
+      });
+    });
+    expect(requests).toBeGreaterThan(1);
+    expect(maxActiveRequests).toBeLessThanOrEqual(3);
   });
 
   it('selects the variant customer code using the Oracle company identifier', async () => {
