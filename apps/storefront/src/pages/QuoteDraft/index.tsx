@@ -1,13 +1,11 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowBackIosNew, ShoppingCartCheckout } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import Cookies from 'js-cookie';
 import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
 import { v4 as generateUuid } from 'uuid';
 
 import CustomButton from '@/components/button/CustomButton';
-import { getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
 import { permissionLevels } from '@/constants';
 import { dispatchEvent } from '@/hooks/useB2BCallback';
 import { useSetCountry } from '@/hooks/useGetCountry';
@@ -15,8 +13,7 @@ import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
 import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
-import QuoteDownloadButton from '@/pages/quote/components/QuoteDownloadButton';
-import { CustomStyleContext } from '@/shared/customStyleButton';
+import QuotePage from '@/pages/quote/components/QuotePage';
 import { GlobalContext } from '@/shared/global';
 import {
   createQuote,
@@ -63,10 +60,7 @@ import { type PageProps } from '../PageProps';
 import { calculateQuoteSummary } from '../quote/components/calculateQuoteSummary';
 import ContactInfo, { ContactInfoRef } from '../quote/components/ContactInfo';
 import QuoteAddress from '../quote/components/QuoteAddress';
-import QuoteInfo from '../quote/components/QuoteInfo';
-import QuoteLoading from '../quote/components/QuoteLoading';
 import { formatQuotePrice, formatQuoteSummaryPrice } from '../quote/components/quotePriceFormat';
-import QuoteStatus from '../quote/components/QuoteStatus';
 import QuoteSubmissionResponse from '../quote/components/QuoteSubmissionResponse';
 import QuoteTable from '../quote/components/QuoteTable';
 import { useQuotePackagingMetafields } from '../quote/components/useQuotePackagingMetafields';
@@ -168,12 +162,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const isAddNonPurchasableOutOfStockToQuoteEnabled = useAppSelector(
     ({ global }) => global.blockPendingQuoteNonPurchasableOOS.isEnableProduct,
   );
-
-  const {
-    state: {
-      portalStyle: { backgroundColor = '#FEF9F5' },
-    },
-  } = useContext(CustomStyleContext);
 
   const isBackorderEnabled = useIsBackorderEnabled();
 
@@ -831,208 +819,119 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   }, [billingChange, shippingSameAsBilling]);
 
   return (
-    <QuoteLoading busy={loading || isGeneratingPdf} coverContent={isGeneratingPdf}>
-      <Box
-        sx={{
-          mb: '60px',
-          width: '100%',
-        }}
-      >
-        <Box
-          sx={{
-            marginBottom: '10px',
-            width: 'fit-content',
-            displayPrint: 'none',
-          }}
-        >
-          <Box
-            sx={{
-              color: 'primary.main',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-            onClick={() => {
-              if (openAPPParams?.quoteBtn || Number(role) === 100) {
-                navigate('/');
-                setOpenPage({
-                  isOpen: false,
-                  openUrl: '',
-                });
-              } else {
-                navigate('/quotes');
-              }
-            }}
-          >
-            <ArrowBackIosNew
-              fontSize="small"
-              sx={{
-                fontSize: '12px',
-                marginRight: '0.5rem',
-              }}
+    <QuotePage
+      busy={loading || isGeneratingPdf}
+      coverContent={isGeneratingPdf}
+      status="0"
+      back={{
+        label: backText(),
+        onClick: () => {
+          if (openAPPParams?.quoteBtn || Number(role) === 100) {
+            navigate('/');
+            setOpenPage({ isOpen: false, openUrl: '' });
+          } else {
+            navigate('/quotes');
+          }
+        },
+      }}
+      actions={
+        quotesActionsPermission
+          ? {
+              download: { onClick: () => handleSubmit(true) },
+              requestOffer: { onClick: () => handleSubmit() },
+              convertToOrder: { onClick: () => handleSubmit(false, true) },
+            }
+          : undefined
+      }
+      information={{
+        quoteAndExtraFieldsInfo,
+        status: 'Draft',
+        contactInfo: quoteInfoOrigin.contactInfo,
+        shippingAddress: quoteInfoOrigin.shippingAddress,
+        billingAddress: quoteInfoOrigin.billingAddress || {},
+        handleEditInfoClick,
+      }}
+      editingInformation={
+        isEdit ? (
+          <Container flexDirection="column">
+            <ContactInfo
+              emailAddress={customer.emailAddress}
+              info={quoteInfoOrigin?.contactInfo}
+              referenceNumber={quoteInfoOrigin?.referenceNumber || ''}
+              quoteExtraFields={extraFields}
+              extraFieldsDefault={quoteInfoOrigin.extraFields || []}
+              recipients={quoteInfoOrigin?.recipients || []}
+              handleSaveCCEmail={handleSaveCCEmail}
+              ref={contactInfoRef}
             />
-            <p
-              style={{
-                margin: '0',
-              }}
-            >
-              {backText()}
-            </p>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 2,
-            flexWrap: 'wrap',
-          }}
-        >
-          <Box
-            sx={{
-              display: 'flex',
-              mb: '24px',
-              flexDirection: isMobile ? 'column' : 'row',
-              alignItems: isMobile ? 'flex-start' : 'center',
-            }}
-          >
-            <Typography
-              component="h3"
-              sx={{
-                fontSize: '34px',
-                mr: '1rem',
-                mb: isMobile ? '1rem' : '0',
-                color: getContrastColor(backgroundColor),
-              }}
-            >
-              {b3Lang('quoteDraft.title.Quote')}
-            </Typography>
-            <QuoteStatus code="0" />
-          </Box>
-          {quotesActionsPermission && (
             <Box
               sx={{
                 display: 'flex',
-                gap: 2,
-                flexWrap: 'wrap',
-                justifyContent: isMobile ? 'flex-start' : 'flex-end',
-                mb: 3,
-                '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: '44px' },
+                width: '100%',
+                mt: isMobile ? 0 : '3rem',
+                flexDirection: isMobile ? 'column' : 'row',
               }}
             >
-              <QuoteDownloadButton
-                disabled={loading || isGeneratingPdf}
-                onClick={() => handleSubmit(true)}
+              <QuoteAddress
+                title={b3Lang('quoteDraft.section.shipping')}
+                info={quoteInfoOrigin?.shippingAddress}
+                addressList={addressList}
+                ref={shippingRef}
+                role={role}
+                accountFormFields={accountFormFields}
+                shippingSameAsBilling={shippingSameAsBilling}
+                type="shipping"
+                setBillingChange={setBillingChange}
               />
-              <Button variant="contained" disabled={loading} onClick={() => handleSubmit()}>
-                {b3Lang('quoteDetail.requestOffer')}
-              </Button>
-              <Button
-                variant="contained"
-                disabled={loading}
-                startIcon={<ShoppingCartCheckout />}
-                sx={{
-                  backgroundColor: '#15803d',
-                  color: '#ffffff',
-                  '&:hover': { backgroundColor: '#166534' },
-                }}
-                onClick={() => handleSubmit(false, true)}
-              >
-                {b3Lang('quoteDetail.convertToOrder')}
-              </Button>
             </Box>
-          )}
-        </Box>
-
-        <Box>
-          {!isEdit && (
-            <QuoteInfo
-              quoteAndExtraFieldsInfo={quoteAndExtraFieldsInfo}
-              status="Draft"
-              contactInfo={quoteInfoOrigin?.contactInfo}
-              shippingAddress={quoteInfoOrigin?.shippingAddress}
-              billingAddress={quoteInfoOrigin?.billingAddress || {}}
-              handleEditInfoClick={handleEditInfoClick}
-            />
-          )}
-          {isEdit && (
-            <Container flexDirection="column">
-              <ContactInfo
-                emailAddress={customer.emailAddress}
-                info={quoteInfoOrigin?.contactInfo}
-                referenceNumber={quoteInfoOrigin?.referenceNumber || ''}
-                quoteExtraFields={extraFields}
-                extraFieldsDefault={quoteInfoOrigin.extraFields || []}
-                recipients={quoteInfoOrigin?.recipients || []}
-                handleSaveCCEmail={handleSaveCCEmail}
-                ref={contactInfoRef}
-              />
-              <Box
-                sx={{
-                  display: 'flex',
-                  width: '100%',
-                  mt: isMobile ? 0 : '3rem',
-                  flexDirection: isMobile ? 'column' : 'row',
-                }}
-              >
-                <QuoteAddress
-                  title={b3Lang('quoteDraft.section.shipping')}
-                  info={quoteInfoOrigin?.shippingAddress}
-                  addressList={addressList}
-                  ref={shippingRef}
-                  role={role}
-                  accountFormFields={accountFormFields}
-                  shippingSameAsBilling={shippingSameAsBilling}
-                  type="shipping"
-                  setBillingChange={setBillingChange}
-                />
-              </Box>
-              <CustomButton
-                sx={{
-                  mt: '20px',
-                  mb: '15px',
-                }}
-                onClick={handleSaveInfoClick}
-                variant="outlined"
-              >
-                {b3Lang('quoteDraft.button.saveInfo')}
-              </CustomButton>
-            </Container>
-          )}
-        </Box>
-        <Box
-          sx={{
-            mt: '20px',
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            alignItems: 'flex-start',
+            <CustomButton
+              sx={{
+                mt: '20px',
+                mb: '15px',
+              }}
+              onClick={handleSaveInfoClick}
+              variant="outlined"
+            >
+              {b3Lang('quoteDraft.button.saveInfo')}
+            </CustomButton>
+          </Container>
+        ) : undefined
+      }
+      dialog={
+        <QuoteSubmissionResponse
+          isOpen={quoteSubmissionResponseOpen}
+          onClose={handleCloseQuoteSubmissionResponse}
+        />
+      }
+    >
+      <Box
+        sx={{
+          mt: '20px',
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: 'flex-start',
+        }}
+      >
+        <Container
+          flexDirection="column"
+          xs={{
+            width: '100%',
+            minWidth: 0,
+            marginBottom: '20px',
+            boxShadow:
+              '0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px rgba(0, 0, 0, 0.14), 0px 1px 3px rgba(0, 0, 0, 0.12)',
+            borderRadius: '4px',
           }}
         >
-          <Container
-            flexDirection="column"
-            xs={{
-              width: '100%',
-              minWidth: 0,
-              marginBottom: '20px',
-              boxShadow:
-                '0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px rgba(0, 0, 0, 0.14), 0px 1px 3px rgba(0, 0, 0, 0.12)',
-              borderRadius: '4px',
-            }}
-          >
-            <QuoteTable
-              formattedTotal={formattedQuoteTotal}
-              total={draftQuoteList.length}
-              items={draftQuoteList}
-              packagingByVariantId={packagingByVariantId}
-            />
-          </Container>
-        </Box>
+          <QuoteTable
+            formattedTotal={formattedQuoteTotal}
+            total={draftQuoteList.length}
+            items={draftQuoteList}
+            packagingByVariantId={packagingByVariantId}
+          />
+        </Container>
       </Box>
-      <QuoteSubmissionResponse
-        isOpen={quoteSubmissionResponseOpen}
-        onClose={handleCloseQuoteSubmissionResponse}
-      />
-    </QuoteLoading>
+    </QuotePage>
   );
 }
 

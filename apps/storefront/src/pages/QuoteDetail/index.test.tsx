@@ -307,10 +307,16 @@ describe('when the user is a B2B customer', () => {
 
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
-    renderWithProviders(<QuoteDetail />, { preloadedState });
+    renderWithProviders(<QuoteDetail />, {
+      preloadedState: {
+        ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
+      },
+    });
 
     expect(await screen.findByText('#911911')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Quote', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit info' })).not.toBeInTheDocument();
   });
 
   it('shows a warning instead of downloading the saved quote PDF without a shipping address', async () => {

@@ -923,6 +923,7 @@ describe('when editing the buyer info', () => {
 
     expect(screen.getByRole('textbox', { name: 'Contact person' })).toBeDisabled();
     expect(screen.getByRole('textbox', { name: 'Email' })).toBeDisabled();
+    expect(screen.queryByRole('textbox', { name: 'CC email' })).not.toBeInTheDocument();
   });
 });
 

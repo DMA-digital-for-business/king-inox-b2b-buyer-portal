@@ -1,8 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ShoppingCartCheckout } from '@mui/icons-material';
-import { Box, Button, Grid, Typography } from '@mui/material';
+import { Box, Button, Grid } from '@mui/material';
 import copy from 'copy-to-clipboard';
 import { get } from 'lodash-es';
 
@@ -11,6 +10,7 @@ import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
 import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
+import QuotePage from '@/pages/quote/components/QuotePage';
 import { GlobalContext } from '@/shared/global';
 import {
   getB2BQuoteDetail,
@@ -43,11 +43,8 @@ import {
 import { FileObjects } from '../quote/components/FileUpload';
 import Message from '../quote/components/Message';
 import QuoteAttachment from '../quote/components/QuoteAttachment';
-import QuoteDetailHeader from '../quote/components/QuoteDetailHeader';
 import QuoteDetailSummary from '../quote/components/QuoteDetailSummary';
 import QuoteDetailTable from '../quote/components/QuoteDetailTable';
-import QuoteInfo from '../quote/components/QuoteInfo';
-import QuoteLoading from '../quote/components/QuoteLoading';
 import QuoteNote from '../quote/components/QuoteNote';
 import { getPackagingMetafieldValue, packagingColumns } from '../quote/components/quotePackaging';
 import {
@@ -1086,265 +1083,244 @@ function QuoteDetail() {
   const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
     quotePurchasabilityPermissionInfo;
 
+  const busy = isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf;
+  const canShowSubmissionActions = [0, 1].includes(Number(quoteDetail.status)) && canSendToKing;
+
   return (
-    <QuoteLoading
-      busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
+    <QuotePage
+      busy={busy}
       coverContent={isAutoDownloadingPdf || isPrintingPdf || isRequestLoading}
       loadingLabel={
         isAutoDownloadingPdf || isPrintingPdf
           ? b3Lang('quoteDraft.pdf.generating')
           : b3Lang('global.tips.loading')
       }
+      status={quoteDetail.status}
+      quoteNumber={quoteDetail.quoteNumber}
+      issuedAt={quoteDetail.createdAt}
+      expiredAt={quoteDetail.expiredAt}
+      salesRepInfo={quoteDetail.salesRepInfo}
+      back={
+        Number(role) !== 100
+          ? {
+              label: b3Lang('quoteDetail.header.backToQuoteLists'),
+              onClick: () => navigate('/quotes'),
+            }
+          : undefined
+      }
+      actions={
+        Number(role) !== 100
+          ? {
+              download: { onClick: exportPdf },
+              requestOffer:
+                canShowSubmissionActions && isOpenQuote
+                  ? {
+                      onClick: sendToKing,
+                      disabled: isSendingToKing || isConvertingToOrder || !!sentToKingField,
+                    }
+                  : undefined,
+              convertToOrder: canShowSubmissionActions
+                ? {
+                    onClick: convertToOrder,
+                    disabled: isSendingToKing || isConvertingToOrder,
+                  }
+                : undefined,
+              print:
+                ![0, 1].includes(Number(quoteDetail.status)) && quoteDetail.status !== ''
+                  ? {
+                      onClick: printQuote,
+                    }
+                  : undefined,
+              sentAtLabel:
+                canShowSubmissionActions &&
+                sentToKingDate &&
+                !Number.isNaN(sentToKingDate.getTime())
+                  ? b3Lang('quoteDetail.sendToKing.sentAt', {
+                      date: sentToKingDate.toLocaleString(pdfLocale),
+                    })
+                  : undefined,
+            }
+          : undefined
+      }
+      information={{
+        showQuoteInfoColumn: isOpenQuote,
+        quoteAndExtraFieldsInfo,
+        contactInfo: quoteDetail.contactInfo,
+        shippingAddress: quoteDetail.shippingAddress,
+        billingAddress: quoteDetail.billingAddress,
+      }}
     >
-      <Box
+      <Grid
+        container
+        spacing={isMobile ? 2 : 0}
+        rowSpacing={0}
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
+          overflow: 'auto',
+          flexWrap: isMobile || isOpenQuote ? 'wrap' : 'nowrap',
+          paddingBottom: '20px',
+          marginBottom: isMobile ? '6rem' : 0,
+          marginTop: isMobile ? 0 : '1rem',
+          '@media print': {
+            overflow: 'hidden',
+          },
         }}
       >
-        <QuoteDetailHeader
-          status={quoteDetail.status}
-          quoteNumber={quoteDetail.quoteNumber}
-          issuedAt={quoteDetail.createdAt}
-          expiredAt={quoteDetail.expiredAt}
-          busy={isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf}
-          exportPdf={exportPdf}
-          printQuote={printQuote}
-          sendAction={
-            [0, 1].includes(Number(quoteDetail.status)) &&
-            canSendToKing &&
-            Number(role) !== 100 && (
-              <Box sx={{ textAlign: 'right', displayPrint: 'none' }}>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  {isOpenQuote && (
-                    <Button
-                      variant="contained"
-                      disabled={
-                        isRequestLoading ||
-                        isSendingToKing ||
-                        isConvertingToOrder ||
-                        !!sentToKingField
-                      }
-                      onClick={sendToKing}
-                    >
-                      {b3Lang('quoteDetail.requestOffer')}
-                    </Button>
-                  )}
-                  <Button
-                    variant="contained"
-                    disabled={isRequestLoading || isSendingToKing || isConvertingToOrder}
-                    sx={{
-                      backgroundColor: '#15803d',
-                      color: '#ffffff',
-                      '&:hover': { backgroundColor: '#166534' },
-                    }}
-                    startIcon={<ShoppingCartCheckout />}
-                    onClick={convertToOrder}
-                  >
-                    {b3Lang('quoteDetail.convertToOrder')}
-                  </Button>
-                </Box>
-                {sentToKingDate && !Number.isNaN(sentToKingDate.getTime()) && (
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {b3Lang('quoteDetail.sendToKing.sentAt', {
-                      date: sentToKingDate.toLocaleString(pdfLocale),
-                    })}
-                  </Typography>
-                )}
-              </Box>
-            )
-          }
-          role={role}
-          salesRepInfo={quoteDetail.salesRepInfo}
-        />
-
-        <Box
-          sx={{
-            marginTop: '1rem',
-          }}
-        >
-          <QuoteInfo
-            showQuoteInfoColumn={isOpenQuote}
-            quoteAndExtraFieldsInfo={quoteAndExtraFieldsInfo}
-            contactInfo={quoteDetail.contactInfo}
-            shippingAddress={quoteDetail.shippingAddress}
-            billingAddress={quoteDetail.billingAddress}
-          />
-        </Box>
-
         <Grid
-          container
-          spacing={isMobile ? 2 : 0}
+          item
+          xs={isMobile || isOpenQuote ? 12 : 8}
           rowSpacing={0}
-          sx={{
-            overflow: 'auto',
-            flexWrap: isMobile || isOpenQuote ? 'wrap' : 'nowrap',
-            paddingBottom: '20px',
-            marginBottom: isMobile ? '6rem' : 0,
-            marginTop: isMobile ? 0 : '1rem',
-            '@media print': {
-              overflow: 'hidden',
-            },
-          }}
+          sx={
+            isMobile
+              ? {
+                  flexBasis: '100%',
+                  pl: '16px',
+                }
+              : {
+                  mr: isOpenQuote ? 0 : '16px',
+                }
+          }
         >
-          <Grid
-            item
-            xs={isMobile || isOpenQuote ? 12 : 8}
-            rowSpacing={0}
+          <Box
             sx={
               isMobile
                 ? {
                     flexBasis: '100%',
-                    pl: '16px',
                   }
-                : {
-                    mr: isOpenQuote ? 0 : '16px',
-                  }
+                : {}
             }
           >
+            <QuoteDetailTable
+              formattedTotal={isOpenQuote ? formattedQuoteTotal : undefined}
+              total={productList.length}
+              productList={productList}
+              currency={displayCurrency}
+              quoteReviewedBySalesRep={quoteReviewedBySalesRep}
+              getQuoteTableDetails={getQuoteTableDetails}
+              getTaxRate={getTaxRate}
+              displayDiscount={quoteDetail.displayDiscount}
+              status={quoteDetail.status}
+            />
+          </Box>
+        </Grid>
+        <Grid
+          item
+          xs={isMobile || isOpenQuote ? 12 : 4}
+          rowSpacing={0}
+          sx={
+            isMobile
+              ? {
+                  flexBasis: '100%',
+                }
+              : {
+                  pl: 0,
+                }
+          }
+        >
+          {!isOpenQuote && (
             <Box
-              sx={
-                isMobile
-                  ? {
-                      flexBasis: '100%',
-                    }
-                  : {}
-              }
+              sx={{
+                marginBottom: '1rem',
+              }}
             >
-              <QuoteDetailTable
-                formattedTotal={isOpenQuote ? formattedQuoteTotal : undefined}
-                total={productList.length}
-                productList={productList}
-                currency={displayCurrency}
-                quoteReviewedBySalesRep={quoteReviewedBySalesRep}
-                getQuoteTableDetails={getQuoteTableDetails}
-                getTaxRate={getTaxRate}
-                displayDiscount={quoteDetail.displayDiscount}
+              <QuoteDetailSummary
+                shouldHidePrice={shouldHidePrice}
+                quoteSummary={quoteSummary}
+                quoteDetailTax={quoteDetailTax}
                 status={quoteDetail.status}
+                quoteDetail={quoteDetail}
+                currency={displayCurrency}
+                hasBackorderedItems={hasBackorderedItems}
               />
             </Box>
-          </Grid>
-          <Grid
-            item
-            xs={isMobile || isOpenQuote ? 12 : 4}
-            rowSpacing={0}
-            sx={
-              isMobile
-                ? {
-                    flexBasis: '100%',
-                  }
-                : {
-                    pl: 0,
-                  }
-            }
-          >
-            {!isOpenQuote && (
-              <Box
-                sx={{
-                  marginBottom: '1rem',
-                }}
-              >
-                <QuoteDetailSummary
-                  shouldHidePrice={shouldHidePrice}
-                  quoteSummary={quoteSummary}
-                  quoteDetailTax={quoteDetailTax}
-                  status={quoteDetail.status}
-                  quoteDetail={quoteDetail}
-                  currency={displayCurrency}
-                  hasBackorderedItems={hasBackorderedItems}
-                />
-              </Box>
-            )}
-
-            {quoteDetail.notes && (
-              <Box
-                sx={{
-                  marginBottom: '1rem',
-                  displayPrint: 'none',
-                }}
-              >
-                <QuoteNote quoteNotes={quoteDetail.notes} />
-              </Box>
-            )}
-
-            {!isOpenQuote && (
-              <Box
-                sx={{
-                  marginBottom: '1rem',
-                  displayPrint: 'none',
-                }}
-              >
-                <Message
-                  id={id}
-                  status={quoteDetail.status}
-                  isB2BUser={isB2BUser}
-                  email={emailAddress || ''}
-                  msgs={quoteDetail?.trackingHistory || []}
-                />
-              </Box>
-            )}
-
-            {!isOpenQuote && (
-              <Box
-                sx={{
-                  marginBottom: '1rem',
-                  displayPrint: 'none',
-                }}
-              >
-                <QuoteAttachment
-                  allowUpload={Number(quoteDetail.status) !== 4}
-                  quoteId={quoteDetail.id}
-                  status={quoteDetail.status}
-                  defaultFileList={fileList}
-                />
-              </Box>
-            )}
-
-            {quoteDetail.legalTerms && (
-              <Box
-                sx={{
-                  displayPrint: 'none',
-                }}
-              >
-                <QuoteTermsAndConditions quoteLegalTerms={quoteDetail.legalTerms} />
-              </Box>
-            )}
-          </Grid>
-        </Grid>
-
-        {quoteConvertToOrderPermission &&
-          quotePurchasabilityPermission &&
-          Number(quoteDetail.status) !== 4 &&
-          Number(quoteDetail.status) !== 5 &&
-          isShowFooter &&
-          quoteDetail?.allowCheckout &&
-          isAutoEnableQuoteCheckout &&
-          enableProceedToCheckoutButton() && (
-            <Footer isAgenting={isAgenting}>
-              <ProceedToCheckoutButton
-                onClick={() => {
-                  if (hasQuoteValidationErrors()) return;
-                  handleQuoteCheckout({
-                    role,
-                    location,
-                    quoteId: quoteDetail.id,
-                    quoteUuid: quoteDetail.uuid,
-                    navigate,
-                    b3Lang,
-                    formatValidationError: formatQuoteValidationError,
-                    isBackorderMessagingEnabled,
-                    quoteStockSnapshot: buildQuoteStockSnapshot(productList),
-                    fetchCurrentStockSnapshot,
-                  });
-                }}
-              >
-                {b3Lang('quoteDetail.footer.proceedToCheckout')}
-              </ProceedToCheckoutButton>
-            </Footer>
           )}
-      </Box>
-    </QuoteLoading>
+
+          {quoteDetail.notes && (
+            <Box
+              sx={{
+                marginBottom: '1rem',
+                displayPrint: 'none',
+              }}
+            >
+              <QuoteNote quoteNotes={quoteDetail.notes} />
+            </Box>
+          )}
+
+          {!isOpenQuote && (
+            <Box
+              sx={{
+                marginBottom: '1rem',
+                displayPrint: 'none',
+              }}
+            >
+              <Message
+                id={id}
+                status={quoteDetail.status}
+                isB2BUser={isB2BUser}
+                email={emailAddress || ''}
+                msgs={quoteDetail?.trackingHistory || []}
+              />
+            </Box>
+          )}
+
+          {!isOpenQuote && (
+            <Box
+              sx={{
+                marginBottom: '1rem',
+                displayPrint: 'none',
+              }}
+            >
+              <QuoteAttachment
+                allowUpload={Number(quoteDetail.status) !== 4}
+                quoteId={quoteDetail.id}
+                status={quoteDetail.status}
+                defaultFileList={fileList}
+              />
+            </Box>
+          )}
+
+          {quoteDetail.legalTerms && (
+            <Box
+              sx={{
+                displayPrint: 'none',
+              }}
+            >
+              <QuoteTermsAndConditions quoteLegalTerms={quoteDetail.legalTerms} />
+            </Box>
+          )}
+        </Grid>
+      </Grid>
+
+      {quoteConvertToOrderPermission &&
+        quotePurchasabilityPermission &&
+        Number(quoteDetail.status) !== 4 &&
+        Number(quoteDetail.status) !== 5 &&
+        isShowFooter &&
+        quoteDetail?.allowCheckout &&
+        isAutoEnableQuoteCheckout &&
+        enableProceedToCheckoutButton() && (
+          <Footer isAgenting={isAgenting}>
+            <ProceedToCheckoutButton
+              onClick={() => {
+                if (hasQuoteValidationErrors()) return;
+                handleQuoteCheckout({
+                  role,
+                  location,
+                  quoteId: quoteDetail.id,
+                  quoteUuid: quoteDetail.uuid,
+                  navigate,
+                  b3Lang,
+                  formatValidationError: formatQuoteValidationError,
+                  isBackorderMessagingEnabled,
+                  quoteStockSnapshot: buildQuoteStockSnapshot(productList),
+                  fetchCurrentStockSnapshot,
+                });
+              }}
+            >
+              {b3Lang('quoteDetail.footer.proceedToCheckout')}
+            </ProceedToCheckoutButton>
+          </Footer>
+        )}
+    </QuotePage>
   );
 }
 
