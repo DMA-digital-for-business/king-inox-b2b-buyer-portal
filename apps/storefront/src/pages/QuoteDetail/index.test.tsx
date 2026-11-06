@@ -9,6 +9,7 @@ import {
   faker,
   getUnixTime,
   graphql,
+  http,
   HttpResponse,
   renderWithProviders,
   screen,
@@ -336,6 +337,7 @@ describe('when the user is a B2B customer', () => {
     renderWithProviders(<QuoteDetail />, {
       preloadedState: {
         ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
         company: buildCompanyStateWith({
           companyInfo: { status: CompanyStatus.APPROVED },
           customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
@@ -350,193 +352,236 @@ describe('when the user is a B2B customer', () => {
     expect(downloadQuotePdf).not.toHaveBeenCalled();
   });
 
-  it.each(['manual', 'automatic'])('downloads and prints the saved quote (%s)', async (mode) => {
-    const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
-    const yourCode = faker.string.uuid();
-    const oracleId = faker.string.numeric(8);
-    const product = buildQuoteProductWith({
-      options: [
-        {
-          type: faker.lorem.word(),
-          optionId: faker.number.int(),
-          optionName: faker.lorem.word(),
-          optionLabel: dimensions[0],
-          optionValue: faker.lorem.word(),
-        },
-        {
-          type: faker.lorem.word(),
-          optionId: faker.number.int(),
-          optionName: 'Vostro codice',
-          optionLabel: faker.string.uuid(),
-          optionValue: faker.lorem.word(),
-        },
-        {
-          type: faker.lorem.word(),
-          optionId: faker.number.int(),
-          optionName: faker.lorem.word(),
-          optionLabel: dimensions[1],
-          optionValue: faker.lorem.word(),
-        },
-      ],
-    });
-    const issuedAt = faker.date.past();
-    const expirationDate = faker.date.future();
-    const salesRep = {
-      salesRepName: faker.person.fullName(),
-      salesRepEmail: faker.internet.email(),
-      salesRepPhoneNumber: faker.phone.number(),
-    };
-    const quote = buildQuoteWith({
-      data: {
-        quote: {
-          id: '272989',
-          salesRepInfo: salesRep,
-          status: mode === 'automatic' ? 1 : 2,
-          createdAt: getUnixTime(issuedAt),
-          expiredAt: getUnixTime(expirationDate),
-          quoteNumber: faker.string.numeric(),
-          quoteTitle: faker.commerce.productName(),
-          productsList: [product],
-        },
-      },
-    });
-    const printWindow = { close: vitest.fn() } as unknown as Window;
-    const openWindow = vitest.spyOn(window, 'open').mockReturnValue(printWindow);
-    vitest.mocked(downloadQuotePdf).mockResolvedValue();
-    vitest.mocked(printQuotePdf).mockResolvedValue();
-
-    server.use(
-      graphql.query('GetQuotePdfCustomerOracle', () =>
-        HttpResponse.json({
-          data: {
-            customer: {
-              entityId: quote.data.quote.bcCustomerId,
-              customerOracleMetafields: {
-                edges: [{ node: { key: 'CUSTOMER_ID', value: oracleId } }],
-              },
-            },
+  it.each(['manual', 'automatic', 'draft', 'notification-failed', 'opening-failed'])(
+    'downloads and prints the saved quote (%s)',
+    async (mode) => {
+      const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
+      const yourCode = faker.string.uuid();
+      const oracleId = faker.string.numeric(8);
+      const product = buildQuoteProductWith({
+        options: [
+          {
+            type: faker.lorem.word(),
+            optionId: faker.number.int(),
+            optionName: faker.lorem.word(),
+            optionLabel: dimensions[0],
+            optionValue: faker.lorem.word(),
           },
+          {
+            type: faker.lorem.word(),
+            optionId: faker.number.int(),
+            optionName: 'Vostro codice',
+            optionLabel: faker.string.uuid(),
+            optionValue: faker.lorem.word(),
+          },
+          {
+            type: faker.lorem.word(),
+            optionId: faker.number.int(),
+            optionName: faker.lorem.word(),
+            optionLabel: dimensions[1],
+            optionValue: faker.lorem.word(),
+          },
+        ],
+      });
+      const issuedAt = faker.date.past();
+      const expirationDate = faker.date.future();
+      const salesRep = {
+        salesRepName: faker.person.fullName(),
+        salesRepEmail: faker.internet.email(),
+        salesRepPhoneNumber: faker.phone.number(),
+      };
+      const quoteStatus = ['draft', 'opening-failed'].includes(mode) ? 0 : 1;
+      const quote = buildQuoteWith({
+        data: {
+          quote: {
+            id: '272989',
+            salesRepInfo: salesRep,
+            status: mode === 'manual' ? 2 : quoteStatus,
+            createdAt: getUnixTime(issuedAt),
+            expiredAt: getUnixTime(expirationDate),
+            quoteNumber: faker.string.numeric(),
+            quoteTitle: faker.commerce.productName(),
+            productsList: [product],
+          },
+        },
+      });
+      const printWindow = { close: vitest.fn() } as unknown as Window;
+      const openWindow = vitest.spyOn(window, 'open').mockReturnValue(printWindow);
+      vitest.mocked(downloadQuotePdf).mockResolvedValue();
+      vitest.mocked(printQuotePdf).mockResolvedValue();
+
+      const token = faker.string.alphanumeric(40);
+      const notify = vitest.fn();
+      const update = vitest.fn();
+      server.use(
+        http.get('*/customer/current.jwt', () => HttpResponse.text(token)),
+        http.post('*/api/v1/bigcommerce/quote-pdf-created', async ({ request }) => {
+          expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
+          expect(downloadQuotePdf).not.toHaveBeenCalled();
+          if (mode === 'draft') expect(update).toHaveBeenCalledTimes(1);
+          notify(await request.json());
+          return new HttpResponse(null, { status: mode === 'notification-failed' ? 503 : 204 });
         }),
-      ),
-      graphql.query('GetQuotePdfVariants', ({ query }) => {
-        expect(query).toContain('keys: ["CUSTOM_CODES"]');
-        return HttpResponse.json({
-          data: {
-            site: {
-              p0: {
-                variants: {
-                  edges: [
-                    {
-                      node: {
-                        entityId: product.variantId,
-                        customCodes: {
-                          edges: [
-                            {
-                              node: {
-                                key: 'CUSTOM_CODES',
-                                value: `${oracleId}-other=OTHER|${oracleId}=${yourCode}`,
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    },
-                  ],
+        graphql.operation(({ query }) => {
+          if (!query.includes('quoteUpdate(')) return undefined;
+          expect(notify).not.toHaveBeenCalled();
+          update(query);
+          if (mode === 'opening-failed')
+            return HttpResponse.json({ errors: [{ message: 'Update failed' }] });
+          return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
+        }),
+        graphql.query('GetQuotePdfCustomerOracle', () =>
+          HttpResponse.json({
+            data: {
+              customer: {
+                entityId: quote.data.quote.bcCustomerId,
+                customerOracleMetafields: {
+                  edges: [{ node: { key: 'CUSTOMER_ID', value: oracleId } }],
                 },
               },
             },
-          },
-        });
-      }),
-      graphql.query('GetQuotePdfAddresses', () =>
-        HttpResponse.json({ data: { addresses: { edges: [], pageInfo: { hasNextPage: false } } } }),
-      ),
-      graphql.query('GetQuotePdfCompany', () => HttpResponse.json({ data: { pdfCompany: null } })),
-      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
-      graphql.query('SearchProducts', () =>
-        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
-      ),
-      graphql.query('getQuoteExtraFields', () =>
-        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
-      ),
-    );
-
-    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
-
-    renderWithProviders(<QuoteDetail />, {
-      initialEntries: [
-        { pathname: '/quoteDetail/272989', state: { downloadPdf: mode === 'automatic' } },
-      ],
-      preloadedState: {
-        ...preloadedState,
-        global: { ...preloadedState.global, backorderEnabled: false },
-        company: buildCompanyStateWith({
-          companyInfo: { status: CompanyStatus.APPROVED },
-          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+          }),
+        ),
+        graphql.query('GetQuotePdfVariants', ({ query }) => {
+          expect(query).toContain('keys: ["CUSTOM_CODES"]');
+          return HttpResponse.json({
+            data: {
+              site: {
+                p0: {
+                  variants: {
+                    edges: [
+                      {
+                        node: {
+                          entityId: product.variantId,
+                          customCodes: {
+                            edges: [
+                              {
+                                node: {
+                                  key: 'CUSTOM_CODES',
+                                  value: `${oracleId}-other=OTHER|${oracleId}=${yourCode}`,
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          });
         }),
-      },
-    });
-
-    if (mode === 'manual') {
-      await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
-      await userEvent.click(screen.getByRole('button', { name: /Download/ }));
-    }
-
-    await waitFor(() => {
-      expect(downloadQuotePdf).toHaveBeenCalledWith(
-        expect.objectContaining({
-          quoteNumber: quote.data.quote.quoteNumber,
-          isDraft: false,
-          quoteTitle: quote.data.quote.quoteTitle,
-          salesRep: {
-            name: salesRep.salesRepName,
-            email: salesRep.salesRepEmail,
-            phone: salesRep.salesRepPhoneNumber,
-          },
-          referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
-          issuedAt: expect.any(String),
-          expirationDate: expect.any(String),
-          lines: expect.arrayContaining([
-            expect.objectContaining({
-              articleCode: product.productName,
-              unitPrice: expect.not.stringMatching(/\p{Sc}/u),
-              dimensions,
-              yourCode,
-              packaging: expect.arrayContaining([
-                expect.stringContaining('Box:'),
-                expect.stringContaining('Mastercarton:'),
-                expect.stringContaining('Pallet:'),
-              ]),
-            }),
-          ]),
-        }),
+        graphql.query('GetQuotePdfAddresses', () =>
+          HttpResponse.json({
+            data: { addresses: { edges: [], pageInfo: { hasNextPage: false } } },
+          }),
+        ),
+        graphql.query('GetQuotePdfCompany', () =>
+          HttpResponse.json({ data: { pdfCompany: null } }),
+        ),
+        graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+        graphql.query('SearchProducts', () =>
+          HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+        ),
+        graphql.query('getQuoteExtraFields', () =>
+          HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+        ),
       );
-    });
 
-    if (mode === 'automatic') {
-      expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
-      return;
-    }
+      vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
-    const downloadButton = screen.getByRole('button', { name: /Download/ });
-    const printButton = screen.getByRole('button', { name: 'Print' });
-    expect(downloadButton.compareDocumentPosition(printButton)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    await userEvent.click(printButton);
+      renderWithProviders(<QuoteDetail />, {
+        initialEntries: [
+          { pathname: '/quoteDetail/272989', state: { downloadPdf: mode === 'automatic' } },
+        ],
+        preloadedState: {
+          ...preloadedState,
+          global: { ...preloadedState.global, backorderEnabled: false },
+          company: buildCompanyStateWith({
+            companyInfo: { status: CompanyStatus.APPROVED },
+            customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+          }),
+        },
+      });
 
-    await waitFor(() => {
-      expect(printQuotePdf).toHaveBeenCalledWith(
-        expect.objectContaining({
-          referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
-        }),
-        printWindow,
+      if (mode !== 'automatic') {
+        await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
+        await userEvent.click(screen.getByRole('button', { name: /Download/ }));
+      }
+
+      if (mode === 'notification-failed' || mode === 'opening-failed') {
+        expect(
+          await screen.findByText('The PDF could not be created. Please try again.'),
+        ).toBeInTheDocument();
+        expect(downloadQuotePdf).not.toHaveBeenCalled();
+        if (mode === 'opening-failed') expect(notify).not.toHaveBeenCalled();
+        return;
+      }
+
+      await waitFor(() => {
+        expect(downloadQuotePdf).toHaveBeenCalledWith(
+          expect.objectContaining({
+            quoteNumber: quote.data.quote.quoteNumber,
+            isDraft: false,
+            quoteTitle: quote.data.quote.quoteTitle,
+            salesRep: {
+              name: salesRep.salesRepName,
+              email: salesRep.salesRepEmail,
+              phone: salesRep.salesRepPhoneNumber,
+            },
+            referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
+            issuedAt: expect.any(String),
+            expirationDate: expect.any(String),
+            lines: expect.arrayContaining([
+              expect.objectContaining({
+                articleCode: product.productName,
+                unitPrice: expect.not.stringMatching(/\p{Sc}/u),
+                dimensions,
+                yourCode,
+                packaging: expect.arrayContaining([
+                  expect.stringContaining('Box:'),
+                  expect.stringContaining('Mastercarton:'),
+                  expect.stringContaining('Pallet:'),
+                ]),
+              }),
+            ]),
+          }),
+        );
+      });
+
+      expect(notify).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(quote.data.quote.id) });
+      if (mode === 'draft') {
+        expect(update.mock.calls[0][0]).toContain('status: "1"');
+        expect(await screen.findByText('Open')).toBeInTheDocument();
+      } else {
+        expect(update).not.toHaveBeenCalled();
+      }
+      if (mode !== 'manual') {
+        expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
+        return;
+      }
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled());
+      const downloadButton = screen.getByRole('button', { name: /Download/ });
+      const printButton = screen.getByRole('button', { name: 'Print' });
+      expect(downloadButton.compareDocumentPosition(printButton)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
       );
-    });
-    expect(openWindow).toHaveBeenCalledWith('', '_blank');
-    expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
-  });
+      await userEvent.click(printButton);
+
+      await waitFor(() => {
+        expect(printQuotePdf).toHaveBeenCalledWith(
+          expect.objectContaining({
+            referenceNumber: quote.data.quote.referenceNumber || quote.data.quote.quoteNumber,
+          }),
+          printWindow,
+        );
+      });
+      expect(openWindow).toHaveBeenCalledWith('', '_blank');
+      expect(downloadQuotePdf).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('displays the quote status and issue date without an expiration date', async () => {
     const quote = buildQuoteWith({

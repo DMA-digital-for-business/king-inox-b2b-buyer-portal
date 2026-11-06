@@ -11,6 +11,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
+import notifyQuotePdfCreated from '@/pages/quote/shared/notifyQuotePdfCreated';
 import { GlobalContext } from '@/shared/global';
 import {
   getB2BQuoteDetail,
@@ -348,6 +349,7 @@ function QuoteDetail() {
     location.state?.downloadPdf === true,
   );
   const autoDownloadStarted = useRef(false);
+  const pdfDownloadInProgress = useRef(false);
 
   const isBackorderEnabled = useIsBackorderEnabled();
 
@@ -688,13 +690,13 @@ function QuoteDetail() {
     companyFields: quoteDetail.companyId?.extraFields,
   });
 
-  const buildCurrentQuotePdfData = async (): Promise<QuotePdfData> => {
+  const buildCurrentQuotePdfData = async (status = quoteDetail.status): Promise<QuotePdfData> => {
     const resources = await loadPdfResources();
     const selectedAddress = resources.addresses.find(
       ({ id }) => String(id) === String(quoteDetail.shippingAddress?.addressId),
     );
     const shippingFields = selectedAddress?.extraFields || quoteDetail.shippingAddress?.extraFields;
-    const isDraft = Number(quoteDetail.status) === 0;
+    const isDraft = Number(status) === 0;
     const tbd = b3Lang('quoteDetail.summary.tbd');
     const formatPdfPrice = (price: number, showCurrencyToken = true) =>
       shouldHidePrice
@@ -751,9 +753,7 @@ function QuoteDetail() {
       '4': 'global.quoteStatusCode.ordered',
       '5': 'global.quoteStatusCode.expired',
     };
-    const statusLabel = b3Lang(
-      statusLabelKeys[String(quoteDetail.status)] || 'global.quoteStatusCode.open',
-    );
+    const statusLabel = b3Lang(statusLabelKeys[String(status)] || 'global.quoteStatusCode.open');
     const quotedSubtotal = Number(quoteSummary.originalSubtotal) - Number(quoteSummary.discount);
     let visibleSubtotal = quotedSubtotal;
     if (enteredInclusiveTax && !showInclusiveTaxPrice) {
@@ -763,12 +763,12 @@ function QuoteDetail() {
     }
     const shippingIsTbd =
       !quoteDetail?.shippingMethod?.id &&
-      ((!quoteDetail?.salesRepEmail && Number(quoteDetail.status) === 1) ||
-        (quoteDetail?.salesRepEmail && [1, 5].includes(Number(quoteDetail.status))));
+      ((!quoteDetail?.salesRepEmail && Number(status) === 1) ||
+        (quoteDetail?.salesRepEmail && [1, 5].includes(Number(status))));
     const taxIsTbd =
       quoteDetail?.salesRepEmail &&
       !quoteDetail?.shippingMethod?.id &&
-      [1, 5].includes(Number(quoteDetail.status));
+      [1, 5].includes(Number(status));
 
     return {
       storeName,
@@ -845,16 +845,26 @@ function QuoteDetail() {
   };
 
   const exportPdf = async () => {
+    if (pdfDownloadInProgress.current) return;
     if (!hasShippingAddress(quoteDetail.shippingAddress)) {
       snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequiredForPdf'));
       return;
     }
+    pdfDownloadInProgress.current = true;
     setIsRequestLoading(true);
     try {
-      await downloadQuotePdf(await buildCurrentQuotePdfData());
+      let pdfStatus = quoteDetail.status;
+      if (Number(pdfStatus) === 0) {
+        await updateQuote({ id: quoteDetail.id, quoteData: { status: '1' } });
+        pdfStatus = '1';
+        setQuoteDetail({ ...quoteDetail, status: pdfStatus });
+      }
+      await notifyQuotePdfCreated(String(quoteDetail.id));
+      await downloadQuotePdf(await buildCurrentQuotePdfData(pdfStatus));
     } catch {
       snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
     } finally {
+      pdfDownloadInProgress.current = false;
       setIsRequestLoading(false);
     }
   };
