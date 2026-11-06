@@ -1,4 +1,10 @@
 {
+  "quoteDetail.header.documentTitle": "Preventivo",
+  "quoteDetail.header.issuedDate": "Rilasciato il {date}",
+  "quoteDetail.header.expiryDate": "Scadenza {date}",
+  "quoteDetail.requestOffer": "Richiedi offerta",
+  "quoteDetail.convertToOrder": "Converti in ordine",
+  "quoteDetail.convertToOrder.error": "Conversione in ordine non riuscita. Riprova.",
   "quoteDetail.sendToKing.sentAt": "Inviato a King inox il {date}",
   "quoteDetail.sendToKing.error": "Invio a King inox non riuscito. Riprova.",
   "global.tips.loading": "Caricamento...",

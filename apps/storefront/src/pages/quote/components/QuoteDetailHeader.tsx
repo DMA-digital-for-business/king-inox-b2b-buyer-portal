@@ -123,7 +123,7 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
       >
         <Grid
           item
-          {...gridOptions(8)}
+          {...gridOptions(4)}
           sx={{
             color: customColor,
           }}
@@ -136,19 +136,34 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
             }}
           >
             <Typography
+              component="h1"
               sx={{
                 marginRight: '10px',
                 fontSize: '34px',
                 color: b3HexToRgb(customColor, 0.87),
               }}
             >
-              {b3Lang('quoteDetail.header.quoteNumber', {
-                quoteNumber: quoteNumber || '',
-              })}
+              {b3Lang('quoteDetail.header.documentTitle')}
             </Typography>
 
             <QuoteStatus code={status} />
           </Box>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            {quoteNumber ? `#${quoteNumber}` : ''}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {b3Lang('quoteDetail.header.issuedDate', {
+              date: issuedAt ? String(displayFormat(Number(issuedAt))) : '',
+            })}
+            {!!expiredAt && expiredAt > 0 && (
+              <>
+                {' - '}
+                {b3Lang('quoteDetail.header.expiryDate', {
+                  date: String(displayFormat(Number(expiredAt))),
+                })}
+              </>
+            )}
+          </Typography>
           {(salesRepInfo?.salesRepName || salesRepInfo?.salesRepEmail) && (
             <StyledCreateName>
               <Typography
@@ -167,28 +182,6 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
               </span>
             </StyledCreateName>
           )}
-          <Box>
-            <StyledCreateName>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  marginRight: '0.5rem',
-                  fontSize: '16px',
-                }}
-              >
-                {b3Lang('quoteDetail.header.issuedOn')}
-              </Typography>
-              <span>{`${issuedAt ? displayFormat(Number(issuedAt)) : ''}`}</span>
-            </StyledCreateName>
-            {Number(status) === 1 && !!expiredAt && expiredAt > 0 && (
-              <StyledCreateName>
-                <Typography variant="subtitle2" sx={{ marginRight: '0.5rem', fontSize: '16px' }}>
-                  {b3Lang('quoteDetail.header.expirationDate')}
-                </Typography>
-                <span>{String(displayFormat(Number(expiredAt)))}</span>
-              </StyledCreateName>
-            )}
-          </Box>
         </Grid>
         {Number(role) !== 100 && (
           <Grid
@@ -197,9 +190,18 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
               textAlign: isMobile ? 'none' : 'end',
               displayPrint: 'none',
             }}
-            {...gridOptions(4)}
+            {...gridOptions(8)}
           >
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                alignItems: 'flex-start',
+                justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                flexWrap: 'wrap',
+                '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: '44px' },
+              }}
+            >
               <CustomButton
                 variant="outlined"
                 disabled={busy}
@@ -245,7 +247,7 @@ function QuoteDetailHeader(props: QuoteDetailHeaderProps) {
                   />
                 </SvgIcon>
               </CustomButton>
-              {Number(status) === 1
+              {[0, 1].includes(Number(status))
                 ? sendAction
                 : status !== '' &&
                   !busy && (

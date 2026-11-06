@@ -1,4 +1,10 @@
 {
+  "quoteDetail.header.documentTitle": "Quote",
+  "quoteDetail.header.issuedDate": "Issued on {date}",
+  "quoteDetail.header.expiryDate": "Expires on {date}",
+  "quoteDetail.requestOffer": "Request offer",
+  "quoteDetail.convertToOrder": "Convert to order",
+  "quoteDetail.convertToOrder.error": "Unable to convert to order. Please try again.",
   "quoteDetail.sendToKing.sentAt": "Sent to King inox on {date}",
   "quoteDetail.sendToKing.error": "Unable to send to King inox. Please try again.",
   "global.tips.loading": "Loading...",

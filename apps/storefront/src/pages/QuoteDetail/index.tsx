@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ShoppingCartCheckout } from '@mui/icons-material';
 import { Box, Button, Grid, Typography } from '@mui/material';
 import copy from 'copy-to-clipboard';
 import { get } from 'lodash-es';
@@ -308,6 +309,8 @@ function QuoteDetail() {
   const [originalExtraFields, setOriginalExtraFields] = useState<QuoteExtraFieldsData[]>([]);
   const [isSendingToKing, setIsSendingToKing] = useState(false);
   const sendingToKing = useRef(false);
+  const [isConvertingToOrder, setIsConvertingToOrder] = useState(false);
+  const convertingToOrder = useRef(false);
   const [productList, setProductList] = useState<ProductInfoProps[]>([]);
   const hasBackorderedItems = productList.some((item) => (item.quantityBackordered ?? 0) > 0);
   const [fileList, setFileList] = useState<FileObjects[]>([]);
@@ -1051,6 +1054,23 @@ function QuoteDetail() {
       setIsSendingToKing(false);
     }
   };
+  const convertToOrder = async () => {
+    if (!canSendToKing || convertingToOrder.current) return;
+    convertingToOrder.current = true;
+    setIsConvertingToOrder(true);
+    try {
+      if (Number(quoteDetail.status) === 0) {
+        await updateQuote({ id: quoteDetail.id, quoteData: { status: '1' } });
+        setQuoteDetail({ ...quoteDetail, status: '1' });
+      }
+      console.log('TODO: convertire il preventivo in ordine', quoteDetail.id);
+    } catch {
+      snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
+    } finally {
+      convertingToOrder.current = false;
+      setIsConvertingToOrder(false);
+    }
+  };
   const formattedQuoteTotal = shouldHidePrice
     ? b3Lang('quoteDraft.quoteSummary.tbd')
     : formatQuoteSummaryPrice(
@@ -1092,17 +1112,39 @@ function QuoteDetail() {
           exportPdf={exportPdf}
           printQuote={printQuote}
           sendAction={
-            isOpenQuote &&
+            [0, 1].includes(Number(quoteDetail.status)) &&
             canSendToKing &&
             Number(role) !== 100 && (
               <Box sx={{ textAlign: 'right', displayPrint: 'none' }}>
-                <Button
-                  variant="contained"
-                  disabled={isRequestLoading || isSendingToKing || !!sentToKingField}
-                  onClick={sendToKing}
-                >
-                  {b3Lang('quoteDraft.button.submit')}
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  {isOpenQuote && (
+                    <Button
+                      variant="contained"
+                      disabled={
+                        isRequestLoading ||
+                        isSendingToKing ||
+                        isConvertingToOrder ||
+                        !!sentToKingField
+                      }
+                      onClick={sendToKing}
+                    >
+                      {b3Lang('quoteDetail.requestOffer')}
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    disabled={isRequestLoading || isSendingToKing || isConvertingToOrder}
+                    sx={{
+                      backgroundColor: '#15803d',
+                      color: '#ffffff',
+                      '&:hover': { backgroundColor: '#166534' },
+                    }}
+                    startIcon={<ShoppingCartCheckout />}
+                    onClick={convertToOrder}
+                  >
+                    {b3Lang('quoteDetail.convertToOrder')}
+                  </Button>
+                </Box>
                 {sentToKingDate && !Number.isNaN(sentToKingDate.getTime()) && (
                   <Typography variant="body2" sx={{ mt: 1 }}>
                     {b3Lang('quoteDetail.sendToKing.sentAt', {
