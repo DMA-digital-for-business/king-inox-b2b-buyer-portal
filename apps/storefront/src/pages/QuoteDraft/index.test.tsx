@@ -597,6 +597,7 @@ it.each([
     }),
   );
   expect(downloadButton).toBeDisabled();
+  expect(screen.getByRole('status')).toBeVisible();
   expect(downloadQuotePdf).not.toHaveBeenCalled();
   expect(
     screen.queryByText(/Keep this page open until you see the confirmation/),
@@ -2480,12 +2481,13 @@ describe('when the user is a B2B customer', () => {
 
       await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
 
-      await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
-      expect(await screen.findByRole('button', { name: 'Request offer' })).toBeDisabled();
+      const requestOfferButton = await screen.findByRole('button', { name: 'Request offer' });
+      await userEvent.click(requestOfferButton);
+      expect(requestOfferButton).toBeDisabled();
       expect(
         screen.queryByText(/Keep this page open until you see the confirmation/),
       ).not.toBeInTheDocument();
-      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0);
+      expect(screen.getByRole('status')).toBeVisible();
       completeSubmission();
 
       await waitFor(() => {

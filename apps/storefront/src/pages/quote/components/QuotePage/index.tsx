@@ -19,7 +19,6 @@ interface QuoteAction {
 
 interface QuotePageProps {
   busy: boolean;
-  coverContent?: boolean;
   loadingLabel?: string;
   status: string;
   quoteNumber?: string;
@@ -42,7 +41,6 @@ interface QuotePageProps {
 
 export default function QuotePage({
   busy,
-  coverContent,
   loadingLabel,
   status,
   quoteNumber,
@@ -66,7 +64,7 @@ export default function QuotePage({
   const customColor = getContrastColor(backgroundColor);
 
   return (
-    <QuoteLoading busy={busy} coverContent={coverContent} loadingLabel={loadingLabel}>
+    <QuoteLoading busy={busy} loadingLabel={loadingLabel}>
       <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, width: '100%', mb: '60px' }}>
         {back && (
           <Button

@@ -1075,7 +1075,6 @@ function QuoteDetail() {
   return (
     <QuotePage
       busy={busy}
-      coverContent={isAutoDownloadingPdf || isPrintingPdf || isRequestLoading}
       loadingLabel={
         isAutoDownloadingPdf || isPrintingPdf
           ? b3Lang('quoteDraft.pdf.generating')

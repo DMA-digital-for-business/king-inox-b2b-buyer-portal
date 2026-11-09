@@ -247,7 +247,7 @@ describe('when the user is a B2B customer', () => {
         expect(update).not.toHaveBeenCalled();
         if (status === 0) expect(quoteReads).toBeGreaterThan(1);
         expect(screen.queryByText(responseMessage)).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Request offer' })).toBeDisabled();
+        expect(screen.getByRole('status')).toBeVisible();
         sendRequest(await request.json());
         if (mode === 'failed' || (mode === 'retry' && sendRequest.mock.calls.length === 1)) {
           return new HttpResponse(null, { status: 503 });

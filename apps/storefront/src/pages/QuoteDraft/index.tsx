@@ -820,7 +820,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   return (
     <QuotePage
       busy={loading || isGeneratingPdf}
-      coverContent={isGeneratingPdf}
       status="0"
       back={{
         label: backText(),
