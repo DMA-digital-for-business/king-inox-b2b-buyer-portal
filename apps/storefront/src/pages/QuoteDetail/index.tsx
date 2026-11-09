@@ -303,7 +303,6 @@ function QuoteDetail() {
   const [originalExtraFields, setOriginalExtraFields] = useState<QuoteExtraFieldsData[]>([]);
   const [isSendingToKing, setIsSendingToKing] = useState(false);
   const sendingToKing = useRef(false);
-  const [submittedOfferQuoteId, setSubmittedOfferQuoteId] = useState<string>();
   const [quoteSubmissionResponseOpen, setQuoteSubmissionResponseOpen] = useState(false);
   const [isConvertingToOrder, setIsConvertingToOrder] = useState(false);
   const convertingToOrder = useRef(false);
@@ -1000,7 +999,6 @@ function QuoteDetail() {
     : isEnableProductShowCheckoutFrontendFlow;
 
   const isOpenQuote = Number(quoteDetail.status) === 1;
-  const offerSubmitted = submittedOfferQuoteId === String(quoteDetail.id);
   const canSendToKing =
     !isB2BUser ||
     verifyCreatePermission(
@@ -1008,9 +1006,15 @@ function QuoteDetail() {
       Number(selectCompanyHierarchyId),
     );
   const sentToKingField = originalExtraFields.find(
-    (field) => field.fieldName === 'send_to_king_timestampa',
+    (field) => field.fieldName === 'DATA INVIO QUOTE',
   );
-  const sentToKingDate = sentToKingField ? new Date(String(sentToKingField.fieldValue)) : null;
+  const sentToKingValue = String(sentToKingField?.fieldValue ?? '').trim();
+  const offerSubmitted = sentToKingValue !== '';
+  const sentToKingTimestamp = Number(sentToKingValue);
+  const sentToKingDate =
+    offerSubmitted && Number.isFinite(sentToKingTimestamp) && sentToKingTimestamp > 0
+      ? new Date(sentToKingTimestamp < 1e12 ? sentToKingTimestamp * 1000 : sentToKingTimestamp)
+      : null;
   const sendToKing = async () => {
     if (!canSendToKing || offerSubmitted || sendingToKing.current) return;
     sendingToKing.current = true;
@@ -1019,10 +1023,9 @@ function QuoteDetail() {
       await ensureQuoteOpen();
       await sendQuoteToKing(String(quoteDetail.id), quoteDetail.createdAt);
       setOriginalExtraFields([
-        ...originalExtraFields.filter((field) => field.fieldName !== 'send_to_king_timestampa'),
-        { fieldName: 'send_to_king_timestampa', fieldValue: new Date().toISOString() },
+        ...originalExtraFields.filter((field) => field.fieldName !== 'DATA INVIO QUOTE'),
+        { fieldName: 'DATA INVIO QUOTE', fieldValue: Math.floor(Date.now() / 1000) },
       ]);
-      setSubmittedOfferQuoteId(String(quoteDetail.id));
       setQuoteSubmissionResponseOpen(true);
     } catch {
       snackbar.error(b3Lang('quoteDetail.sendToKing.error'));

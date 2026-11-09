@@ -168,13 +168,17 @@ describe('when the user is a B2B customer', () => {
     { status: 0, mode: 'success' },
     { status: 1, mode: 'success' },
     { status: 1, mode: 'sent' },
+    { status: 1, mode: 'sent-string' },
+    { status: 1, mode: 'sent-ms' },
+    { status: 1, mode: 'empty-date' },
+    { status: 1, mode: 'legacy-date' },
     { status: 0, mode: 'failed' },
     { status: 1, mode: 'failed' },
     { status: 0, mode: 'opening-failed' },
     { status: 0, mode: 'missing-token' },
     { status: 0, mode: 'retry' },
   ])('requests an offer for status $status ($mode)', async ({ status, mode }) => {
-    const sentAt = faker.date.recent().toISOString();
+    const sentAt = Math.floor(faker.date.recent().getTime() / 1000);
     const token = faker.string.alphanumeric(40);
     const quoteId = faker.number.int({ min: 100000, max: 999999 }).toString();
     const createdAt = getUnixTime(faker.date.past());
@@ -185,11 +189,26 @@ describe('when the user is a B2B customer', () => {
           productsList: [buildQuoteProductWith('WHATEVER_VALUES')],
           createdAt,
           status,
-          extraFields:
-            mode === 'sent' ? [{ fieldName: 'send_to_king_timestampa', fieldValue: sentAt }] : [],
+          extraFields: mode.startsWith('sent')
+            ? [
+                {
+                  fieldName: 'DATA INVIO QUOTE',
+                  fieldValue: mode === 'sent-ms' ? sentAt * 1000 : String(sentAt),
+                },
+              ]
+            : [],
         },
       },
     });
+    if (mode === 'sent') {
+      quote.data.quote.extraFields = [{ fieldName: 'DATA INVIO QUOTE', fieldValue: sentAt }];
+    }
+    if (mode === 'empty-date') {
+      quote.data.quote.extraFields = [{ fieldName: 'DATA INVIO QUOTE', fieldValue: '' }];
+    }
+    if (mode === 'legacy-date') {
+      quote.data.quote.extraFields = [{ fieldName: 'send_to_king_timestampa', fieldValue: sentAt }];
+    }
     const update = vitest.fn();
     let quoteReads = 0;
     const sendRequest = vitest.fn();
@@ -253,6 +272,17 @@ describe('when the user is a B2B customer', () => {
     expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
     const download = screen.getByRole('button', { name: /Download/ });
     expect(download.compareDocumentPosition(send)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    if (mode.startsWith('sent')) {
+      await waitFor(() => expect(download).toBeEnabled());
+      expect(send).toBeDisabled();
+      expect(
+        screen.getByText(`Sent to King inox on ${new Date(sentAt * 1000).toLocaleString('en')}`),
+      ).toBeVisible();
+      expect(sendRequest).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      return;
+    }
     await waitFor(() => expect(send).toBeEnabled());
     await user.click(send);
     if (['failed', 'opening-failed', 'missing-token', 'retry'].includes(mode)) {
