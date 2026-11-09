@@ -14,6 +14,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
+import createOrderFromQuote from '@/pages/quote/shared/createOrderFromQuote';
 import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
 import { createQuote, getB2BCustomerAddresses, getBCCustomerAddresses } from '@/shared/service/b2b';
@@ -527,6 +528,12 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     setQuoteSubmissionResponseOpen(true);
   };
 
+  const convertCreatedQuoteToOrder = async (quote: QuoteSubmissionDataRefType) => {
+    await createOrderFromQuote(String(quote.id), Number(quote.createdAt));
+    handleReset();
+    navigate('/orders');
+  };
+
   const handleSubmit = async (downloadPdf = false, convertToOrder = false) => {
     if (submissionInProgress.current || loading) {
       return;
@@ -537,8 +544,12 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     setLoading(true);
 
     try {
-      if (!downloadPdf && !convertToOrder && quoteSubmissionDataRef.current) {
-        await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
+      if (!downloadPdf && quoteSubmissionDataRef.current) {
+        if (convertToOrder) {
+          await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current);
+        } else {
+          await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
+        }
         return;
       }
       const info = cloneDeep(quoteInfoOrigin);
@@ -748,10 +759,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         },
       } = response;
 
-      if (convertToOrder) {
-        console.log('TODO: convertire il preventivo in ordine', id);
-      }
-
       if (id) {
         const cartId = B3LStorage.get('cartToQuoteId');
         const deleteCartObject = deleteCartData(cartId);
@@ -768,8 +775,10 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       quoteSubmissionDataRef.current = { id, createdAt, uuid };
 
-      if (downloadPdf || convertToOrder) {
-        handleAfterSubmit(quoteSubmissionDataRef.current, downloadPdf);
+      if (convertToOrder) {
+        await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current);
+      } else if (downloadPdf) {
+        handleAfterSubmit(quoteSubmissionDataRef.current, true);
       } else {
         await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
       }

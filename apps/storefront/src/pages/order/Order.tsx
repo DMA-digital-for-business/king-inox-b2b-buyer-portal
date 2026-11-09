@@ -24,6 +24,8 @@ import { displayFormat } from '@/utils/b3DateFormat';
 
 import { type CursorLocationState } from '../OrderDetail/components/CursorDetailPagination';
 
+import OrderStatus from './components/OrderStatus';
+import { orderStatusTranslationVariables } from './shared/getOrderStatus';
 import { B3Table, PossibleNodeWrapper, TableColumnItem } from './table/B3Table';
 import {
   adaptCompanyUnifiedToLegacyFilterParams,
@@ -356,6 +358,13 @@ function Order({ isCompanyOrder = false }: OrderProps) {
         hidden: !isB2BUser || isSuperAdminNotAgenting || !isCompanyOrder,
       },
       {
+        key: 'status',
+        title: b3Lang('orders.orderStatus'),
+        render: ({ status, statusText }) => <OrderStatus code={status} text={statusText} />,
+        width: '15%',
+        isSortable: false,
+      },
+      {
         key: 'createdAt',
         title: b3Lang('orders.createdOn'),
         render: ({ createdAt }) => `${displayFormat(Number(createdAt))}`,
@@ -424,11 +433,17 @@ function Order({ isCompanyOrder = false }: OrderProps) {
 
   const listItems = useMemo(
     () =>
-      (data?.edges ?? []).map((edge) => ({
-        ...edge,
-        statusText: getOrderStatusText(edge.status, getOrderStatuses),
-      })),
-    [data?.edges, getOrderStatuses],
+      (data?.edges ?? []).map((edge) => {
+        const translationKey = orderStatusTranslationVariables[edge.status];
+        const translatedStatus = translationKey ? b3Lang(translationKey) : '';
+        const statusText =
+          translatedStatus && translatedStatus !== edge.status
+            ? translatedStatus
+            : getOrderStatusText(edge.status, getOrderStatuses) || edge.statusText;
+
+        return { ...edge, statusText };
+      }),
+    [b3Lang, data?.edges, getOrderStatuses],
   );
 
   const navigateToOrderDetail = isUnifiedOrders

@@ -488,12 +488,13 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
 it.each([
   'download',
   'convert',
+  'convert-failed',
   'offer',
   'offer-setting-off',
   'offer-retry',
   'creation-failed',
 ] as const)('submits the draft through %s', async (action) => {
-  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const checkout = vi.fn();
   const update = vi.fn();
   const send = vi.fn();
   const token = faker.string.alphanumeric(40);
@@ -557,6 +558,12 @@ it.each([
       }
       return HttpResponse.json({}, { status: 201 });
     }),
+    http.post('*/api/v1/bigcommerce/quote-checkout', async ({ request }) => {
+      expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
+      expect(screen.getByRole('status')).toBeVisible();
+      checkout(await request.json());
+      return HttpResponse.json({}, { status: action === 'convert-failed' ? 500 : 200 });
+    }),
     graphql.mutation('DeleteCart', () =>
       HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
     ),
@@ -587,7 +594,7 @@ it.each([
   expect(await screen.findByRole('button', { name: 'Request offer' })).toBeInTheDocument();
   let actionName: string | RegExp = 'Request offer';
   if (action === 'download') actionName = /Download/;
-  if (action === 'convert') actionName = 'Convert to order';
+  if (action.startsWith('convert')) actionName = 'Convert to order';
   const downloadButton = await screen.findByRole('button', { name: actionName });
   await userEvent.dblClick(downloadButton);
   await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
@@ -604,6 +611,26 @@ it.each([
   ).not.toBeInTheDocument();
   expect(store.getState().global.cartNumber).toBe(initialCartCount);
   completeSubmission();
+  if (action.startsWith('convert')) {
+    if (action === 'convert-failed') {
+      expect(
+        await screen.findByText('Unable to convert to order. Please try again.'),
+      ).toBeVisible();
+      expect(navigation).not.toHaveBeenCalledWith('/orders');
+      expect(downloadButton).toBeEnabled();
+    } else {
+      await waitFor(() => expect(navigation).toHaveBeenCalledWith('/orders'));
+    }
+    expect(checkout).toHaveBeenCalledExactlyOnceWith({
+      quote_id: createdQuote.id,
+      createdAt: Number(createdQuote.createdAt),
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(createQuote).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    return;
+  }
   if (action !== 'download' && action !== 'convert') {
     if (action === 'creation-failed' || action === 'offer-retry') {
       expect(
@@ -641,14 +668,7 @@ it.each([
   });
   expect(store.getState().global.cartNumber).toBe(0);
   expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
-  if (action === 'convert') {
-    expect(update).not.toHaveBeenCalled();
-    expect(createQuote).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', createdQuote.id);
-  } else {
-    expect(update).not.toHaveBeenCalled();
-  }
-  log.mockRestore();
+  expect(update).not.toHaveBeenCalled();
 });
 
 it('displays a summary of the products within the quote draft', async () => {

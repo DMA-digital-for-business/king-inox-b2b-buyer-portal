@@ -11,6 +11,7 @@ import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
 import QuoteSubmissionResponse from '@/pages/quote/components/QuoteSubmissionResponse';
+import createOrderFromQuote from '@/pages/quote/shared/createOrderFromQuote';
 import notifyQuotePdfCreated from '@/pages/quote/shared/notifyQuotePdfCreated';
 import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
@@ -1040,7 +1041,8 @@ function QuoteDetail() {
     setIsConvertingToOrder(true);
     try {
       await ensureQuoteOpen();
-      console.log('TODO: convertire il preventivo in ordine', quoteDetail.id);
+      await createOrderFromQuote(String(quoteDetail.id), quoteDetail.createdAt);
+      navigate('/orders');
     } catch {
       snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
     } finally {

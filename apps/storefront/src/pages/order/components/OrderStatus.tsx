@@ -13,12 +13,7 @@ export default function OrderStatus(props: OrderStatusProps) {
   const status = getOrderStatus(code);
 
   return status.name ? (
-    <B3Tag
-      color={status.color}
-      textColor={status.textColor}
-      aria-hidden="true"
-      style={{ display: 'none' }}
-    >
+    <B3Tag color={status.color} textColor={status.textColor}>
       {text || status.name}
     </B3Tag>
   ) : null;

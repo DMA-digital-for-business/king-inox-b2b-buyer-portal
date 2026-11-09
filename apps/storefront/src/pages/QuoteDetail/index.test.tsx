@@ -310,15 +310,32 @@ describe('when the user is a B2B customer', () => {
     expect(screen.getByText(/Sent to King inox on/)).toBeInTheDocument();
   });
 
-  it.each([0, 1])('prepares a quote with status %s for order conversion', async (status) => {
-    const quote = buildQuoteWith({ data: { quote: { id: '272989', status } } });
-    const log = vitest.spyOn(console, 'log').mockImplementation(() => {});
+  it.each([
+    { status: 0, mode: 'success' },
+    { status: 1, mode: 'success' },
+    { status: 0, mode: 'not-open' },
+    { status: 1, mode: 'failed' },
+    { status: 1, mode: 'missing-token' },
+  ])('converts a quote to an order for status $status ($mode)', async ({ status, mode }) => {
+    const id = faker.number.int({ min: 100000, max: 999999 }).toString();
+    const token = faker.string.alphanumeric(40);
+    const createdAt = getUnixTime(faker.date.past());
+    const quote = buildQuoteWith({
+      data: {
+        quote: { id, createdAt, status, productsList: [buildQuoteProductWith('WHATEVER_VALUES')] },
+      },
+    });
+    const checkout = vitest.fn();
     const update = vitest.fn();
     let quoteReads = 0;
+    let completeCheckout: () => void = () => {};
+    const pendingCheckout = new Promise<void>((resolve) => {
+      completeCheckout = resolve;
+    });
     server.use(
       graphql.query('GetQuoteInfoB2B', () => {
         quoteReads += 1;
-        const currentStatus = quoteReads > 1 ? 1 : status;
+        const currentStatus = quoteReads > 1 && mode !== 'not-open' ? 1 : status;
         return HttpResponse.json({
           data: { quote: { ...quote.data.quote, status: currentStatus } },
         });
@@ -336,9 +353,21 @@ describe('when the user is a B2B customer', () => {
           errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
         });
       }),
+      http.get('*/customer/current.jwt', () =>
+        HttpResponse.text(mode === 'missing-token' ? '' : token),
+      ),
+      http.post('*/api/v1/bigcommerce/quote-checkout', async ({ request }) => {
+        expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
+        expect(request.headers.get('content-type')).toBe('application/json');
+        expect(screen.getByRole('status')).toBeVisible();
+        if (status === 0) expect(quoteReads).toBeGreaterThan(1);
+        checkout(await request.json());
+        await pendingCheckout;
+        return HttpResponse.json({}, { status: mode === 'failed' ? 500 : 201 });
+      }),
     );
-    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
-    renderWithProviders(<QuoteDetail />, {
+    vitest.mocked(useParams).mockReturnValue({ id });
+    const { user, navigation } = renderWithProviders(<QuoteDetail />, {
       preloadedState: {
         ...preloadedState,
         global: { ...preloadedState.global, backorderEnabled: false },
@@ -351,17 +380,29 @@ describe('when the user is a B2B customer', () => {
     });
     const convert = await screen.findByRole('button', { name: 'Convert to order' });
     await waitFor(() => expect(convert).toBeEnabled());
-    await userEvent.click(convert);
-    await waitFor(() =>
-      expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', '272989'),
-    );
-    if (status === 0) {
-      expect(update).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: 'Request offer' })).toBeInTheDocument();
-    } else {
-      expect(update).not.toHaveBeenCalled();
+    if (mode === 'not-open' || mode === 'missing-token') await user.click(convert);
+    else await user.dblClick(convert);
+    if (mode !== 'not-open' && mode !== 'missing-token') {
+      await waitFor(() =>
+        expect(checkout).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(id), createdAt }),
+      );
+      expect(convert).toBeDisabled();
+      expect(navigation).not.toHaveBeenCalledWith('/orders');
+      completeCheckout();
     }
-    log.mockRestore();
+    if (mode === 'success') {
+      await waitFor(() => expect(navigation).toHaveBeenCalledWith('/orders'));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } else {
+      expect(
+        await screen.findByText('Unable to convert to order. Please try again.'),
+      ).toBeVisible();
+      expect(navigation).not.toHaveBeenCalledWith('/orders');
+      expect(convert).toBeEnabled();
+      if (mode === 'not-open' || mode === 'missing-token') expect(checkout).not.toHaveBeenCalled();
+      else expect(checkout).toHaveBeenCalledTimes(1);
+    }
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('displays the quote number as the page "title"', async () => {

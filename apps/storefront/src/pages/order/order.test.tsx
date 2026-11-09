@@ -298,6 +298,39 @@ describe('Orders list (UI)', () => {
         ],
       );
     });
+
+    getBodyCellsForColumn('Order status').forEach((cell, index) => {
+      expect(within(cell).getByText(orderStatuses[index].customLabel)).toBeVisible();
+    });
+  });
+
+  it('translates order status badges into the active language', async () => {
+    const order = buildCompanyOrderNodeWith({ node: { status: 'Shipped' } });
+    const orderStatus = buildOrderStatusWith({
+      systemLabel: 'Shipped',
+      customLabel: 'Shipped',
+    });
+
+    server.use(
+      graphql.query('GetOrderStatuses', () =>
+        HttpResponse.json(
+          buildCompanyOrderStatusesWith({ data: { orderStatuses: [orderStatus] } }),
+        ),
+      ),
+      graphql.query('GetAllOrders', () =>
+        HttpResponse.json(
+          buildGetAllOrdersWith({ data: { allOrders: { totalCount: 1, edges: [order] } } }),
+        ),
+      ),
+    );
+
+    renderWithProviders(<Order isCompanyOrder />, {
+      preloadedState: basePreloaded,
+      initialGlobalContext: { bcLanguage: 'it' },
+    });
+
+    expect(await screen.findByText('Spedito')).toBeVisible();
+    expect(screen.queryByText('Shipped')).not.toBeInTheDocument();
   });
 
   it('shows Company but not Placed by on the non-company orders list for an approved B2B buyer', async () => {
