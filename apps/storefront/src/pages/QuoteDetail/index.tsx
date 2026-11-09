@@ -940,7 +940,6 @@ function QuoteDetail() {
       quoteNumber={quoteDetail.quoteNumber}
       issuedAt={quoteDetail.createdAt}
       expiredAt={quoteDetail.expiredAt}
-      salesRepInfo={quoteDetail.salesRepInfo}
       back={
         Number(role) !== 100
           ? {
