@@ -859,7 +859,7 @@ function QuoteDetail() {
         pdfStatus = '1';
         setQuoteDetail({ ...quoteDetail, status: pdfStatus });
       }
-      await notifyQuotePdfCreated(String(quoteDetail.id));
+      await notifyQuotePdfCreated(String(quoteDetail.id), quoteDetail.createdAt);
       await downloadQuotePdf(await buildCurrentQuotePdfData(pdfStatus));
     } catch {
       snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));

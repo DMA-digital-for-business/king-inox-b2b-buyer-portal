@@ -5,6 +5,7 @@ import notifyQuotePdfCreated from './notifyQuotePdfCreated';
 const { server } = startMockServer();
 const buildRequestWith = builder(() => ({
   quoteId: faker.string.numeric(8),
+  createdAt: Math.floor(faker.date.past().getTime() / 1000),
   token: faker.string.alphanumeric(40),
 }));
 let token: string;
@@ -30,7 +31,7 @@ it.each([
   ['king-spa---b2b-sandbox-1---english-1878633.mybigcommerce.com', STAGING_API],
   ['www.king-inox.it', STAGING_API],
 ])('notifies PDF creation using the API for %s', async (hostname, apiDomain) => {
-  const { quoteId } = buildRequestWith('WHATEVER_VALUES');
+  const { quoteId, createdAt } = buildRequestWith('WHATEVER_VALUES');
   document.body.dataset.storeBaseUrl = `https://${hostname}`;
   const notify = vi.fn();
   server.use(
@@ -42,8 +43,8 @@ it.each([
     }),
   );
 
-  await notifyQuotePdfCreated(quoteId);
-  expect(notify).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(quoteId) });
+  await notifyQuotePdfCreated(quoteId, createdAt);
+  expect(notify).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(quoteId), createdAt });
 });
 
 it.each([
@@ -53,7 +54,7 @@ it.each([
 ])(
   'uses the explicit %s environment before the storefront hostname',
   async (environment, apiDomain) => {
-    const { quoteId } = buildRequestWith('WHATEVER_VALUES');
+    const { quoteId, createdAt } = buildRequestWith('WHATEVER_VALUES');
     vi.stubGlobal('__RUNTIME_STOREFRONT_ENV__', environment);
     document.body.dataset.storeBaseUrl = 'https://king-inox.mybigcommerce.com';
     server.use(
@@ -70,12 +71,12 @@ it.each([
         () => new HttpResponse(null, { status: 204 }),
       ),
     );
-    await expect(notifyQuotePdfCreated(quoteId)).resolves.toBeUndefined();
+    await expect(notifyQuotePdfCreated(quoteId, createdAt)).resolves.toBeUndefined();
   },
 );
 
 it('reports a failed notification', async () => {
-  const { quoteId } = buildRequestWith('WHATEVER_VALUES');
+  const { quoteId, createdAt } = buildRequestWith('WHATEVER_VALUES');
   vi.stubGlobal('__RUNTIME_STOREFRONT_ENV__', 'staging');
   server.use(
     http.post(
@@ -83,13 +84,13 @@ it('reports a failed notification', async () => {
       () => new HttpResponse(null, { status: 503 }),
     ),
   );
-  await expect(notifyQuotePdfCreated(quoteId)).rejects.toThrow(
+  await expect(notifyQuotePdfCreated(quoteId, createdAt)).rejects.toThrow(
     'Unable to notify quote PDF creation (503)',
   );
 });
 
 it.each([401, 200])('does not notify when the customer JWT is unavailable (%s)', async (status) => {
-  const { quoteId } = buildRequestWith('WHATEVER_VALUES');
+  const { quoteId, createdAt } = buildRequestWith('WHATEVER_VALUES');
   const notify = vi.fn();
   server.use(
     http.get('*/customer/current.jwt', () => HttpResponse.text('', { status })),
@@ -98,6 +99,6 @@ it.each([401, 200])('does not notify when the customer JWT is unavailable (%s)',
       return new HttpResponse(null, { status: 204 });
     }),
   );
-  await expect(notifyQuotePdfCreated(quoteId)).rejects.toThrow();
+  await expect(notifyQuotePdfCreated(quoteId, createdAt)).rejects.toThrow();
   expect(notify).not.toHaveBeenCalled();
 });

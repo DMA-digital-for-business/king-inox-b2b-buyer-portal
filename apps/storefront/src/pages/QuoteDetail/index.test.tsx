@@ -550,7 +550,10 @@ describe('when the user is a B2B customer', () => {
         );
       });
 
-      expect(notify).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(quote.data.quote.id) });
+      expect(notify).toHaveBeenCalledExactlyOnceWith({
+        quote_id: Number(quote.data.quote.id),
+        createdAt: quote.data.quote.createdAt,
+      });
       if (mode === 'draft') {
         expect(update.mock.calls[0][0]).toContain('status: "1"');
         expect(await screen.findByText('Open')).toBeInTheDocument();
