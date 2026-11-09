@@ -1,8 +1,9 @@
 import { ReactNode, useContext, useState } from 'react';
 import { Close, Dehaze, ShoppingBagOutlined } from '@mui/icons-material';
-import { Badge, Box } from '@mui/material';
+import { Badge, Box, Drawer, IconButton } from '@mui/material';
 
 import { CART_URL } from '@/constants';
+import { useB3Lang } from '@/lib/lang';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 import { isB2BUserSelector, rolePermissionSelector, useAppSelector } from '@/store';
 
@@ -21,6 +22,7 @@ export default function B3MobileLayout({
   children: ReactNode;
   title: string;
 }) {
+  const b3Lang = useB3Lang();
   const isB2BUser = useAppSelector(isB2BUserSelector);
   const [isOpenMobileSidebar, setOpenMobileSidebar] = useState<boolean>(false);
   const cartNumber = useAppSelector(({ global }) => global.cartNumber);
@@ -44,8 +46,11 @@ export default function B3MobileLayout({
   return (
     <Box
       sx={{
-        height: '70vh',
-        p: '4vw',
+        minHeight: '100dvh',
+        width: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
+        p: 'clamp(16px, 4vw, 32px)',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -56,12 +61,19 @@ export default function B3MobileLayout({
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          mb: '4.5vw',
+          mb: 'clamp(16px, 4.5vw, 32px)',
+          gap: 1,
         }}
       >
-        <Badge badgeContent={0} color="secondary">
-          <Dehaze onClick={openRouteList} sx={{ color: customColor }} />
-        </Badge>
+        <IconButton
+          aria-label={b3Lang('global.navigation.openMenu')}
+          aria-expanded={isOpenMobileSidebar}
+          aria-controls={isOpenMobileSidebar ? 'buyer-portal-navigation' : undefined}
+          onClick={openRouteList}
+          sx={{ color: customColor }}
+        >
+          <Dehaze />
+        </IconButton>
 
         <B3Logo />
 
@@ -117,7 +129,7 @@ export default function B3MobileLayout({
         sx={{
           p: 0,
           m: 0,
-          mb: '6vw',
+          mb: 'clamp(16px, 6vw, 32px)',
           fontSize: '34px',
           fontWeight: '400',
           color: customColor || '#263238',
@@ -129,42 +141,48 @@ export default function B3MobileLayout({
       <Box
         sx={{
           flex: 1,
+          minWidth: 0,
           display: 'flex',
           paddingBottom: isAgenting ? '52px' : '0',
         }}
       >
         {children}
       </Box>
-      {isOpenMobileSidebar && (
+      <Drawer
+        anchor="left"
+        open={isOpenMobileSidebar}
+        onClose={() => setOpenMobileSidebar(false)}
+        PaperProps={{
+          id: 'buyer-portal-navigation',
+          sx: {
+            width: 'min(360px, 92vw)',
+            boxSizing: 'border-box',
+            p: 'clamp(16px, 4vw, 24px)',
+            overflowY: 'auto',
+          },
+        }}
+      >
         <Box
           sx={{
-            height: '100vh',
-            position: 'fixed',
-            width: '92vw',
-            zIndex: 1000,
-            left: 0,
-            top: 0,
-            p: '4vw',
-            backgroundColor: 'white',
-            boxShadow:
-              '0px 7px 8px -4px #00000033, 0px 12px 17px 2px #00000024, 0px 5px 22px 4px #0000001f',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            pb: 2,
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              pb: '4vw',
-            }}
-          >
+          <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             <B3AccountInfo closeSidebar={setOpenMobileSidebar} />
-            <Close onClick={() => setOpenMobileSidebar(false)} />
           </Box>
-
-          <B3Nav closeSidebar={setOpenMobileSidebar} />
+          <IconButton
+            aria-label={b3Lang('global.navigation.closeMenu')}
+            onClick={() => setOpenMobileSidebar(false)}
+          >
+            <Close />
+          </IconButton>
         </Box>
-      )}
+        <B3Nav closeSidebar={setOpenMobileSidebar} />
+      </Drawer>
     </Box>
   );
 }

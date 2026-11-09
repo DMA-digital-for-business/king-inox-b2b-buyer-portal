@@ -1,4 +1,6 @@
 {
+  "global.navigation.openMenu": "Menü öffnen",
+  "global.navigation.closeMenu": "Menü schließen",
   "global.tips.loading": "Wird geladen…",
   "global.button.back": "Zurück",
   "global.button.next": "Weiter",

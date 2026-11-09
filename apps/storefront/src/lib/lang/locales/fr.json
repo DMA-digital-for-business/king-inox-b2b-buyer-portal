@@ -1,4 +1,6 @@
 {
+  "global.navigation.openMenu": "Ouvrir le menu",
+  "global.navigation.closeMenu": "Fermer le menu",
   "global.tips.loading": "Chargement…",
   "global.button.back": "Retour",
   "global.button.next": "Continuer",

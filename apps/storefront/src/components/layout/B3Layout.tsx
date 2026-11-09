@@ -25,7 +25,7 @@ const SPECIAL_PATH_TEXTS = {
 
 export default function B3Layout({ children }: { children: ReactNode }) {
   const [isMobile] = useMobile();
-  const isDesktopLimit = useMediaQuery('(min-width:1775px)');
+  const isCompactLayout = useMediaQuery('(max-width:1023px)');
 
   const location = useLocation();
 
@@ -102,7 +102,7 @@ export default function B3Layout({ children }: { children: ReactNode }) {
 
   return (
     <Box>
-      {isMobile ? (
+      {isCompactLayout ? (
         <B3MobileLayout title={title}>{children}</B3MobileLayout>
       ) : (
         <Box
@@ -111,11 +111,11 @@ export default function B3Layout({ children }: { children: ReactNode }) {
             display: 'flex',
             minHeight: '100vh',
             margin: 'auto',
-            width: !isDesktopLimit ? '100%' : 1775,
-            minWidth: !isDesktopLimit ? '100%' : 1775,
-            maxWidth: !isDesktopLimit ? '100%' : 1775,
+            width: '100%',
+            maxWidth: 1775,
+            boxSizing: 'border-box',
             flexDirection: 'row',
-            p: '32px 63px 70px 63px',
+            p: { xs: '24px 24px 48px', lg: '32px 40px 70px', xl: '32px 63px 70px' },
           }}
         >
           <B3CloseAppButton />
@@ -124,6 +124,12 @@ export default function B3Layout({ children }: { children: ReactNode }) {
               display: 'flex',
               flexDirection: 'column',
               width: '200px',
+              flexShrink: 0,
+              position: 'sticky',
+              top: '32px',
+              alignSelf: 'flex-start',
+              maxHeight: 'calc(100dvh - 64px)',
+              overflowY: 'auto',
               displayPrint: 'none',
             }}
           >
@@ -140,11 +146,12 @@ export default function B3Layout({ children }: { children: ReactNode }) {
           <Box
             sx={{
               flex: 1,
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               maxWidth: '1450px',
               width: '100%',
-              p: '0 0px 0px 50px',
+              pl: { xs: '24px', lg: '32px', xl: '50px' },
               ...overflowStyle,
             }}
           >

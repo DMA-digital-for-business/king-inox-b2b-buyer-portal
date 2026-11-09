@@ -1,4 +1,6 @@
 {
+  "global.navigation.openMenu": "Open menu",
+  "global.navigation.closeMenu": "Close menu",
   "quoteDetail.header.documentTitle": "Quote",
   "quoteDetail.header.issuedDate": "Issued on {date}",
   "quoteDetail.header.expiryDate": "Expires on {date}",

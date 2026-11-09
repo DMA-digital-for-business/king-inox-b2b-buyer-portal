@@ -1,4 +1,6 @@
 {
+  "global.navigation.openMenu": "Apri menu",
+  "global.navigation.closeMenu": "Chiudi menu",
   "quoteDetail.header.documentTitle": "Preventivo",
   "quoteDetail.header.issuedDate": "Rilasciato il {date}",
   "quoteDetail.header.expiryDate": "Scadenza {date}",
