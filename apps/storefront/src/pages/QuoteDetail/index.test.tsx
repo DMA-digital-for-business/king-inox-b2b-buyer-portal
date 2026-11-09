@@ -164,95 +164,45 @@ describe('when the user is a B2B customer', () => {
     global: buildGlobalStateWith('WHATEVER_VALUES'),
   };
 
-  it.each(['downloaded', 'sent', 'failed'] as const)(
-    'handles sending a %s quote to King inox',
-    async (mode) => {
-      const sentAt = faker.date.recent().toISOString();
-      const customValue = faker.string.uuid();
-      const quote = buildQuoteWith({
-        data: {
-          quote: {
-            id: '272989',
-            status: 1,
-            extraFields: [
-              {
-                fieldName: 'DESTINAZIONE KING',
-                fieldValue: mode === 'sent' ? 'ERP' : 'HUBSPOT',
-              },
-              { fieldName: 'custom', fieldValue: customValue },
-              ...(mode === 'sent'
-                ? [{ fieldName: 'send_to_king_timestampa', fieldValue: sentAt }]
-                : []),
-            ],
-          },
+  it.each([
+    { status: 0, mode: 'success' },
+    { status: 1, mode: 'success' },
+    { status: 1, mode: 'sent' },
+    { status: 0, mode: 'failed' },
+    { status: 1, mode: 'failed' },
+    { status: 0, mode: 'opening-failed' },
+    { status: 0, mode: 'missing-token' },
+    { status: 0, mode: 'retry' },
+  ])('requests an offer for status $status ($mode)', async ({ status, mode }) => {
+    const sentAt = faker.date.recent().toISOString();
+    const token = faker.string.alphanumeric(40);
+    const quoteId = faker.number.int({ min: 100000, max: 999999 }).toString();
+    const createdAt = getUnixTime(faker.date.past());
+    const quote = buildQuoteWith({
+      data: {
+        quote: {
+          id: quoteId,
+          productsList: [buildQuoteProductWith('WHATEVER_VALUES')],
+          createdAt,
+          status,
+          extraFields:
+            mode === 'sent' ? [{ fieldName: 'send_to_king_timestampa', fieldValue: sentAt }] : [],
         },
-      });
-      const update = vitest.fn();
-      server.use(
-        graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
-        graphql.query('SearchProducts', () =>
-          HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
-        ),
-        graphql.query('getQuoteExtraFields', () =>
-          HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
-        ),
-        graphql.operation(({ query }) => {
-          if (!query.includes('quoteUpdate(')) return undefined;
-          update(query);
-          if (mode === 'failed') return HttpResponse.json({ errors: [{ message: 'Send failed' }] });
-          return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
-        }),
-      );
-      vitest.mocked(useParams).mockReturnValue({ id: '272989' });
-      renderWithProviders(<QuoteDetail />, {
-        preloadedState: {
-          ...preloadedState,
-          global: { ...preloadedState.global, backorderEnabled: false },
-          company: buildCompanyStateWith({
-            companyInfo: { status: CompanyStatus.APPROVED },
-            permissions: [{ code: 'create_quote', permissionLevel: 2 }],
-            customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
-          }),
-        },
-      });
-      const send = await screen.findByRole('button', { name: 'Request offer' });
-      expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
-      const download = screen.getByRole('button', { name: /Download/ });
-      expect(download.compareDocumentPosition(send)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-      if (mode === 'sent') {
-        expect(send).toBeDisabled();
-        expect(
-          screen.getByText(`Sent to King inox on ${new Date(sentAt).toLocaleString('en')}`),
-        ).toBeInTheDocument();
-        expect(update).not.toHaveBeenCalled();
-        return;
-      }
-      await waitFor(() => expect(send).toBeEnabled());
-      await userEvent.click(send);
-      await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
-      const query = update.mock.calls[0][0];
-      expect(query).toContain('send_to_king_timestampa');
-      expect(query).toContain('ERP');
-      expect(query).toContain(customValue);
-      expect(query).not.toContain('HUBSPOT');
-      if (mode === 'failed') {
-        expect(
-          await screen.findByText('Unable to send to King inox. Please try again.'),
-        ).toBeInTheDocument();
-        expect(send).toBeEnabled();
-      } else {
-        await waitFor(() => expect(send).toBeDisabled());
-        expect(screen.getByText(/Sent to King inox on/)).toBeInTheDocument();
-      }
-    },
-  );
-
-  it.each([0, 1])('prepares a quote with status %s for order conversion', async (status) => {
-    const quote = buildQuoteWith({ data: { quote: { id: '272989', status } } });
-    const log = vitest.spyOn(console, 'log').mockImplementation(() => {});
+      },
+    });
     const update = vitest.fn();
+    let quoteReads = 0;
+    const sendRequest = vitest.fn();
+    const responseMessage =
+      'We will respond within 2 business hours. Press OK to view the summary and details of the request you just submitted.';
     server.use(
-      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+      graphql.query('GetQuoteInfoB2B', () => {
+        quoteReads += 1;
+        const currentStatus = quoteReads > 1 && mode !== 'opening-failed' ? 1 : status;
+        return HttpResponse.json({
+          data: { quote: { ...quote.data.quote, status: currentStatus } },
+        });
+      }),
       graphql.query('SearchProducts', () =>
         HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
       ),
@@ -262,7 +212,99 @@ describe('when the user is a B2B customer', () => {
       graphql.operation(({ query }) => {
         if (!query.includes('quoteUpdate(')) return undefined;
         update(query);
-        return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
+        if (mode === 'opening-failed') {
+          return HttpResponse.json({ errors: [{ message: faker.lorem.sentence() }] });
+        }
+        return HttpResponse.json({
+          errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
+        });
+      }),
+      http.get('*/customer/current.jwt', () =>
+        HttpResponse.text(mode === 'missing-token' ? '' : token),
+      ),
+      http.post('*/api/v1/bigcommerce/send-quote-to-king', async ({ request }) => {
+        expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
+        expect(request.headers.get('content-type')).toBe('application/json');
+        expect(update).not.toHaveBeenCalled();
+        if (status === 0) expect(quoteReads).toBeGreaterThan(1);
+        expect(screen.queryByText(responseMessage)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Request offer' })).toBeDisabled();
+        sendRequest(await request.json());
+        if (mode === 'failed' || (mode === 'retry' && sendRequest.mock.calls.length === 1)) {
+          return new HttpResponse(null, { status: 503 });
+        }
+        return HttpResponse.json({}, { status: status === 0 ? 201 : 200 });
+      }),
+    );
+    vitest.mocked(useParams).mockReturnValue({ id: quoteId });
+    const { user } = renderWithProviders(<QuoteDetail />, {
+      initialEntries: [{ pathname: `/quoteDetail/${quoteId}`, state: { to: 'draft' } }],
+      preloadedState: {
+        ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
+        company: buildCompanyStateWith({
+          companyInfo: { status: CompanyStatus.APPROVED },
+          permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+        }),
+      },
+    });
+    const send = await screen.findByRole('button', { name: 'Request offer' });
+    expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
+    const download = screen.getByRole('button', { name: /Download/ });
+    expect(download.compareDocumentPosition(send)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    await waitFor(() => expect(send).toBeEnabled());
+    await user.click(send);
+    if (['failed', 'opening-failed', 'missing-token', 'retry'].includes(mode)) {
+      expect(
+        await screen.findByText('Unable to send to King inox. Please try again.'),
+      ).toBeInTheDocument();
+      expect(send).toBeEnabled();
+      expect(screen.queryByText(responseMessage)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Sent to King inox on/)).not.toBeInTheDocument();
+      if (mode === 'opening-failed' || mode === 'missing-token') {
+        expect(sendRequest).not.toHaveBeenCalled();
+        return;
+      }
+      if (mode !== 'retry') return;
+      await user.click(send);
+    }
+    expect(await screen.findByText(responseMessage)).toBeVisible();
+    expect(screen.queryByText('Your quote was submitted')).not.toBeInTheDocument();
+    expect(sendRequest).toHaveBeenLastCalledWith({ quote_id: Number(quoteId), createdAt });
+    expect(sendRequest).toHaveBeenCalledTimes(mode === 'retry' ? 2 : 1);
+    expect(update).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(send).toBeDisabled();
+    expect(screen.getByText(/Sent to King inox on/)).toBeInTheDocument();
+  });
+
+  it.each([0, 1])('prepares a quote with status %s for order conversion', async (status) => {
+    const quote = buildQuoteWith({ data: { quote: { id: '272989', status } } });
+    const log = vitest.spyOn(console, 'log').mockImplementation(() => {});
+    const update = vitest.fn();
+    let quoteReads = 0;
+    server.use(
+      graphql.query('GetQuoteInfoB2B', () => {
+        quoteReads += 1;
+        const currentStatus = quoteReads > 1 ? 1 : status;
+        return HttpResponse.json({
+          data: { quote: { ...quote.data.quote, status: currentStatus } },
+        });
+      }),
+      graphql.query('SearchProducts', () =>
+        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+      ),
+      graphql.query('getQuoteExtraFields', () =>
+        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+      ),
+      graphql.operation(({ query }) => {
+        if (!query.includes('quoteUpdate(')) return undefined;
+        update(query);
+        return HttpResponse.json({
+          errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
+        });
       }),
     );
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
@@ -284,8 +326,7 @@ describe('when the user is a B2B customer', () => {
       expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', '272989'),
     );
     if (status === 0) {
-      expect(update).toHaveBeenCalledTimes(1);
-      expect(update.mock.calls[0][0]).toContain('status: "1"');
+      expect(update).not.toHaveBeenCalled();
       expect(screen.getByRole('button', { name: 'Request offer' })).toBeInTheDocument();
     } else {
       expect(update).not.toHaveBeenCalled();
@@ -413,12 +454,13 @@ describe('when the user is a B2B customer', () => {
       const token = faker.string.alphanumeric(40);
       const notify = vitest.fn();
       const update = vitest.fn();
+      let quoteReads = 0;
       server.use(
         http.get('*/customer/current.jwt', () => HttpResponse.text(token)),
         http.post('*/api/v1/bigcommerce/quote-pdf-created', async ({ request }) => {
           expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
           expect(downloadQuotePdf).not.toHaveBeenCalled();
-          if (mode === 'draft') expect(update).toHaveBeenCalledTimes(1);
+          expect(update).not.toHaveBeenCalled();
           notify(await request.json());
           return new HttpResponse(null, { status: mode === 'notification-failed' ? 503 : 204 });
         }),
@@ -428,7 +470,9 @@ describe('when the user is a B2B customer', () => {
           update(query);
           if (mode === 'opening-failed')
             return HttpResponse.json({ errors: [{ message: 'Update failed' }] });
-          return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
+          return HttpResponse.json({
+            errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
+          });
         }),
         graphql.query('GetQuotePdfCustomerOracle', () =>
           HttpResponse.json({
@@ -480,7 +524,11 @@ describe('when the user is a B2B customer', () => {
         graphql.query('GetQuotePdfCompany', () =>
           HttpResponse.json({ data: { pdfCompany: null } }),
         ),
-        graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+        graphql.query('GetQuoteInfoB2B', () => {
+          quoteReads += 1;
+          const status = quoteReads > 1 && mode === 'draft' ? 1 : quote.data.quote.status;
+          return HttpResponse.json({ data: { quote: { ...quote.data.quote, status } } });
+        }),
         graphql.query('SearchProducts', () =>
           HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
         ),
@@ -555,7 +603,7 @@ describe('when the user is a B2B customer', () => {
         createdAt: quote.data.quote.createdAt,
       });
       if (mode === 'draft') {
-        expect(update.mock.calls[0][0]).toContain('status: "1"');
+        expect(update).not.toHaveBeenCalled();
         expect(await screen.findByText('Open')).toBeInTheDocument();
       } else {
         expect(update).not.toHaveBeenCalled();

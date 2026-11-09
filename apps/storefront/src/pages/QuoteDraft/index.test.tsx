@@ -68,6 +68,24 @@ interface VariantInfo {
 
 const { server } = startMockServer();
 
+function mockSuccessfulOfferSubmission() {
+  vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
+  vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
+  const token = faker.string.alphanumeric(40);
+  server.use(
+    http.get('*/customer/current.jwt', () => HttpResponse.text(token)),
+    http.post('*/api/v1/bigcommerce/send-quote-to-king', () =>
+      HttpResponse.json({}, { status: 201 }),
+    ),
+    graphql.operation(({ query }) => {
+      if (!query.includes('quoteUpdate(')) return undefined;
+      return HttpResponse.json({
+        errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
+      });
+    }),
+  );
+}
+
 const buildProductWith = builder<QuoteItem['node']['productsSearch']>(() => ({
   id: faker.number.int(),
   name: faker.commerce.productName(),
@@ -467,107 +485,170 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
   expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled();
 });
 
-it.each(['download', 'convert'] as const)(
-  'opens the draft for %s and skips the submission confirmation',
-  async (action) => {
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const update = vi.fn();
-    vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
-    vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
-    set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
-    const response = buildQuoteCreateResponseWith({
-      data: { quoteCreate: { quote: { createdAt: String(faker.date.recent().getTime()) } } },
-    });
-    const createdQuote = response.data.quoteCreate.quote;
-    const initialCartCount = faker.number.int({ min: 1, max: 99 });
-    const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))(
-      'WHATEVER_VALUES',
-    );
-    let completeSubmission: () => void = () => {};
-    const pendingSubmission = new Promise<void>((resolve) => {
-      completeSubmission = resolve;
-    });
-    const createQuote = vi.fn();
-    server.use(
-      graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
-      graphql.query('Addresses', () =>
-        HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
-      ),
-      graphql.query('getQuoteExtraFields', () =>
-        HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
-      ),
-      graphql.mutation('CreateQuote', async ({ variables }) => {
-        createQuote(variables.quoteData);
-        await pendingSubmission;
-        return HttpResponse.json(response);
-      }),
-      graphql.operation(({ query }) => {
-        if (!query.includes('quoteUpdate(')) return undefined;
-        update(query);
-        return HttpResponse.json({ data: { quoteUpdate: { quote: { trackingHistory: [] } } } });
-      }),
-      graphql.mutation('DeleteCart', () =>
-        HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
-      ),
-    );
-    const quoteInfo = buildQuoteInfoStateWith({
-      draftQuoteInfo: { contactInfo: { email: customerEmail } },
-    });
-    const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
-      preloadedState: {
-        ...preloadedState,
-        quoteInfo,
-        company: buildCompanyStateWith({
-          companyInfo: { status: CompanyStatus.APPROVED },
-          customer: {
-            userType: UserTypes.MULTIPLE_B2C,
-            role: CustomerRole.SENIOR_BUYER,
-            emailAddress: customerEmail,
-          },
-          permissions: [{ code: 'create_quote', permissionLevel: 2 }],
-        }),
-        global: buildGlobalStateWith({
-          backorderEnabled: true,
-          cartNumber: initialCartCount,
-          quoteSubmissionResponse: { value: '1' },
-        }),
+it.each([
+  'download',
+  'convert',
+  'offer',
+  'offer-setting-off',
+  'offer-retry',
+  'creation-failed',
+] as const)('submits the draft through %s', async (action) => {
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const update = vi.fn();
+  const send = vi.fn();
+  const token = faker.string.alphanumeric(40);
+  vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
+  vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
+  set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
+  const response = buildQuoteCreateResponseWith({
+    data: {
+      quoteCreate: {
+        quote: {
+          id: faker.number.int({ min: 100000, max: 999999 }),
+          createdAt: String(Math.floor(faker.date.recent().getTime() / 1000)),
+        },
       },
-    });
-    expect(await screen.findByRole('button', { name: 'Request offer' })).toBeInTheDocument();
-    const downloadButton = await screen.findByRole('button', {
-      name: action === 'download' ? /Download/ : 'Convert to order',
-    });
-    await userEvent.dblClick(downloadButton);
-    await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
-    expect(createQuote).toHaveBeenCalledWith(
-      expect.objectContaining({
-        extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
+    },
+  });
+  const createdQuote = response.data.quoteCreate.quote;
+  const initialCartCount = faker.number.int({ min: 1, max: 99 });
+  const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))(
+    'WHATEVER_VALUES',
+  );
+  let completeSubmission: () => void = () => {};
+  const pendingSubmission = new Promise<void>((resolve) => {
+    completeSubmission = resolve;
+  });
+  const createQuote = vi.fn();
+  server.use(
+    graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
+    graphql.query('Addresses', () =>
+      HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
+    ),
+    graphql.query('getQuoteExtraFields', () =>
+      HttpResponse.json({ data: { quoteExtraFieldsConfig: [] } }),
+    ),
+    graphql.mutation('CreateQuote', async ({ variables }) => {
+      createQuote(variables.quoteData);
+      await pendingSubmission;
+      if (action === 'creation-failed') {
+        return HttpResponse.json({ errors: [{ message: faker.lorem.sentence() }] });
+      }
+      return HttpResponse.json(response);
+    }),
+    graphql.operation(({ query }) => {
+      if (!query.includes('quoteUpdate(')) return undefined;
+      update(query);
+      if (action === 'creation-failed') {
+        return HttpResponse.json({ errors: [{ message: faker.lorem.sentence() }] });
+      }
+      return HttpResponse.json({
+        errors: [{ message: "Field 'status' is not defined by type 'QuoteUpdateInputType'." }],
+      });
+    }),
+    http.get('*/customer/current.jwt', () => HttpResponse.text(token)),
+    http.post('*/api/v1/bigcommerce/send-quote-to-king', async ({ request }) => {
+      expect(update).not.toHaveBeenCalled();
+      expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      send(await request.json());
+      if (action === 'offer-retry' && send.mock.calls.length === 1) {
+        return new HttpResponse(null, { status: 503 });
+      }
+      return HttpResponse.json({}, { status: 201 });
+    }),
+    graphql.mutation('DeleteCart', () =>
+      HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
+    ),
+  );
+  const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteInfo: { contactInfo: { email: customerEmail } },
+  });
+  const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
+    preloadedState: {
+      ...preloadedState,
+      quoteInfo,
+      company: buildCompanyStateWith({
+        companyInfo: { status: CompanyStatus.APPROVED },
+        customer: {
+          userType: UserTypes.MULTIPLE_B2C,
+          role: CustomerRole.SENIOR_BUYER,
+          emailAddress: customerEmail,
+        },
+        permissions: [{ code: 'create_quote', permissionLevel: 2 }],
       }),
-    );
-    expect(downloadButton).toBeDisabled();
-    expect(downloadQuotePdf).not.toHaveBeenCalled();
-    expect(
-      screen.queryByText(/Keep this page open until you see the confirmation/),
-    ).not.toBeInTheDocument();
-    expect(store.getState().global.cartNumber).toBe(initialCartCount);
-    completeSubmission();
-    await waitFor(() => {
+      global: buildGlobalStateWith({
+        backorderEnabled: true,
+        cartNumber: initialCartCount,
+        quoteSubmissionResponse: { value: action === 'offer-setting-off' ? '0' : '1' },
+      }),
+    },
+  });
+  expect(await screen.findByRole('button', { name: 'Request offer' })).toBeInTheDocument();
+  let actionName: string | RegExp = 'Request offer';
+  if (action === 'download') actionName = /Download/;
+  if (action === 'convert') actionName = 'Convert to order';
+  const downloadButton = await screen.findByRole('button', { name: actionName });
+  await userEvent.dblClick(downloadButton);
+  await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
+  expect(createQuote).toHaveBeenCalledWith(
+    expect.objectContaining({
+      extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
+    }),
+  );
+  expect(downloadButton).toBeDisabled();
+  expect(downloadQuotePdf).not.toHaveBeenCalled();
+  expect(
+    screen.queryByText(/Keep this page open until you see the confirmation/),
+  ).not.toBeInTheDocument();
+  expect(store.getState().global.cartNumber).toBe(initialCartCount);
+  completeSubmission();
+  if (action !== 'download' && action !== 'convert') {
+    if (action === 'creation-failed' || action === 'offer-retry') {
+      expect(
+        await screen.findByText('Unable to send to King inox. Please try again.'),
+      ).toBeVisible();
+      expect(downloadButton).toBeEnabled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      if (action === 'creation-failed') {
+        expect(send).not.toHaveBeenCalled();
+        return;
+      }
+      await userEvent.click(downloadButton);
+    }
+    expect(await screen.findByText(/We will respond within 2 business hours/)).toBeVisible();
+    expect(send).toHaveBeenLastCalledWith({
+      quote_id: createdQuote.id,
+      createdAt: Number(createdQuote.createdAt),
+    });
+    expect(send).toHaveBeenCalledTimes(action === 'offer-retry' ? 2 : 1);
+    expect(createQuote).toHaveBeenCalledTimes(1);
+    expect(update).not.toHaveBeenCalled();
+    expect(navigation).not.toHaveBeenCalledWith(expect.stringContaining('/quoteDetail/'));
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() =>
       expect(navigation).toHaveBeenCalledWith(
         `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
-      );
-    });
-    expect(store.getState().global.cartNumber).toBe(0);
-    expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
-    if (action === 'convert') {
-      expect(update).toHaveBeenCalledTimes(1);
-      expect(update.mock.calls[0][0]).toContain('status: "1"');
-      expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', createdQuote.id);
-    } else {
-      expect(update).not.toHaveBeenCalled();
-    }
-    log.mockRestore();
-  },
-);
+      ),
+    );
+    return;
+  }
+  await waitFor(() => {
+    expect(navigation).toHaveBeenCalledWith(
+      `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
+    );
+  });
+  expect(store.getState().global.cartNumber).toBe(0);
+  expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
+  if (action === 'convert') {
+    expect(update).not.toHaveBeenCalled();
+    expect(createQuote).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith('TODO: convertire il preventivo in ordine', createdQuote.id);
+  } else {
+    expect(update).not.toHaveBeenCalled();
+  }
+  log.mockRestore();
+});
 
 it('displays a summary of the products within the quote draft', async () => {
   server.use(
@@ -2137,6 +2218,7 @@ describe('when the user is a B2B customer', () => {
     });
 
     it('creates successfully a new quote when submitting the draft quote and gets redirected to quote detail', async () => {
+      mockSuccessfulOfferSubmission();
       set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
       const deleteCart = vi
         .fn()
@@ -2235,7 +2317,7 @@ describe('when the user is a B2B customer', () => {
         graphql.query('SearchProducts', () => HttpResponse.json({ data: { productsSearch: [] } })),
       );
 
-      await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+      await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
 
       await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
 
@@ -2265,7 +2347,7 @@ describe('when the user is a B2B customer', () => {
         quoteTitle: '',
         recipients: [],
         discount: '0.00',
-        extraFields: [],
+        extraFields: [{ fieldName: 'DESTINAZIONE KING', value: 'HUBSPOT' }],
         fileList: [],
         legalTerms: '',
         shippingAddress: requiredShippingAddress,
@@ -2285,11 +2367,13 @@ describe('when the user is a B2B customer', () => {
         totalAmount: '1500.00',
       });
 
+      await userEvent.click(await screen.findByRole('button', { name: 'OK' }));
       expect(navigation).toHaveBeenCalled();
       expect(navigation).toHaveBeenCalledWith('/quoteDetail/123?date=1245');
     });
 
     it('navigates correctly when quote submission response dialog is shown and then closed', async () => {
+      mockSuccessfulOfferSubmission();
       set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
       const quote = buildQuoteWith({ data: { quote: { id: '272989', quoteNumber: '911911' } } });
 
@@ -2394,7 +2478,7 @@ describe('when the user is a B2B customer', () => {
         graphql.query('SearchProducts', () => HttpResponse.json({ data: { productsSearch: [] } })),
       );
 
-      await waitForElementToBeRemoved(() => screen.queryByText(/loading/i));
+      await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
 
       await userEvent.click(await screen.findByRole('button', { name: 'Request offer' }));
       expect(await screen.findByRole('button', { name: 'Request offer' })).toBeDisabled();

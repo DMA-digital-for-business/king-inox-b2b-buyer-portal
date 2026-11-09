@@ -14,13 +14,9 @@ import { useMobile } from '@/hooks/useMobile';
 import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
+import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
-import {
-  createQuote,
-  getB2BCustomerAddresses,
-  getBCCustomerAddresses,
-  updateQuote,
-} from '@/shared/service/b2b';
+import { createQuote, getB2BCustomerAddresses, getBCCustomerAddresses } from '@/shared/service/b2b';
 import { deleteCart } from '@/shared/service/bc/graphql/cart';
 import {
   activeCurrencyInfoSelector,
@@ -153,9 +149,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const quoteInfoOrigin = useAppSelector(({ quoteInfo }) => quoteInfo.draftQuoteInfo);
   const currency = useAppSelector(activeCurrencyInfoSelector);
   const displayCurrency = useMemo(() => formatBcCurrencyToDisplayCurrency(currency), [currency]);
-  const quoteSubmissionResponseInfo = useAppSelector(
-    ({ global }) => global.quoteSubmissionResponse,
-  );
   const { selectCompanyHierarchyId } = useAppSelector(
     ({ company }) => company.companyHierarchyInfo,
   );
@@ -529,6 +522,11 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     };
   };
 
+  const requestOfferForCreatedQuote = async (quote: QuoteSubmissionDataRefType) => {
+    await sendQuoteToKing(String(quote.id), Number(quote.createdAt));
+    setQuoteSubmissionResponseOpen(true);
+  };
+
   const handleSubmit = async (downloadPdf = false, convertToOrder = false) => {
     if (submissionInProgress.current || loading) {
       return;
@@ -539,6 +537,10 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     setLoading(true);
 
     try {
+      if (!downloadPdf && !convertToOrder && quoteSubmissionDataRef.current) {
+        await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
+        return;
+      }
       const info = cloneDeep(quoteInfoOrigin);
       const { decimalPlaces } = displayCurrency;
       if (isEdit && contactInfoRef?.current) {
@@ -712,11 +714,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           ),
           {
             fieldName: 'DESTINAZIONE KING',
-            value: downloadPdf || convertToOrder ? 'HUBSPOT' : 'ERP',
+            value: 'HUBSPOT',
           },
-          ...(!downloadPdf && !convertToOrder
-            ? [{ fieldName: 'send_to_king_timestampa', value: new Date().toISOString() }]
-            : []),
         ],
         recipients: info.recipients || [],
       };
@@ -750,11 +749,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       } = response;
 
       if (convertToOrder) {
-        await updateQuote({ id, quoteData: { status: '1' } });
         console.log('TODO: convertire il preventivo in ordine', id);
       }
-
-      quoteSubmissionDataRef.current = { id, createdAt, uuid };
 
       if (id) {
         const cartId = B3LStorage.get('cartToQuoteId');
@@ -770,15 +766,18 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         }
       }
 
-      if (downloadPdf || convertToOrder || quoteSubmissionResponseInfo.value === '0') {
+      quoteSubmissionDataRef.current = { id, createdAt, uuid };
+
+      if (downloadPdf || convertToOrder) {
         handleAfterSubmit(quoteSubmissionDataRef.current, downloadPdf);
       } else {
-        setQuoteSubmissionResponseOpen(true);
+        await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
       }
     } catch (error: any) {
       b2bLogger.error(error);
       if (downloadPdf) snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
       if (convertToOrder) snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
+      if (!downloadPdf && !convertToOrder) snackbar.error(b3Lang('quoteDetail.sendToKing.error'));
     } finally {
       submissionInProgress.current = false;
       setLoading(false);

@@ -2,7 +2,6 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Box, Button, Grid } from '@mui/material';
-import copy from 'copy-to-clipboard';
 import { get } from 'lodash-es';
 
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
@@ -11,14 +10,11 @@ import { useMobile } from '@/hooks/useMobile';
 import { useScrollBar } from '@/hooks/useScrollBar';
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
+import QuoteSubmissionResponse from '@/pages/quote/components/QuoteSubmissionResponse';
 import notifyQuotePdfCreated from '@/pages/quote/shared/notifyQuotePdfCreated';
+import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
-import {
-  getB2BQuoteDetail,
-  getBcQuoteDetail,
-  searchProducts,
-  updateQuote,
-} from '@/shared/service/b2b';
+import { getB2BQuoteDetail, getBcQuoteDetail, searchProducts } from '@/shared/service/b2b';
 import type { ProductValidationError } from '@/shared/service/request/b3Fetch';
 import {
   activeCurrencyInfoSelector,
@@ -307,6 +303,8 @@ function QuoteDetail() {
   const [originalExtraFields, setOriginalExtraFields] = useState<QuoteExtraFieldsData[]>([]);
   const [isSendingToKing, setIsSendingToKing] = useState(false);
   const sendingToKing = useRef(false);
+  const [submittedOfferQuoteId, setSubmittedOfferQuoteId] = useState<string>();
+  const [quoteSubmissionResponseOpen, setQuoteSubmissionResponseOpen] = useState(false);
   const [isConvertingToOrder, setIsConvertingToOrder] = useState(false);
   const convertingToOrder = useRef(false);
   const [productList, setProductList] = useState<ProductInfoProps[]>([]);
@@ -844,6 +842,17 @@ function QuoteDetail() {
     };
   };
 
+  const ensureQuoteOpen = async () => {
+    if (Number(quoteDetail.status) !== 0) return quoteDetail.status;
+
+    const refreshedQuote = await getQuote();
+    if (Number(refreshedQuote.status) !== 1) {
+      throw new Error('The saved quote is not open.');
+    }
+    setQuoteDetail({ ...quoteDetail, status: refreshedQuote.status });
+    return refreshedQuote.status;
+  };
+
   const exportPdf = async () => {
     if (pdfDownloadInProgress.current) return;
     if (!hasShippingAddress(quoteDetail.shippingAddress)) {
@@ -853,12 +862,7 @@ function QuoteDetail() {
     pdfDownloadInProgress.current = true;
     setIsRequestLoading(true);
     try {
-      let pdfStatus = quoteDetail.status;
-      if (Number(pdfStatus) === 0) {
-        await updateQuote({ id: quoteDetail.id, quoteData: { status: '1' } });
-        pdfStatus = '1';
-        setQuoteDetail({ ...quoteDetail, status: pdfStatus });
-      }
+      const pdfStatus = await ensureQuoteOpen();
       await notifyQuotePdfCreated(String(quoteDetail.id), quoteDetail.createdAt);
       await downloadQuotePdf(await buildCurrentQuotePdfData(pdfStatus));
     } catch {
@@ -930,38 +934,6 @@ function QuoteDetail() {
     };
   };
 
-  useEffect(() => {
-    const { state } = location;
-
-    if (!state || state.downloadPdf) return;
-
-    setTimeout(() => {
-      snackbar.success(
-        Number(role) === 100
-          ? b3Lang('quoteDetail.submittedQuote')
-          : b3Lang('quoteDetail.quoteSubmitted'),
-        {
-          action: {
-            label:
-              Number(role) === 100
-                ? b3Lang('quoteDetail.copyQuoteLink')
-                : b3Lang('quoteDetail.reviewAllQuotes'),
-            onClick: () => {
-              if (Number(role) === 100) {
-                copy(window.location.href);
-                snackbar.success(b3Lang('quoteDetail.copySuccessful'));
-              } else {
-                navigate('/quotes');
-              }
-            },
-          },
-        },
-      );
-    }, 10);
-    location.state = null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, navigate, role]);
-
   const formatQuoteValidationError = (err: ProductValidationError) =>
     getQuoteValidationErrorMessage({
       b3Lang,
@@ -1028,6 +1000,7 @@ function QuoteDetail() {
     : isEnableProductShowCheckoutFrontendFlow;
 
   const isOpenQuote = Number(quoteDetail.status) === 1;
+  const offerSubmitted = submittedOfferQuoteId === String(quoteDetail.id);
   const canSendToKing =
     !isB2BUser ||
     verifyCreatePermission(
@@ -1039,21 +1012,18 @@ function QuoteDetail() {
   );
   const sentToKingDate = sentToKingField ? new Date(String(sentToKingField.fieldValue)) : null;
   const sendToKing = async () => {
-    if (!canSendToKing || sentToKingField || sendingToKing.current) return;
+    if (!canSendToKing || offerSubmitted || sendingToKing.current) return;
     sendingToKing.current = true;
     setIsSendingToKing(true);
     try {
-      const extraFields = [
-        ...originalExtraFields
-          .filter((field) => field.fieldName !== 'DESTINAZIONE KING')
-          .map((field) => ({ fieldName: field.fieldName, value: field.fieldValue })),
-        { fieldName: 'DESTINAZIONE KING', value: 'ERP' },
-        { fieldName: 'send_to_king_timestampa', value: new Date().toISOString() },
-      ];
-      await updateQuote({ id: quoteDetail.id, quoteData: { extraFields } });
-      setOriginalExtraFields(
-        extraFields.map((field) => ({ fieldName: field.fieldName, fieldValue: field.value })),
-      );
+      await ensureQuoteOpen();
+      await sendQuoteToKing(String(quoteDetail.id), quoteDetail.createdAt);
+      setOriginalExtraFields([
+        ...originalExtraFields.filter((field) => field.fieldName !== 'send_to_king_timestampa'),
+        { fieldName: 'send_to_king_timestampa', fieldValue: new Date().toISOString() },
+      ]);
+      setSubmittedOfferQuoteId(String(quoteDetail.id));
+      setQuoteSubmissionResponseOpen(true);
     } catch {
       snackbar.error(b3Lang('quoteDetail.sendToKing.error'));
     } finally {
@@ -1066,10 +1036,7 @@ function QuoteDetail() {
     convertingToOrder.current = true;
     setIsConvertingToOrder(true);
     try {
-      if (Number(quoteDetail.status) === 0) {
-        await updateQuote({ id: quoteDetail.id, quoteData: { status: '1' } });
-        setQuoteDetail({ ...quoteDetail, status: '1' });
-      }
+      await ensureQuoteOpen();
       console.log('TODO: convertire il preventivo in ordine', quoteDetail.id);
     } catch {
       snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
@@ -1093,7 +1060,13 @@ function QuoteDetail() {
   const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
     quotePurchasabilityPermissionInfo;
 
-  const busy = isAutoDownloadingPdf || isRequestLoading || quoteCheckoutLoading || isPrintingPdf;
+  const busy =
+    isAutoDownloadingPdf ||
+    isRequestLoading ||
+    quoteCheckoutLoading ||
+    isPrintingPdf ||
+    isSendingToKing ||
+    isConvertingToOrder;
   const canShowSubmissionActions = [0, 1].includes(Number(quoteDetail.status)) && canSendToKing;
 
   return (
@@ -1122,13 +1095,12 @@ function QuoteDetail() {
         Number(role) !== 100
           ? {
               download: { onClick: exportPdf },
-              requestOffer:
-                canShowSubmissionActions && isOpenQuote
-                  ? {
-                      onClick: sendToKing,
-                      disabled: isSendingToKing || isConvertingToOrder || !!sentToKingField,
-                    }
-                  : undefined,
+              requestOffer: canShowSubmissionActions
+                ? {
+                    onClick: sendToKing,
+                    disabled: isSendingToKing || isConvertingToOrder || offerSubmitted,
+                  }
+                : undefined,
               convertToOrder: canShowSubmissionActions
                 ? {
                     onClick: convertToOrder,
@@ -1151,6 +1123,12 @@ function QuoteDetail() {
                   : undefined,
             }
           : undefined
+      }
+      dialog={
+        <QuoteSubmissionResponse
+          isOpen={quoteSubmissionResponseOpen}
+          onClose={() => setQuoteSubmissionResponseOpen(false)}
+        />
       }
       information={{
         showQuoteInfoColumn: isOpenQuote,
