@@ -192,7 +192,7 @@
   "orders.status.refunded": "Rimborsato",
   "orders.status.cancelled": "Annullato",
   "orders.status.declined": "Rifiutato",
-  "orders.status.awaitingPayment": "In attesa di pagamento",
+  "orders.status.awaitingPayment": "In Lavorazione",
   "orders.status.awaitingPickup": "In attesa di ritiro",
   "orders.status.awaitingShipment": "In attesa di spedizione",
   "orders.status.completed": "Completato",
