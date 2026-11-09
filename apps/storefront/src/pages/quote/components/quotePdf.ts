@@ -331,14 +331,16 @@ export function buildQuotePdfDocument(
   const date = data.isDraft
     ? new Intl.DateTimeFormat(data.locale).format(new Date())
     : displayValue(data.issuedAt);
-  const weightValues = data.lines.map((line) => {
+  const weightValuesKg = data.lines.map((line) => {
     const raw = line.variantData?.dimensions.PESO?.trim();
-    const weight = raw ? Number(raw.replace(',', '.')) : NaN;
-    return Number.isFinite(weight) && weight >= 0 ? weight * line.quantity : NaN;
+    const weightGrams = raw ? Number(raw.replace(',', '.')) : NaN;
+    return Number.isFinite(weightGrams) && weightGrams >= 0
+      ? (weightGrams * line.quantity) / 1000
+      : NaN;
   });
   const totalWeight =
-    weightValues.length && weightValues.every(Number.isFinite)
-      ? `${new Intl.NumberFormat(data.locale, { maximumFractionDigits: 3 }).format(weightValues.reduce((sum, weight) => sum + weight, 0))} kg`
+    weightValuesKg.length && weightValuesKg.every(Number.isFinite)
+      ? `${new Intl.NumberFormat(data.locale, { maximumFractionDigits: 3 }).format(weightValuesKg.reduce((sum, weight) => sum + weight, 0))} kg`
       : '—';
   const rule = (width: number, color: string, thickness: number): ContentCanvas => ({
     canvas: [

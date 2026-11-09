@@ -210,7 +210,7 @@ describe('quote PDF document', () => {
     expect(text).toContain('OPERA, —');
   });
 
-  it('prefers variant measure and includes packaging, delivery and total weight', () => {
+  it('prefers variant measure and converts per-piece grams to total kilograms', () => {
     const data = buildQuotePdfDataWith('WHATEVER_VALUES');
     const measure = faker.string.alphanumeric();
     const sku = faker.string.uuid();
@@ -219,7 +219,7 @@ describe('quote PDF document', () => {
       quantity: 20,
       variantData: {
         sku,
-        dimensions: { MISURA: measure, PESO: '0.5' },
+        dimensions: { MISURA: measure, PESO: '500' },
         packaging: { SCATOLA: '100', MASTER_CARTON: '1000', PALLET: '32000' },
         stock: { STOCK: '20' },
       },
@@ -241,6 +241,24 @@ describe('quote PDF document', () => {
     const text = JSON.stringify(buildQuotePdfDocument(data).content);
     expect(text).not.toContain(sku);
     expect(text).not.toContain('Vs. cod. / Your item code');
+  });
+
+  it('sums line weights in kilograms including comma-separated gram values', () => {
+    const data = buildQuotePdfDataWith('WHATEVER_VALUES');
+    data.lines = [
+      {
+        ...data.lines[0],
+        quantity: 20,
+        variantData: { packaging: {}, stock: {}, dimensions: { PESO: '500' } },
+      },
+      {
+        ...data.lines[0],
+        quantity: 4,
+        variantData: { packaging: {}, stock: {}, dimensions: { PESO: '125,5' } },
+      },
+    ];
+    const text = JSON.stringify(buildQuotePdfDocument(data).content);
+    expect(text).toContain('10.502 kg');
   });
 
   it('does not report a partial weight when one variant weight is missing', () => {
