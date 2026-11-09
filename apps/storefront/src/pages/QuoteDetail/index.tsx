@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Box, Button, Grid } from '@mui/material';
+import { Box, Grid } from '@mui/material';
 import { get } from 'lodash-es';
 
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
@@ -17,14 +17,9 @@ import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
 import { getB2BQuoteDetail, getBcQuoteDetail, searchProducts } from '@/shared/service/b2b';
 import type { ProductValidationError } from '@/shared/service/request/b3Fetch';
-import {
-  activeCurrencyInfoSelector,
-  isB2BUserSelector,
-  rolePermissionSelector,
-  useAppSelector,
-} from '@/store';
+import { activeCurrencyInfoSelector, isB2BUserSelector, useAppSelector } from '@/store';
 import { QuoteExtraFieldsData } from '@/types/quotes';
-import { verifyCreatePermission, verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
+import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import { displayFormat } from '@/utils/b3DateFormat';
 import { getBCPrice, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
@@ -128,7 +123,7 @@ function useData() {
   const [searchParams] = useSearchParams();
   const uuid = searchParams.get('uuid') || undefined;
   const {
-    state: { quoteConfig, storeName },
+    state: { storeName },
   } = useContext(GlobalContext);
   const companyId = useAppSelector(({ company }) => company.companyInfo.id);
   const emailAddress = useAppSelector(({ company }) => company.customer.emailAddress);
@@ -140,8 +135,6 @@ function useData() {
     ({ company }) => company.companyHierarchyInfo,
   );
 
-  const isAgenting = useAppSelector(({ b2bFeatures }) => b2bFeatures.masqueradeCompany.isAgenting);
-
   const { currency_code: currencyCode } = useAppSelector(activeCurrencyInfoSelector);
   const currencies = useAppSelector(({ storeConfigs }) => storeConfigs.currencies.currencies);
   const currenciesMap = useMemo(() => buildCurrenciesMap(currencies), [currencies]);
@@ -151,8 +144,6 @@ function useData() {
   const isEnableProduct = useAppSelector(
     ({ global }) => global.blockPendingQuoteNonPurchasableOOS?.isEnableProduct,
   );
-
-  const { purchasabilityPermission } = useAppSelector(rolePermissionSelector);
 
   const fetchProductsWithSearch = async (
     listProducts: ProductInfoProps[],
@@ -196,76 +187,17 @@ function useData() {
   return {
     id,
     uuid,
-    quoteConfig,
     storeName,
     role,
     emailAddress,
     isB2BUser,
     selectCompanyHierarchyId,
-    isAgenting,
     currenciesMap,
     enteredInclusiveTax,
     isEnableProduct,
-    purchasabilityPermission,
     fetchProductsWithSearch,
     getQuote,
   };
-}
-
-const containerStyle = (isMobile: boolean) => {
-  return isMobile
-    ? {
-        alignItems: 'flex-end',
-        flexDirection: 'column',
-      }
-    : {
-        alignItems: 'center',
-      };
-};
-
-function Footer({ children, isAgenting }: { children: React.ReactNode; isAgenting: boolean }) {
-  const [isMobile] = useMobile();
-  return (
-    <Box
-      sx={{
-        position: 'fixed',
-        bottom: isMobile && isAgenting ? '52px' : 0,
-        left: 0,
-        backgroundColor: '#fff',
-        width: '100%',
-        padding: '0.8rem 1rem',
-        height: 'auto',
-        display: 'flex',
-        zIndex: '999',
-        justifyContent: isMobile ? 'center' : 'flex-end',
-        displayPrint: 'none',
-        ...containerStyle(isMobile),
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-function ProceedToCheckoutButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  const [isMobile] = useMobile();
-  return (
-    <Button
-      variant="contained"
-      onClick={onClick}
-      sx={{
-        width: isMobile ? '100%' : 'auto',
-      }}
-    >
-      {children}
-    </Button>
-  );
 }
 
 function QuoteDetail() {
@@ -274,17 +206,14 @@ function QuoteDetail() {
   const {
     id,
     uuid,
-    quoteConfig,
     storeName,
     role,
     emailAddress,
     isB2BUser,
     selectCompanyHierarchyId,
-    isAgenting,
     currenciesMap,
     enteredInclusiveTax,
     isEnableProduct,
-    purchasabilityPermission,
     fetchProductsWithSearch,
     getQuote,
   } = useData();
@@ -314,7 +243,6 @@ function QuoteDetail() {
   const [quoteValidationErrors, setQuoteValidationErrors] = useState<
     ValidatedProductError<ProductInfoProps>[]
   >([]);
-  const [quoteHasWarnings, setQuoteHasWarnings] = useState(true);
 
   const [quoteSummary, setQuoteSummary] = useState({
     originalSubtotal: 0,
@@ -325,16 +253,10 @@ function QuoteDetail() {
   });
   const [isRequestLoading, setIsRequestLoading] = useState(true);
   const [isPrintingPdf, setIsPrintingPdf] = useState(false);
-  const [isShowFooter, setIsShowFooter] = useState(false);
   const [quoteDetailTax, setQuoteDetailTax] = useState(0);
   const [noBuyerProductName, setNoBuyerProductName] = useState({
     oos: '',
     nonPurchasable: '',
-  });
-
-  const [quotePurchasabilityPermissionInfo, setQuotePurchasabilityPermission] = useState({
-    quotePurchasabilityPermission: false,
-    quoteConvertToOrderPermission: false,
   });
 
   const [quoteCheckoutLoading, setQuoteCheckoutLoading] = useState<boolean>(false);
@@ -351,47 +273,10 @@ function QuoteDetail() {
 
   const isBackorderEnabled = useIsBackorderEnabled();
 
-  const isAutoQuotingEnabled =
-    quoteConfig.find((item) => item.key === 'quote_auto_quoting')?.value === '1';
-
   const quoteReviewedBySalesRep =
     Object.keys(quoteDetail).length === 0
       ? false
       : !!quoteDetail.salesRep || !!quoteDetail.salesRepEmail;
-
-  useEffect(() => {
-    if (!quoteDetail?.id) return;
-
-    const { quoteConvertToOrderPermission: quoteCheckoutPermissionCode } = b2bPermissionsMap;
-
-    const getPurchasabilityAndConvertToOrderPermission = () => {
-      if (isB2BUser) {
-        const companyId = quoteDetail?.companyId?.id || null;
-        const userEmail = quoteDetail?.contactInfo?.email || '';
-        return {
-          quotePurchasabilityPermission: purchasabilityPermission,
-          quoteConvertToOrderPermission: verifyLevelPermission({
-            code: quoteCheckoutPermissionCode,
-            companyId,
-            userEmail,
-          }),
-        };
-      }
-
-      return {
-        quotePurchasabilityPermission: true,
-        quoteConvertToOrderPermission: true,
-      };
-    };
-
-    const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
-      getPurchasabilityAndConvertToOrderPermission();
-
-    setQuotePurchasabilityPermission({
-      quotePurchasabilityPermission,
-      quoteConvertToOrderPermission,
-    });
-  }, [isB2BUser, quoteDetail, selectCompanyHierarchyId, purchasabilityPermission]);
 
   const quoteDetailBackendValidations = async (
     productListResponse: ProductInfoProps[],
@@ -405,7 +290,6 @@ function QuoteDetail() {
 
     if (!error.length && !warning.length) {
       setShouldHidePrices(false);
-      setQuoteHasWarnings(false);
     }
 
     error.forEach((err) => {
@@ -558,7 +442,6 @@ function QuoteDetail() {
 
   const getQuoteDetail = async () => {
     setIsRequestLoading(true);
-    setIsShowFooter(false);
 
     try {
       const quote = await getQuote();
@@ -649,7 +532,6 @@ function QuoteDetail() {
       throw error;
     } finally {
       setIsRequestLoading(false);
-      setIsShowFooter(true);
     }
   };
 
@@ -974,31 +856,6 @@ function QuoteDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isHideQuoteCheckout]);
 
-  const isAutoEnableQuoteCheckout = useMemo(() => {
-    if (!isAutoQuotingEnabled && !quoteReviewedBySalesRep) return false;
-
-    return true;
-  }, [quoteReviewedBySalesRep, isAutoQuotingEnabled]);
-
-  const isEnableProductShowCheckoutFrontendFlow = () => {
-    if (isEnableProduct) {
-      if (quoteReviewedBySalesRep && isHideQuoteCheckout) return true;
-      if (!isHideQuoteCheckout) return true;
-
-      return false;
-    }
-
-    return true;
-  };
-
-  const isEnableProductShowCheckoutBackendFlow = () => {
-    return !quoteHasWarnings || quoteReviewedBySalesRep;
-  };
-
-  const enableProceedToCheckoutButton = isBackorderEnabled
-    ? isEnableProductShowCheckoutBackendFlow
-    : isEnableProductShowCheckoutFrontendFlow;
-
   const isOpenQuote = Number(quoteDetail.status) === 1;
   const canSendToKing =
     !isB2BUser ||
@@ -1061,9 +918,6 @@ function QuoteDetail() {
       );
 
   useScrollBar(false);
-
-  const { quotePurchasabilityPermission, quoteConvertToOrderPermission } =
-    quotePurchasabilityPermissionInfo;
 
   const busy =
     isAutoDownloadingPdf ||
@@ -1281,37 +1135,6 @@ function QuoteDetail() {
           )}
         </Grid>
       </Grid>
-
-      {quoteConvertToOrderPermission &&
-        quotePurchasabilityPermission &&
-        Number(quoteDetail.status) !== 4 &&
-        Number(quoteDetail.status) !== 5 &&
-        isShowFooter &&
-        quoteDetail?.allowCheckout &&
-        isAutoEnableQuoteCheckout &&
-        enableProceedToCheckoutButton() && (
-          <Footer isAgenting={isAgenting}>
-            <ProceedToCheckoutButton
-              onClick={() => {
-                if (hasQuoteValidationErrors()) return;
-                handleQuoteCheckout({
-                  role,
-                  location,
-                  quoteId: quoteDetail.id,
-                  quoteUuid: quoteDetail.uuid,
-                  navigate,
-                  b3Lang,
-                  formatValidationError: formatQuoteValidationError,
-                  isBackorderMessagingEnabled,
-                  quoteStockSnapshot: buildQuoteStockSnapshot(productList),
-                  fetchCurrentStockSnapshot,
-                });
-              }}
-            >
-              {b3Lang('quoteDetail.footer.proceedToCheckout')}
-            </ProceedToCheckoutButton>
-          </Footer>
-        )}
     </QuotePage>
   );
 }
