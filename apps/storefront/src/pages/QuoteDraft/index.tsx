@@ -194,7 +194,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const [quoteSubmissionResponseOpen, setQuoteSubmissionResponseOpen] = useState<boolean>(false);
   const [extraFields, setExtraFields] = useState<QuoteFormattedItemsProps[]>([]);
 
-  const quoteSubmissionDataRef = useRef<QuoteSubmissionDataRefType>();
+  const quoteSubmissionDataRef = useRef<QuoteSubmissionDataRefType>(undefined);
 
   const [isAddressCompanyHierarchy] = useValidatePermissionWithComparisonType({
     level: permissionLevels.COMPANY_SUBSIDIARIES,

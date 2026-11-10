@@ -12,7 +12,7 @@ import { getCatalogProductRowDisplayState } from '@/utils/catalogBackorderDispla
 
 interface QuickOrderCardProps {
   item: any;
-  checkBox?: () => ReactElement;
+  checkBox?: () => ReactElement<any>;
   handleUpdateProductQty: (id: number, val: string) => void;
   inventoryBySku?: Record<string, CatalogQuickVariantSku>;
   backorderUiEnabled?: boolean;

@@ -57,7 +57,7 @@ const getMockQueryClient = (): QueryClient =>
   });
 
 export const renderWithProviders = (
-  ui: React.ReactElement,
+  ui: React.ReactElement<any>,
   extendedRenderOptions: Partial<ExtendedRenderOptions> = {},
 ) => {
   const {

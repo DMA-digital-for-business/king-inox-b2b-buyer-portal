@@ -20,23 +20,23 @@ function IFrameSetContent(el: HTMLIFrameElement | null, content: string, forceWr
   }
 }
 
-const handleLoad = (_iframeRef: RefObject<HTMLIFrameElement>) => {
-  // resolve iframe use document mousedown no effect
+const handleLoad = (_iframeRef: RefObject<HTMLIFrameElement | null>) => {
+  // Bubble events through the iframe element so parent listeners receive an Element target.
   if (_iframeRef.current?.contentDocument?.addEventListener) {
     _iframeRef.current.contentDocument.addEventListener('keydown', () => {
-      document.dispatchEvent(new Event('keydown'));
+      _iframeRef.current?.dispatchEvent(new Event('keydown', { bubbles: true }));
     });
     _iframeRef.current.contentDocument.addEventListener('mousedown', () => {
-      document.dispatchEvent(new Event('mousedown'));
+      _iframeRef.current?.dispatchEvent(new Event('mousedown', { bubbles: true }));
     });
     _iframeRef.current.contentDocument.addEventListener('touchstart', () => {
-      document.dispatchEvent(new Event('touchstart'));
+      _iframeRef.current?.dispatchEvent(new Event('touchstart', { bubbles: true }));
     });
     _iframeRef.current.contentDocument.addEventListener('touchmove', () => {
-      document.dispatchEvent(new Event('touchmove'));
+      _iframeRef.current?.dispatchEvent(new Event('touchmove', { bubbles: true }));
     });
     _iframeRef.current.contentDocument.addEventListener('click', () => {
-      document.dispatchEvent(new Event('click'));
+      _iframeRef.current?.dispatchEvent(new Event('click', { bubbles: true }));
     });
   }
 };
@@ -44,7 +44,7 @@ const handleLoad = (_iframeRef: RefObject<HTMLIFrameElement>) => {
 interface ThemeFrameProps {
   children: ReactNode; // children to be rendered within iframe
   className?: string; // className to assign the iframe
-  bodyRef?: RefObject<HTMLBodyElement>; // if the parent needs access to body of iframe. i.e to attach dom event handlers
+  bodyRef?: RefObject<HTMLBodyElement | null>; // if the parent needs access to body of iframe. i.e to attach dom event handlers
   fontUrl?: string;
   customStyles?: string;
   title?: string;
@@ -54,7 +54,7 @@ interface ThemeFramePortalProps {
   isSetupComplete: boolean;
   emotionCache?: EmotionCache;
   iframeDocument?: HTMLIFrameElement['contentDocument'];
-  bodyRef?: RefObject<HTMLBodyElement>;
+  bodyRef?: RefObject<HTMLBodyElement | null>;
 }
 
 const DefaultIframeContent = '<!DOCTYPE html><html><head></head><body></body></html>';

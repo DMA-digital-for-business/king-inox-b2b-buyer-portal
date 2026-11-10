@@ -148,13 +148,13 @@ function getBackorderLayoutStyles(
 
 interface ProductProps<T> {
   hideMobileImages?: boolean;
-  renderMeasure?: (product: T & ProductItem) => ReactElement;
+  renderMeasure?: (product: T & ProductItem) => ReactElement<any>;
   measureTitle?: string;
   formatUnitPrice?: (price: number) => string;
   isProductOptionVisible?: (label: string) => boolean;
   products: Array<T & ProductItem>;
   money?: MoneyFormat;
-  renderAction?: (item: T & ProductItem) => ReactElement;
+  renderAction?: (item: T & ProductItem) => ReactElement<any>;
   actionWidth?: string;
   quantityKey?: string;
   quantityEditable?: boolean;
