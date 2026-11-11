@@ -167,7 +167,7 @@ function Order({ isCompanyOrder = false }: OrderProps) {
   const orderStatusesRef = useRef<Array<any>>([]);
 
   useEffect(() => {
-    // TODO: Guest customer should not be able to see the order list
+    // Guest customer should not be able to see the order list
     if (role === CustomerRole.GUEST) return;
 
     const initFilter = async () => {

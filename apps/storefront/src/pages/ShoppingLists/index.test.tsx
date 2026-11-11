@@ -26,7 +26,6 @@ const { server } = startMockServer();
 
 vi.mock('@/utils/b3CheckPermissions/check');
 
-// TODO: we should use faker to generate random data once faker is in place
 const buildCustomerWith = builder<Customer>(() => ({
   id: 0,
   phoneNumber: '123123',
@@ -40,7 +39,6 @@ const buildCustomerWith = builder<Customer>(() => ({
   companyRoleName: 'Tester',
 }));
 
-// TODO: we should use faker to generate random data once faker is in place
 const buildB2BShoppingListNodeWith = builder(() => ({
   id: '123',
   name: 'shopping list 1',

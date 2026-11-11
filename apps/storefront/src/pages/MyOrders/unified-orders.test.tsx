@@ -124,7 +124,6 @@ const buildSfGqlCustomerOrdersResponseWith = builder<GetCustomerOrdersResponse>(
   };
 });
 
-// TODO: Needs to be removed when order statuses api gets added to unified graphql api
 const buildLegacyOrderStatusWith = builder<LegacyOrderStatus>(() => ({
   statusCode: faker.number.int().toString(),
   systemLabel: faker.word.noun(),

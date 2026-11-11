@@ -764,9 +764,6 @@ describe('when a company customer', () => {
       expect(screen.getByRole('heading', { name: '# 66996' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: '$100.00' })).toBeInTheDocument();
 
-      // TODO: Add company name to the UI
-      // expect(screen.getByText('Monsters Inc.')).toBeInTheDocument();
-
       expect(screen.getByText('0022')).toBeInTheDocument();
       expect(screen.getByText('by Mike Wazowski')).toBeInTheDocument();
       expect(screen.getByText('Pending')).toBeInTheDocument();

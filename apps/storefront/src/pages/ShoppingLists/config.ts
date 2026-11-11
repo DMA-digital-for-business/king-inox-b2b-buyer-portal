@@ -70,7 +70,6 @@ const useGetFilterShoppingListStatus = () => {
       label: b3Lang('global.shoppingLists.status.rejected'),
     };
 
-    // TODO: fix 99 which is used for selecting all
     return [
       { value: 99, label: b3Lang('global.shoppingLists.status.all') },
       { value: ShoppingListStatus.Approved, label: b3Lang('global.shoppingLists.status.approved') },

@@ -60,7 +60,6 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
   }
 
   logDocumentsDiagnostic('Service configuration rejected', { environment });
-  // TODO: configure VITE_DOCUMENTS_API_URL and VITE_DOCUMENTS_APP_CLIENT_ID for production.
   throw new DocumentsApiError('The documents service is not configured for this environment.');
 }
 
