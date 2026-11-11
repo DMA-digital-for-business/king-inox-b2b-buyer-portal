@@ -5,11 +5,8 @@ import b2bLogger from '@/utils/b3Logger';
 
 import { DocumentDownload, DocumentsRequestParams, DocumentsResponse } from './types';
 
-const STAGING_DOCUMENTS_API_URL =
-  import.meta.env.VITE_DOCUMENTS_API_URL ??
-  'https://rtpc12l9k0.execute-api.eu-central-1.amazonaws.com/sandbox';
-const STAGING_DOCUMENTS_APP_CLIENT_ID =
-  import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID ?? 'ooty5p0sanjii578e42z4mqbjj527av';
+const DOCUMENTS_API_URL = import.meta.env.VITE_DOCUMENTS_API_URL ;
+const STAGING_DOCUMENTS_APP_CLIENT_ID = import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID;
 const DOCUMENTS_REQUEST_TIMEOUT_MS = 30_000;
 
 interface DocumentsServiceConfig {
@@ -44,7 +41,7 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
     runtimeEnvironment: window.B3?.setting?.environment,
     platform: window.B3?.setting?.platform,
     hasExplicitServiceConfig,
-    apiUrl: STAGING_DOCUMENTS_API_URL,
+    apiUrl: DOCUMENTS_API_URL,
   });
 
   if (
@@ -57,7 +54,7 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
       hasExplicitServiceConfig,
     });
     return {
-      apiUrl: STAGING_DOCUMENTS_API_URL,
+      apiUrl: DOCUMENTS_API_URL,
       appClientId: STAGING_DOCUMENTS_APP_CLIENT_ID,
     };
   }

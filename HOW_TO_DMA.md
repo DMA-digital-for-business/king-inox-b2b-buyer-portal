@@ -29,7 +29,17 @@ Client ID utilizzato dall'applicazione in ambiente locale.
 > Lasciare il valore di default configurato nel progetto.
 
 
+### `VITE_DOCUMENTS_API_URL` e `VITE_DOCUMENTS_APP_CLIENT_ID`
 
+Endpoint e client ID del servizio documenti, configurati automaticamente in `amplify.yml` in base al branch:
+
+| Branch | `VITE_DOCUMENTS_API_URL` | `VITE_DOCUMENTS_APP_CLIENT_ID` |
+| --- | --- | --- |
+| `dev` | `https://1k4mxza2e2.execute-api.eu-central-1.amazonaws.com/dev` | `g6gl9yq2dmanydpcmabfyik10wj6dxf` |
+| `staging` | `https://rtpc12l9k0.execute-api.eu-central-1.amazonaws.com/sandbox` | `ooty5p0sanjii578e42z4mqbjj527av` |
+| `main` | `https://lz99vnt7i6.execute-api.eu-central-1.amazonaws.com/prod` | `p8p1hocd9flemzv0b1wax0zq407kemd` |
+
+Per lo sviluppo locale, `.env-example` contiene i valori dell'ambiente `dev`. I branch diversi da `dev` e `staging` usano la configurazione di `main`.
 
 ## Script
 
