@@ -1,4 +1,5 @@
 {
+  "global.dialog.close": "Close",
   "quoteDetail.conversion.title": "Confirm conversion to order",
   "quoteDetail.conversion.message": "Review the shipping terms before converting this quote to an order.",
   "quoteDetail.conversion.retry": "Retry",

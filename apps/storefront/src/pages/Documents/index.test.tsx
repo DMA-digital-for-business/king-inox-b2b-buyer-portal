@@ -49,6 +49,49 @@ describe('Documents page', () => {
     window.URL.revokeObjectURL = vi.fn();
   });
 
+  it('ends a stalled initial load and lets the user retry', async () => {
+    const scheduleTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback, delay, ...args) =>
+      scheduleTimeout(callback, delay === 30_000 ? 100 : delay, ...args),
+    );
+    server.use(http.get(`${API_URL}/api/v1/documents`, () => new Promise<never>(() => {})));
+    const { user } = renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Documents could not be loaded.');
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+
+    const response = buildDocumentsResponseWith('WHATEVER_VALUES');
+    server.use(http.get(`${API_URL}/api/v1/documents`, () => HttpResponse.json(response)));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('starts a fresh request after leaving a stalled documents page and reopening it', async () => {
+    const requestStarted = vi.fn();
+    const requestAborted = vi.fn();
+    server.use(
+      http.get(`${API_URL}/api/v1/documents`, ({ request }) => {
+        request.signal.addEventListener('abort', requestAborted);
+        requestStarted();
+        return new Promise<never>(() => {});
+      }),
+    );
+
+    const { result } = renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+    await waitFor(() => expect(requestStarted).toHaveBeenCalledOnce());
+    result.unmount();
+    expect(requestAborted).toHaveBeenCalledOnce();
+
+    const response = buildDocumentsResponseWith('WHATEVER_VALUES');
+    server.use(http.get(`${API_URL}/api/v1/documents`, () => HttpResponse.json(response)));
+    renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
   it('limits the table height only while documents are loading', async () => {
     let finishRequest: (() => void) | undefined;
     server.use(

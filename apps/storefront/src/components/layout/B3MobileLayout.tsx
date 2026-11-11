@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useState } from 'react';
+import { ReactNode, useContext, useRef, useState } from 'react';
 import { Close, Dehaze, ShoppingBagOutlined } from '@mui/icons-material';
 import { Badge, Box, Drawer, IconButton } from '@mui/material';
 
@@ -23,6 +23,7 @@ export default function B3MobileLayout({
   title: string;
 }) {
   const b3Lang = useB3Lang();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isB2BUser = useAppSelector(isB2BUserSelector);
   const [isOpenMobileSidebar, setOpenMobileSidebar] = useState<boolean>(false);
   const cartNumber = useAppSelector(({ global }) => global.cartNumber);
@@ -66,6 +67,7 @@ export default function B3MobileLayout({
         }}
       >
         <IconButton
+          ref={menuButtonRef}
           aria-label={b3Lang('global.navigation.openMenu')}
           aria-expanded={isOpenMobileSidebar}
           aria-controls={isOpenMobileSidebar ? 'buyer-portal-navigation' : undefined}
@@ -150,6 +152,7 @@ export default function B3MobileLayout({
       </Box>
       <Drawer
         anchor="left"
+        container={() => menuButtonRef.current?.ownerDocument.body ?? null}
         open={isOpenMobileSidebar}
         onClose={() => setOpenMobileSidebar(false)}
         PaperProps={{

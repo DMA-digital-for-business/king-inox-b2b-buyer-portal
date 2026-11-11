@@ -1,4 +1,5 @@
 {
+  "global.dialog.close": "Schließen",
   "global.navigation.openMenu": "Menü öffnen",
   "global.navigation.closeMenu": "Menü schließen",
   "global.tips.loading": "Wird geladen…",

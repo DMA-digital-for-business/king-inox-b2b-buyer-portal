@@ -1,4 +1,5 @@
 {
+  "global.dialog.close": "关闭",
   "global.navMenu.documents": "文档",
   "documents.fileName": "文件名",
   "documents.documentType": "文档类型",

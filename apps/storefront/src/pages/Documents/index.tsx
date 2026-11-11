@@ -13,12 +13,12 @@ import {
   Select,
   SelectChangeEvent,
   Stack,
+  useMediaQuery,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
 import B3Spin from '@/components/spin/B3Spin';
 import { B3Table, TableColumnItem } from '@/components/table/B3Table';
-import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { snackbar } from '@/utils/b3Tip';
 
@@ -97,7 +97,7 @@ function sanitizeFileName(fileName: string): string {
 export default function Documents() {
   const b3Lang = useB3Lang();
   const intl = useIntl();
-  const [isMobile] = useMobile();
+  const isCompactLayout = useMediaQuery('(max-width:1023px)');
   const [searchParams, setSearchParams] = useSearchParams();
   const [downloadingDocumentId, setDownloadingDocumentId] = useState<number>();
 
@@ -135,14 +135,18 @@ export default function Documents() {
 
   const documentsQuery = useQuery({
     queryKey: ['documents', offset, limit, documentTypeFilter, sortBy, sortDir],
-    queryFn: () =>
-      getDocuments({
-        offset,
-        limit,
-        documentType: DOCUMENT_TYPE_FILTERS[documentTypeFilter],
-        sortBy,
-        sortDir,
-      }),
+    queryFn: ({ signal }) =>
+      getDocuments(
+        {
+          offset,
+          limit,
+          documentType: DOCUMENT_TYPE_FILTERS[documentTypeFilter],
+          sortBy,
+          sortDir,
+        },
+        signal,
+      ),
+    retry: false,
   });
 
   const updateSearchParams = (values: Record<string, number | string>) => {
@@ -259,7 +263,28 @@ export default function Documents() {
   const total = documentsQuery.data?.paging.total ?? 0;
 
   return (
-    <Stack spacing={3}>
+    <Stack
+      spacing={3}
+      sx={{
+        width: '100%',
+        minWidth: 0,
+        '& .MuiTableCell-root': { overflowWrap: 'anywhere' },
+        '& .MuiTablePagination-toolbar': {
+          flexDirection: isCompactLayout ? 'column' : 'row',
+          flexWrap: isCompactLayout ? 'nowrap' : 'wrap',
+          justifyContent: 'flex-end',
+          gap: 1,
+          py: 1,
+          px: { xs: 0, sm: 2 },
+        },
+        '& .MuiTablePagination-spacer': { display: isCompactLayout ? 'none' : 'block' },
+        '& .MuiTablePagination-actions': { ml: isCompactLayout ? 0 : 2.5 },
+        ...(isCompactLayout && {
+          '& .MuiTablePagination-input': { mx: 0 },
+          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': { m: 0 },
+        }),
+      }}
+    >
       <Box sx={{ width: { xs: '100%', sm: 220 } }}>
         <FormControl fullWidth variant="filled" size="small">
           <InputLabel id="documents-type-label">{b3Lang('documents.filterLabel')}</InputLabel>
@@ -292,11 +317,13 @@ export default function Documents() {
         <Box
           data-testid="documents-table-container"
           sx={{
+            minWidth: 0,
             maxHeight: documentsQuery.isFetching ? LOADING_TABLE_MAX_HEIGHT : 'none',
             overflow: documentsQuery.isFetching ? 'auto' : 'visible',
           }}
         >
           <B3Spin
+            isFlex={false}
             isSpinning={documentsQuery.isFetching}
             spinningHeight={documentsQuery.isFetching ? LOADING_TABLE_MAX_HEIGHT : undefined}
           >
@@ -315,7 +342,7 @@ export default function Documents() {
               }}
               rowsPerPageOptions={ROWS_PER_PAGE}
               isLoading={documentsQuery.isFetching}
-              isCustomRender={isMobile}
+              isCustomRender={isCompactLayout}
               itemXs={12}
               tableKey="documentId"
               orderBy={sortBy}

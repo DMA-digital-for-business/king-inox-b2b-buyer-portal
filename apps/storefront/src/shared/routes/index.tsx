@@ -46,7 +46,7 @@ const ShoppingListDetails = lazy(() => import('@/pages/ShoppingListDetails'));
 const UserManagement = lazy(() => import('@/pages/UserManagement'));
 const CompanyHierarchy = lazy(() => import('@/pages/CompanyHierarchy'));
 
-const routesMap: Record<string, LazyExoticComponent<(props: PageProps) => ReactElement<any>>> = {
+const routesMap: Record<string, LazyExoticComponent<(props: PageProps) => ReactElement>> = {
   '/dashboard': Dashboard,
   '/orders': MyOrders,
   '/company-orders': CompanyOrderList,
@@ -193,7 +193,7 @@ const gotoAllowedAppPage = async (
 
   const flag = routes.some((item: RouteItem) => {
     if (matchPath(item.path, realPath) || isInvoicePage()) {
-      return item.permissions.includes(Number(role));
+      return item.isAlwaysAvailable || item.permissions.includes(Number(role));
     }
     return false;
   });

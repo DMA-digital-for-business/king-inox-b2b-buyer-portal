@@ -1,4 +1,5 @@
 import { ReactElement, ReactNode, useRef } from 'react';
+import { Close } from '@mui/icons-material';
 import {
   Box,
   Breakpoint,
@@ -7,6 +8,7 @@ import {
   DialogContent,
   DialogProps,
   DialogTitle,
+  IconButton,
   SxProps,
   Theme,
 } from '@mui/material';
@@ -20,7 +22,7 @@ import CustomButton from './button/CustomButton';
 import B3Spin from './spin/B3Spin';
 
 interface B3DialogProps<T> {
-  customActions?: () => ReactElement<any>;
+  customActions?: () => ReactElement;
   isOpen: boolean;
   leftStyleBtn?: { [key: string]: string };
   rightStyleBtn?: { [key: string]: string };
@@ -35,6 +37,7 @@ interface B3DialogProps<T> {
   isShowBordered?: boolean;
   showRightBtn?: boolean;
   showLeftBtn?: boolean;
+  showCloseButton?: boolean;
   maxWidth?: Breakpoint | false;
   fullWidth?: boolean;
   disabledSaveBtn?: boolean;
@@ -60,6 +63,7 @@ export default function B3Dialog<T>({
   isShowBordered = true,
   showRightBtn = true,
   showLeftBtn = true,
+  showCloseButton = false,
   maxWidth = 'sm',
   dialogContentSx = {},
   dialogSx = {},
@@ -120,17 +124,25 @@ export default function B3Dialog<T>({
       >
         {title && (
           <DialogTitle
-            sx={
-              isShowBordered
-                ? {
-                    borderBottom: '1px solid #D9DCE9',
-                    mb: 2,
-                  }
-                : {}
-            }
-            id="alert-dialog-title"
+            sx={{
+              ...(isShowBordered ? { borderBottom: '1px solid #D9DCE9', mb: 2 } : {}),
+              ...(showCloseButton
+                ? { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }
+                : {}),
+            }}
           >
-            {title}
+            <Box component="span" id="alert-dialog-title">
+              {title}
+            </Box>
+            {showCloseButton && (
+              <IconButton
+                aria-label={b3Lang('global.dialog.close')}
+                onClick={() => handleCloseClick()}
+                sx={{ flexShrink: 0 }}
+              >
+                <Close />
+              </IconButton>
+            )}
           </DialogTitle>
         )}
         <DialogContent

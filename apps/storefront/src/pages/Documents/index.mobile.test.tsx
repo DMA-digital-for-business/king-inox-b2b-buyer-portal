@@ -25,11 +25,25 @@ const buildDocumentWith = builder<DocumentItem>(() => ({
   status: faker.word.sample(),
 }));
 
-it('displays documents as cards on mobile', async () => {
-  vi.spyOn(document.body, 'clientWidth', 'get').mockReturnValue(500);
+it.each([320, 500, 768, 900, 1023, 1024])('adapts the document layout at %i px', async (width) => {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    matches: query === '(max-width:1023px)' && width <= 1023,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
   window.B3.setting.environment = Environment.Staging;
   const displayFileName = faker.system.fileName();
-  const documentItem = buildDocumentWith({ fileName: `${displayFileName}.pdf`, status: 'VALIDA' });
+  const reference = faker.string.alphanumeric(100);
+  const documentItem = buildDocumentWith({
+    fileName: `${displayFileName}.pdf`,
+    status: 'VALIDA',
+    reference,
+  });
 
   server.use(
     http.get(`${window.origin}/customer/current.jwt`, () => HttpResponse.text(faker.string.uuid())),
@@ -48,6 +62,13 @@ it('displays documents as cards on mobile', async () => {
   expect(await screen.findByText(displayFileName)).toBeInTheDocument();
   expect(screen.queryByText(documentItem.fileName)).not.toBeInTheDocument();
   expect(screen.getByTitle('PDF')).toBeInTheDocument();
+  if (width >= 1024) {
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText(reference)).toBeInTheDocument();
+    expect(screen.queryByText(/Document type: Orders/)).not.toBeInTheDocument();
+    return;
+  }
+
   expect(screen.getByText(/Document type: Orders/)).toBeInTheDocument();
   expect(screen.getByText(`Your code: ${documentItem.reference}`)).toBeInTheDocument();
   expect(screen.getByText('Status: Valid')).toBeInTheDocument();

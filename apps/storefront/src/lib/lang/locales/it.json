@@ -1,4 +1,5 @@
 {
+  "global.dialog.close": "Chiudi",
   "quoteDetail.conversion.title": "Conferma conversione in ordine",
   "quoteDetail.conversion.message": "Verifica le condizioni di trasporto prima di convertire il preventivo in ordine.",
   "quoteDetail.conversion.retry": "Riprova",

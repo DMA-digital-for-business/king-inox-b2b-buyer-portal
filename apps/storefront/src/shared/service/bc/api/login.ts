@@ -4,12 +4,13 @@ import { BigCommerceStorefrontAPIBaseURL, platform } from '../../../../utils/bas
  * This function it's still present due the merchant can logs in as a client and stencil channels trade the current customer jwt to recognize
  * which user log in on the channel
  */
-export const getCurrentCustomerJWT = async (app_client_id: string) => {
+export const getCurrentCustomerJWT = async (app_client_id: string, signal?: AbortSignal) => {
   if (platform !== 'bigcommerce') {
     return undefined;
   }
   const response = await fetch(
     `${BigCommerceStorefrontAPIBaseURL}/customer/current.jwt?app_client_id=${app_client_id}`,
+    { signal },
   );
   const bcToken = await response.text();
   if (!response.ok) {

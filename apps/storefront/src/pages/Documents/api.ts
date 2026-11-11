@@ -10,6 +10,7 @@ const STAGING_DOCUMENTS_API_URL =
   'https://rtpc12l9k0.execute-api.eu-central-1.amazonaws.com/sandbox';
 const STAGING_DOCUMENTS_APP_CLIENT_ID =
   import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID ?? 'ooty5p0sanjii578e42z4mqbjj527av';
+const DOCUMENTS_REQUEST_TIMEOUT_MS = 30_000;
 
 interface DocumentsServiceConfig {
   apiUrl: string;
@@ -66,7 +67,7 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
   throw new DocumentsApiError('The documents service is not configured for this environment.');
 }
 
-async function getDocumentsJWT(appClientId: string): Promise<string> {
+async function getDocumentsJWT(appClientId: string, signal: AbortSignal): Promise<string> {
   let token: string | undefined;
 
   logDocumentsDiagnostic('Requesting current customer JWT', {
@@ -75,8 +76,9 @@ async function getDocumentsJWT(appClientId: string): Promise<string> {
   });
 
   try {
-    token = await getCurrentCustomerJWT(appClientId);
+    token = await getCurrentCustomerJWT(appClientId, signal);
   } catch (error) {
+    if (signal.aborted) throw error;
     logDocumentsDiagnostic('Current customer JWT request failed', {
       error: error instanceof Error ? error.message : String(error),
     });
@@ -94,42 +96,67 @@ async function getDocumentsJWT(appClientId: string): Promise<string> {
   return token;
 }
 
-async function documentsFetch(path: string): Promise<Response> {
+async function documentsFetch<T>(
+  path: string,
+  readResponse: (response: Response) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   const { apiUrl, appClientId } = getDocumentsServiceConfig();
-  const token = await getDocumentsJWT(appClientId);
   const requestUrl = `${apiUrl}${path}`;
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    logDocumentsDiagnostic('Request timed out', {
+      requestUrl,
+      timeoutMs: DOCUMENTS_REQUEST_TIMEOUT_MS,
+    });
+    controller.abort();
+  }, DOCUMENTS_REQUEST_TIMEOUT_MS);
 
-  logDocumentsDiagnostic('Sending API request', { requestUrl });
-  const response = await fetch(requestUrl, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const token = await getDocumentsJWT(appClientId, controller.signal);
+    logDocumentsDiagnostic('Sending API request', { requestUrl });
+    const response = await fetch(requestUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
 
-  logDocumentsDiagnostic('API response received', {
-    requestUrl,
-    status: response.status,
-    ok: response.ok,
-  });
+    logDocumentsDiagnostic('API response received', {
+      requestUrl,
+      status: response.status,
+      ok: response.ok,
+    });
 
-  if (!response.ok) {
-    throw new DocumentsApiError(
-      `Documents API request failed with status ${response.status}.`,
-      response.status,
-    );
+    if (!response.ok) {
+      throw new DocumentsApiError(
+        `Documents API request failed with status ${response.status}.`,
+        response.status,
+      );
+    }
+
+    return await readResponse(response);
+  } catch (error) {
+    if (timedOut) {
+      throw new DocumentsApiError('The documents request timed out.', 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
   }
-
-  return response;
 }
 
-export async function getDocuments({
-  offset,
-  limit,
-  documentType,
-  sortBy,
-  sortDir,
-}: DocumentsRequestParams): Promise<DocumentsResponse> {
+export async function getDocuments(
+  { offset, limit, documentType, sortBy, sortDir }: DocumentsRequestParams,
+  signal?: AbortSignal,
+): Promise<DocumentsResponse> {
   logDocumentsDiagnostic('Loading documents', {
     offset,
     limit,
@@ -145,9 +172,11 @@ export async function getDocuments({
     sortDir,
   });
   if (documentType !== undefined) searchParams.set('tipoDoc', documentType.toString());
-  const response = await documentsFetch(`/api/v1/documents?${searchParams.toString()}`);
-
-  return response.json() as Promise<DocumentsResponse>;
+  return documentsFetch(
+    `/api/v1/documents?${searchParams.toString()}`,
+    (response) => response.json() as Promise<DocumentsResponse>,
+    signal,
+  );
 }
 
 function getFileNameFromContentDisposition(value: string | null): string | undefined {
@@ -166,10 +195,8 @@ function getFileNameFromContentDisposition(value: string | null): string | undef
 }
 
 export async function getDocument(documentId: number): Promise<DocumentDownload> {
-  const response = await documentsFetch(`/api/v1/documents/${documentId}`);
-
-  return {
+  return documentsFetch(`/api/v1/documents/${documentId}`, async (response) => ({
     blob: await response.blob(),
     fileName: getFileNameFromContentDisposition(response.headers.get('content-disposition')),
-  };
+  }));
 }

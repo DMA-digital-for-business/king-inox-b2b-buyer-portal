@@ -1,4 +1,5 @@
 {
+  "global.dialog.close": "Sluiten",
   "global.navMenu.documents": "Documenten",
   "documents.fileName": "Bestandsnaam",
   "documents.documentType": "Documenttype",

@@ -272,6 +272,17 @@ function B3FilterMore<T, Y>({
         leftSizeBtn={b3Lang('global.filter.cancel')}
         rightSizeBtn={b3Lang('global.filter.apply')}
         title={b3Lang('global.filter.title')}
+        showCloseButton
+        dialogSx={{
+          '& .MuiDialog-paperFullScreen': {
+            height: '100dvh',
+            maxHeight: '100%',
+          },
+          '& .MuiDialogActions-root': {
+            flexShrink: 0,
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+          },
+        }}
         handleLeftClick={handleClose}
         handRightClick={handleSaveFilters}
       >

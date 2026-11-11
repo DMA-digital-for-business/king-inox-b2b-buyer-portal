@@ -26,7 +26,7 @@ export function DocumentCard({
   const b3Lang = useB3Lang();
 
   return (
-    <Card>
+    <Card sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
       <CardContent>
         <Stack spacing={1}>
           <Button
@@ -54,6 +54,7 @@ export function DocumentCard({
               alignSelf: 'flex-start',
               justifyContent: 'flex-start',
               minWidth: 0,
+              maxWidth: '100%',
               p: 0,
               overflowWrap: 'anywhere',
               textAlign: 'left',

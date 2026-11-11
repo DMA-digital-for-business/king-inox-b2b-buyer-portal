@@ -1,12 +1,20 @@
-import { faker, http, HttpResponse, startMockServer } from 'tests/test-utils';
+import { builder, faker, http, HttpResponse, startMockServer } from 'tests/test-utils';
 
 import { Environment } from '@/types';
 
 import { DocumentsApiError, getDocument, getDocuments } from './api';
+import { DocumentsRequestParams } from './types';
 
 const { server } = startMockServer();
 
 const API_URL = 'https://rtpc12l9k0.execute-api.eu-central-1.amazonaws.com/sandbox';
+const buildDocumentsRequestWith = builder<DocumentsRequestParams>(() => ({
+  offset: 0,
+  limit: 10,
+  documentType: undefined,
+  sortBy: 'datareg',
+  sortDir: 'desc',
+}));
 
 describe('documents API', () => {
   beforeEach(() => {
@@ -14,7 +22,58 @@ describe('documents API', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
+  });
+
+  it.each(['customer JWT', 'documents'])(
+    'ends the request when the %s service does not respond',
+    async (stalledService) => {
+      vi.useFakeTimers();
+      const requestStarted = vi.fn();
+      server.use(
+        http.get(`${window.origin}/customer/current.jwt`, () => {
+          if (stalledService === 'customer JWT') {
+            requestStarted();
+            return new Promise<never>(() => {});
+          }
+          return HttpResponse.text(faker.string.uuid());
+        }),
+        http.get(`${API_URL}/api/v1/documents`, () => {
+          requestStarted();
+          return new Promise<never>(() => {});
+        }),
+      );
+
+      const request = getDocuments(buildDocumentsRequestWith('WHATEVER_VALUES'));
+      const rejection = expect(request).rejects.toMatchObject({ status: 408 });
+      await vi.waitFor(() => expect(requestStarted).toHaveBeenCalledOnce());
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejection;
+    },
+  );
+
+  it('cancels an in-flight documents request when the caller aborts', async () => {
+    const controller = new AbortController();
+    const requestStarted = vi.fn();
+    const aborted = vi.fn();
+    server.use(
+      http.get(`${window.origin}/customer/current.jwt`, () =>
+        HttpResponse.text(faker.string.uuid()),
+      ),
+      http.get(`${API_URL}/api/v1/documents`, ({ request }) => {
+        request.signal.addEventListener('abort', aborted);
+        requestStarted();
+        return new Promise<never>(() => {});
+      }),
+    );
+
+    const request = getDocuments(buildDocumentsRequestWith('WHATEVER_VALUES'), controller.signal);
+    const rejection = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(requestStarted).toHaveBeenCalledOnce());
+    controller.abort();
+    await rejection;
+    expect(aborted).toHaveBeenCalledOnce();
   });
 
   it('gets a customer JWT and requests a sorted page of documents', async () => {
@@ -138,7 +197,13 @@ describe('documents API', () => {
     expect(request.url).toBe(`${API_URL}/api/v1/documents/${documentId}`);
     expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
     expect(result.fileName).toBe(fileName);
-    expect(await result.blob.text()).toBe(contents);
+    const reader = new FileReader();
+    const blobText = new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+    });
+    reader.readAsText(result.blob);
+    expect(await blobText).toBe(contents);
   });
 
   it('rejects the request when the current customer JWT is unavailable', async () => {
