@@ -790,16 +790,20 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       } = response;
 
       if (id) {
-        const cartId = B3LStorage.get('cartToQuoteId');
-        const deleteCartObject = deleteCartData(cartId);
-
-        const deletedCart = await deleteCart(deleteCartObject);
-        if (deletedCart?.errors?.length) {
-          throw new Error(deletedCart.errors[0].message);
-        }
-        if (deletedCart?.data?.cart?.deleteCart?.deletedCartEntityId) {
-          dispatch(setCartNumber(0));
-          Cookies.remove('cartId');
+        try {
+          const cartId = B3LStorage.get('cartToQuoteId');
+          const deleteCartObject = deleteCartData(cartId);
+          const deletedCart = await deleteCart(deleteCartObject);
+          if (deletedCart?.errors?.length) {
+            throw new Error(deletedCart.errors[0].message);
+          }
+          if (deletedCart?.data?.cart?.deleteCart?.deletedCartEntityId) {
+            dispatch(setCartNumber(0));
+            Cookies.remove('cartId');
+          }
+        } catch (error: unknown) {
+          // Cart cleanup must not interrupt the action after the quote has been created.
+          b2bLogger.error(error);
         }
       }
 

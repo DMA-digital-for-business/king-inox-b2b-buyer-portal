@@ -486,16 +486,21 @@ it('shows a warning instead of downloading a PDF when no shipping address is sel
 });
 
 it.each([
-  'download',
-  'convert',
-  'convert-failed',
-  'convert-cancel',
-  'convert-free',
-  'offer',
-  'offer-setting-off',
-  'offer-retry',
-  'creation-failed',
-] as const)('submits the draft through %s', async (action) => {
+  ...[
+    'download',
+    'convert',
+    'convert-failed',
+    'convert-cancel',
+    'convert-free',
+    'offer',
+    'offer-setting-off',
+    'offer-retry',
+    'creation-failed',
+  ].map((action) => ({ action, failure: 'none' })),
+  ...['download', 'convert', 'offer'].flatMap((action) =>
+    ['graphql', 'http', 'network'].map((failure) => ({ action, failure })),
+  ),
+])('submits the draft through $action (DeleteCart $failure)', async ({ action, failure }) => {
   const checkout = vi.fn();
   const update = vi.fn();
   const send = vi.fn();
@@ -515,6 +520,7 @@ it.each([
     },
   });
   const createdQuote = response.data.quoteCreate.quote;
+  const cartError = faker.lorem.sentence();
   const initialCartCount = faker.number.int({ min: 1, max: 99 });
   const deletedCart = builder(() => ({ deletedCartEntityId: faker.string.uuid() }))(
     'WHATEVER_VALUES',
@@ -591,9 +597,12 @@ it.each([
       checkout(await request.json());
       return HttpResponse.json({}, { status: action === 'convert-failed' ? 500 : 200 });
     }),
-    graphql.mutation('DeleteCart', () =>
-      HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
-    ),
+    graphql.mutation('DeleteCart', () => {
+      if (failure === 'graphql') return HttpResponse.json({ errors: [{ message: cartError }] });
+      if (failure === 'http') return new HttpResponse(null, { status: 503 });
+      if (failure === 'network') return HttpResponse.error();
+      return HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } });
+    }),
   );
   const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
     preloadedState: {
@@ -658,6 +667,7 @@ it.each([
   expect(store.getState().global.cartNumber).toBe(initialCartCount);
   completeSubmission();
   if (action.startsWith('convert')) {
+    if (failure !== 'none') expect(store.getState().global.cartNumber).toBe(initialCartCount);
     if (action === 'convert-failed') {
       expect(
         await screen.findByText('Unable to convert to order. Please try again.'),
@@ -693,6 +703,7 @@ it.each([
       await userEvent.click(downloadButton);
     }
     expect(await screen.findByText(/We will respond within 2 business hours/)).toBeVisible();
+    if (failure !== 'none') expect(store.getState().global.cartNumber).toBe(initialCartCount);
     expect(send).toHaveBeenLastCalledWith({
       quote_id: createdQuote.id,
       createdAt: Number(createdQuote.createdAt),
@@ -714,7 +725,7 @@ it.each([
       `/quoteDetail/${createdQuote.id}?date=${createdQuote.createdAt}`,
     );
   });
-  expect(store.getState().global.cartNumber).toBe(0);
+  expect(store.getState().global.cartNumber).toBe(failure === 'none' ? 0 : initialCartCount);
   expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
   expect(update).not.toHaveBeenCalled();
 });
