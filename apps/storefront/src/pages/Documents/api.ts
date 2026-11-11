@@ -6,7 +6,7 @@ import b2bLogger from '@/utils/b3Logger';
 import { DocumentDownload, DocumentsRequestParams, DocumentsResponse } from './types';
 
 const DOCUMENTS_API_URL = import.meta.env.VITE_DOCUMENTS_API_URL ;
-const STAGING_DOCUMENTS_APP_CLIENT_ID = import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID;
+const DOCUMENTS_APP_CLIENT_ID = import.meta.env.VITE_DOCUMENTS_APP_CLIENT_ID;
 const DOCUMENTS_REQUEST_TIMEOUT_MS = 30_000;
 
 interface DocumentsServiceConfig {
@@ -55,7 +55,7 @@ function getDocumentsServiceConfig(): DocumentsServiceConfig {
     });
     return {
       apiUrl: DOCUMENTS_API_URL,
-      appClientId: STAGING_DOCUMENTS_APP_CLIENT_ID,
+      appClientId: DOCUMENTS_APP_CLIENT_ID,
     };
   }
 
