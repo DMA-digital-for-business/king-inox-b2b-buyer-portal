@@ -108,14 +108,8 @@ export default function ConvertToOrderDialog({
             )}
             {ready && data && (
               <>
-                {data.description && <Typography>{data.description}</Typography>}
                 {data.threshold !== null && (
                   <>
-                    <Typography>
-                      {b3Lang('quoteDetail.conversion.threshold', {
-                        amount: money(data.threshold),
-                      })}
-                    </Typography>
                     <Typography>
                       {b3Lang('quoteDetail.conversion.orders', { amount: money(data.ordersTotal) })}
                     </Typography>
