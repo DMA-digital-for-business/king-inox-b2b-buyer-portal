@@ -1,6 +1,7 @@
 import { store } from '@/store';
 import { getBCPrice } from '@/utils/b3Product/b3Product';
 import { getActiveCurrencyInfo } from '@/utils/currencyUtils';
+import { roundToDecimalPlaces } from '@/utils/roundToDecimalPlaces';
 
 interface Summary {
   subtotal: number;
@@ -18,7 +19,7 @@ const defaultSummary: Summary = {
 
 const { decimal_places: decimalPlaces = 2 } = getActiveCurrencyInfo();
 
-const priceCalc = (price: number) => parseFloat(price.toFixed(decimalPlaces));
+const priceCalc = (price: number) => roundToDecimalPlaces(price, decimalPlaces);
 
 export const addPrice = () => {
   const { draftQuoteList } = store.getState().quoteInfo;

@@ -18,6 +18,7 @@ import { GlobalContext } from '@/shared/global';
 import { getB2BQuoteDetail, getBcQuoteDetail, searchProducts } from '@/shared/service/b2b';
 import type { ProductValidationError } from '@/shared/service/request/b3Fetch';
 import { activeCurrencyInfoSelector, isB2BUserSelector, useAppSelector } from '@/store';
+import type { QuoteShippingTerms } from '@/types/quotes';
 import { QuoteExtraFieldsData } from '@/types/quotes';
 import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
@@ -737,7 +738,7 @@ function QuoteDetail() {
 
   const exportPdf = async () => {
     if (pdfDownloadInProgress.current) return;
-    if (!hasShippingAddress(quoteDetail.shippingAddress)) {
+    if (Number(quoteDetail.status) !== 4 && !hasShippingAddress(quoteDetail.shippingAddress)) {
       snackbar.warning(b3Lang('quoteDraft.notification.shippingAddressRequiredForPdf'));
       return;
     }
@@ -856,13 +857,14 @@ function QuoteDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isHideQuoteCheckout]);
 
-  const isOpenQuote = Number(quoteDetail.status) === 1;
+  const hasStandardLayout = [0, 1, 4].includes(Number(quoteDetail.status));
   const canSendToKing =
     !isB2BUser ||
     verifyCreatePermission(
       b2bPermissionsMap.quotesCreateActionsPermission,
       Number(selectCompanyHierarchyId),
     );
+  const canSubmitQuote = [0, 1].includes(Number(quoteDetail.status)) && canSendToKing;
   const sentToKingField = originalExtraFields.find(
     (field) => field.fieldName === 'DATA INVIO QUOTE',
   );
@@ -874,7 +876,7 @@ function QuoteDetail() {
       ? new Date(sentToKingTimestamp < 1e12 ? sentToKingTimestamp * 1000 : sentToKingTimestamp)
       : null;
   const sendToKing = async () => {
-    if (!canSendToKing || offerSubmitted || sendingToKing.current) return;
+    if (!canSubmitQuote || offerSubmitted || sendingToKing.current) return;
     sendingToKing.current = true;
     setIsSendingToKing(true);
     try {
@@ -892,16 +894,18 @@ function QuoteDetail() {
       setIsSendingToKing(false);
     }
   };
-  const convertToOrder = async () => {
-    if (!canSendToKing || convertingToOrder.current) return;
+  const convertToOrder = async (shippingTerms: QuoteShippingTerms) => {
+    if (!canSubmitQuote || convertingToOrder.current) return false;
     convertingToOrder.current = true;
     setIsConvertingToOrder(true);
     try {
       await ensureQuoteOpen();
-      await createOrderFromQuote(String(quoteDetail.id), quoteDetail.createdAt);
+      await createOrderFromQuote(String(quoteDetail.id), quoteDetail.createdAt, shippingTerms);
       navigate('/orders');
+      return true;
     } catch {
       snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
+      return false;
     } finally {
       convertingToOrder.current = false;
       setIsConvertingToOrder(false);
@@ -926,7 +930,7 @@ function QuoteDetail() {
     isPrintingPdf ||
     isSendingToKing ||
     isConvertingToOrder;
-  const canShowSubmissionActions = [0, 1].includes(Number(quoteDetail.status)) && canSendToKing;
+  const canShowSubmissionActions = hasStandardLayout && canSendToKing;
 
   return (
     <QuotePage
@@ -955,17 +959,24 @@ function QuoteDetail() {
               requestOffer: canShowSubmissionActions
                 ? {
                     onClick: sendToKing,
-                    disabled: isSendingToKing || isConvertingToOrder || offerSubmitted,
+                    disabled:
+                      !canSubmitQuote || isSendingToKing || isConvertingToOrder || offerSubmitted,
                   }
                 : undefined,
               convertToOrder: canShowSubmissionActions
                 ? {
-                    onClick: convertToOrder,
-                    disabled: isSendingToKing || isConvertingToOrder,
+                    getDetails: () => ({
+                      companyId: Number(quoteDetail.companyId?.id),
+                      address: quoteDetail.shippingAddress,
+                      total: Number(quoteSummary.totalAmount),
+                      currencyCode: displayCurrency?.currencyCode || 'EUR',
+                    }),
+                    onConfirm: convertToOrder,
+                    disabled: !canSubmitQuote || isSendingToKing || isConvertingToOrder,
                   }
                 : undefined,
               print:
-                ![0, 1].includes(Number(quoteDetail.status)) && quoteDetail.status !== ''
+                !hasStandardLayout && quoteDetail.status !== ''
                   ? {
                       onClick: printQuote,
                     }
@@ -988,7 +999,7 @@ function QuoteDetail() {
         />
       }
       information={{
-        showQuoteInfoColumn: isOpenQuote,
+        showQuoteInfoColumn: hasStandardLayout,
         quoteAndExtraFieldsInfo,
         contactInfo: quoteDetail.contactInfo,
         shippingAddress: quoteDetail.shippingAddress,
@@ -1001,7 +1012,7 @@ function QuoteDetail() {
         rowSpacing={0}
         sx={{
           overflow: 'auto',
-          flexWrap: isMobile || isOpenQuote ? 'wrap' : 'nowrap',
+          flexWrap: isMobile || hasStandardLayout ? 'wrap' : 'nowrap',
           paddingBottom: '20px',
           marginBottom: isMobile ? '6rem' : 0,
           marginTop: isMobile ? 0 : '1rem',
@@ -1012,7 +1023,7 @@ function QuoteDetail() {
       >
         <Grid
           item
-          xs={isMobile || isOpenQuote ? 12 : 8}
+          xs={isMobile || hasStandardLayout ? 12 : 8}
           rowSpacing={0}
           sx={
             isMobile
@@ -1021,7 +1032,7 @@ function QuoteDetail() {
                   pl: '16px',
                 }
               : {
-                  mr: isOpenQuote ? 0 : '16px',
+                  mr: hasStandardLayout ? 0 : '16px',
                 }
           }
         >
@@ -1035,7 +1046,7 @@ function QuoteDetail() {
             }
           >
             <QuoteDetailTable
-              formattedTotal={isOpenQuote ? formattedQuoteTotal : undefined}
+              formattedTotal={hasStandardLayout ? formattedQuoteTotal : undefined}
               total={productList.length}
               productList={productList}
               currency={displayCurrency}
@@ -1049,7 +1060,7 @@ function QuoteDetail() {
         </Grid>
         <Grid
           item
-          xs={isMobile || isOpenQuote ? 12 : 4}
+          xs={isMobile || hasStandardLayout ? 12 : 4}
           rowSpacing={0}
           sx={
             isMobile
@@ -1061,7 +1072,7 @@ function QuoteDetail() {
                 }
           }
         >
-          {!isOpenQuote && (
+          {!hasStandardLayout && (
             <Box
               sx={{
                 marginBottom: '1rem',
@@ -1090,7 +1101,7 @@ function QuoteDetail() {
             </Box>
           )}
 
-          {!isOpenQuote && (
+          {!hasStandardLayout && (
             <Box
               sx={{
                 marginBottom: '1rem',
@@ -1107,7 +1118,7 @@ function QuoteDetail() {
             </Box>
           )}
 
-          {!isOpenQuote && (
+          {!hasStandardLayout && (
             <Box
               sx={{
                 marginBottom: '1rem',

@@ -325,6 +325,7 @@ describe('when the user is a B2B customer', () => {
         quote: { id, createdAt, status, productsList: [buildQuoteProductWith('WHATEVER_VALUES')] },
       },
     });
+    quote.data.quote.companyId.id = faker.number.int({ min: 1, max: 10000 }).toString();
     const checkout = vitest.fn();
     const update = vitest.fn();
     let quoteReads = 0;
@@ -333,6 +334,18 @@ describe('when the user is a B2B customer', () => {
       completeCheckout = resolve;
     });
     server.use(
+      graphql.query('QuoteConversionAddresses', () =>
+        HttpResponse.json({
+          data: {
+            addresses: {
+              edges: [
+                { node: { id: quote.data.quote.shippingAddress.addressId, extraFields: [] } },
+              ],
+              pageInfo: { hasNextPage: false },
+            },
+          },
+        }),
+      ),
       graphql.query('GetQuoteInfoB2B', () => {
         quoteReads += 1;
         const currentStatus = quoteReads > 1 && mode !== 'not-open' ? 1 : status;
@@ -380,11 +393,20 @@ describe('when the user is a B2B customer', () => {
     });
     const convert = await screen.findByRole('button', { name: 'Convert to order' });
     await waitFor(() => expect(convert).toBeEnabled());
-    if (mode === 'not-open' || mode === 'missing-token') await user.click(convert);
-    else await user.dblClick(convert);
+    await user.click(convert);
+    expect(checkout).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('combobox', { name: /Shipping terms/ }));
+    await user.click(screen.getByRole('option', { name: 'Freight collect' }));
+    const confirm = screen.getByRole('button', { name: 'Continue converting to order' });
+    if (mode === 'not-open' || mode === 'missing-token') await user.click(confirm);
+    else await user.dblClick(confirm);
     if (mode !== 'not-open' && mode !== 'missing-token') {
       await waitFor(() =>
-        expect(checkout).toHaveBeenCalledExactlyOnceWith({ quote_id: Number(id), createdAt }),
+        expect(checkout).toHaveBeenCalledExactlyOnceWith({
+          quote_id: Number(id),
+          createdAt,
+          shipping_terms: 'porto_assegnato',
+        }),
       );
       expect(convert).toBeDisabled();
       expect(navigation).not.toHaveBeenCalledWith('/orders');
@@ -432,40 +454,52 @@ describe('when the user is a B2B customer', () => {
     expect(screen.queryByRole('button', { name: 'Edit info' })).not.toBeInTheDocument();
   });
 
-  it('shows a warning instead of downloading the saved quote PDF without a shipping address', async () => {
-    const quote = buildQuoteWith({
-      data: { quote: { id: '272989', status: 1, shippingAddress: { address: '' } } },
-    });
-    server.use(
-      graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
-      graphql.query('SearchProducts', () =>
-        HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
-      ),
-      graphql.query('getQuoteExtraFields', () =>
-        HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
-      ),
-    );
-    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
-    renderWithProviders(<QuoteDetail />, {
-      preloadedState: {
-        ...preloadedState,
-        global: { ...preloadedState.global, backorderEnabled: false },
-        company: buildCompanyStateWith({
-          companyInfo: { status: CompanyStatus.APPROVED },
-          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
-        }),
-      },
-    });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
-    await userEvent.click(screen.getByRole('button', { name: /Download/ }));
-    expect(
-      await screen.findByText('A shipping address is required before downloading the quote.'),
-    ).toBeInTheDocument();
-    expect(downloadQuotePdf).not.toHaveBeenCalled();
-  });
+  it.each([0, 1])(
+    'blocks PDF download without a shipping address for editable quote status %s',
+    async (status) => {
+      const quote = buildQuoteWith({
+        data: { quote: { id: '272989', status, shippingAddress: { address: '' } } },
+      });
+      server.use(
+        graphql.query('GetQuoteInfoB2B', () => HttpResponse.json(quote)),
+        graphql.query('SearchProducts', () =>
+          HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
+        ),
+        graphql.query('getQuoteExtraFields', () =>
+          HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
+        ),
+      );
+      vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+      renderWithProviders(<QuoteDetail />, {
+        preloadedState: {
+          ...preloadedState,
+          global: { ...preloadedState.global, backorderEnabled: false },
+          company: buildCompanyStateWith({
+            companyInfo: { status: CompanyStatus.APPROVED },
+            customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+          }),
+        },
+      });
+      await waitFor(() => expect(screen.getByRole('button', { name: /Download/ })).toBeEnabled());
+      await userEvent.click(screen.getByRole('button', { name: /Download/ }));
+      expect(
+        await screen.findByText('A shipping address is required before downloading the quote.'),
+      ).toBeInTheDocument();
+      expect(downloadQuotePdf).not.toHaveBeenCalled();
+    },
+  );
 
-  it.each(['manual', 'automatic', 'draft', 'notification-failed', 'opening-failed'])(
-    'downloads and prints the saved quote (%s)',
+  it.each([
+    'manual',
+    'automatic',
+    'draft',
+    'notification-failed',
+    'opening-failed',
+    'ordered',
+    'ordered-empty-shipping',
+    'ordered-null-shipping',
+  ])(
+    'downloads and prints the saved quote without requiring shipping details for ordered quotes (%s)',
     async (mode) => {
       const dimensions = [faker.number.int().toString(), faker.number.int().toString()];
       const yourCode = faker.string.uuid();
@@ -502,7 +536,8 @@ describe('when the user is a B2B customer', () => {
         salesRepEmail: faker.internet.email(),
         salesRepPhoneNumber: faker.phone.number(),
       };
-      const quoteStatus = ['draft', 'opening-failed'].includes(mode) ? 0 : 1;
+      let quoteStatus = ['draft', 'opening-failed'].includes(mode) ? 0 : 1;
+      if (mode.startsWith('ordered')) quoteStatus = 4;
       const quote = buildQuoteWith({
         data: {
           quote: {
@@ -517,6 +552,7 @@ describe('when the user is a B2B customer', () => {
           },
         },
       });
+      if (mode === 'ordered-empty-shipping') quote.data.quote.shippingAddress.address = '';
       const printWindow = { close: vitest.fn() } as unknown as Window;
       const openWindow = vitest.spyOn(window, 'open').mockReturnValue(printWindow);
       vitest.mocked(downloadQuotePdf).mockResolvedValue();
@@ -598,7 +634,16 @@ describe('when the user is a B2B customer', () => {
         graphql.query('GetQuoteInfoB2B', () => {
           quoteReads += 1;
           const status = quoteReads > 1 && mode === 'draft' ? 1 : quote.data.quote.status;
-          return HttpResponse.json({ data: { quote: { ...quote.data.quote, status } } });
+          return HttpResponse.json({
+            data: {
+              quote: {
+                ...quote.data.quote,
+                status,
+                shippingAddress:
+                  mode === 'ordered-null-shipping' ? null : quote.data.quote.shippingAddress,
+              },
+            },
+          });
         }),
         graphql.query('SearchProducts', () =>
           HttpResponse.json(buildProductSearchResponseWith('WHATEVER_VALUES')),
@@ -668,6 +713,19 @@ describe('when the user is a B2B customer', () => {
           }),
         );
       });
+
+      if (mode.startsWith('ordered')) {
+        expect(
+          screen.queryByText('A shipping address is required before downloading the quote.'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('Ordered')).toBeInTheDocument();
+        expect(downloadQuotePdf).toHaveBeenCalledWith(
+          expect.objectContaining({
+            shippingAddress:
+              mode === 'ordered-null-shipping' ? {} : quote.data.quote.shippingAddress,
+          }),
+        );
+      }
 
       expect(notify).toHaveBeenCalledExactlyOnceWith({
         quote_id: Number(quote.data.quote.id),
@@ -867,7 +925,7 @@ describe('when the user is a B2B customer', () => {
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '$399.99' })).toBeInTheDocument();
   });
 
-  it.each([1, 4])('displays the total in the appropriate section for status %s', async (status) => {
+  it.each([0, 1, 4])('uses the standard quote layout and actions for status %s', async (status) => {
     const quote = buildQuoteWith({
       data: {
         quote: {
@@ -900,6 +958,11 @@ describe('when the user is a B2B customer', () => {
     renderWithProviders(<QuoteDetail />, {
       preloadedState: {
         ...preloadedState,
+        company: buildCompanyStateWith({
+          companyInfo: { status: CompanyStatus.APPROVED },
+          permissions: [{ code: 'create_quote', permissionLevel: 2 }],
+          customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
+        }),
         global: {
           ...preloadedState.global,
           backorderEnabled: false,
@@ -908,34 +971,26 @@ describe('when the user is a B2B customer', () => {
       },
     });
 
-    if (status === 1) {
-      const productCount = await screen.findByText('1 product');
-      expect(productCount.parentElement).toHaveTextContent('1 product (Total $1,025.00)');
-      expect(screen.queryByRole('heading', { name: 'Quote summary' })).not.toBeInTheDocument();
-      expect(screen.queryByText('Message')).not.toBeInTheDocument();
-      expect(screen.queryByText('Attachment')).not.toBeInTheDocument();
-      return;
+    const productCount = await screen.findByText('1 product');
+    expect(productCount.parentElement).toHaveTextContent('1 product (Total $1,025.00)');
+    expect(screen.queryByRole('heading', { name: 'Quote summary' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Message')).not.toBeInTheDocument();
+    expect(screen.queryByText('Attachment')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Print' })).not.toBeInTheDocument();
+    const download = screen.getByRole('button', { name: /Download/ });
+    const offer = screen.getByRole('button', { name: 'Request offer' });
+    const convert = screen.getByRole('button', { name: 'Convert to order' });
+    expect(download).toBeEnabled();
+    expect(download.compareDocumentPosition(offer)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(offer.compareDocumentPosition(convert)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    if (status === 4) {
+      expect(offer).toBeDisabled();
+      expect(convert).toBeDisabled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } else {
+      expect(offer).toBeEnabled();
+      expect(convert).toBeEnabled();
     }
-
-    expect(await screen.findByRole('heading', { name: 'Quote summary' })).toBeInTheDocument();
-
-    expect(await screen.findByText('Original subtotal')).toBeInTheDocument();
-    expect(await screen.findByText('$1,000.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Discount amount')).toBeInTheDocument();
-    expect(screen.getByText('-$25.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Quoted subtotal')).toBeInTheDocument();
-    expect(screen.getByText('$975.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Shipping')).toBeInTheDocument();
-    expect(screen.getByText('$50.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Tax')).toBeInTheDocument();
-    expect(screen.getByText('$33.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Grand total')).toBeInTheDocument();
-    expect(screen.getByText('$1,025.00')).toBeInTheDocument();
   });
 
   it('displays snackbar error on load if a product in the quote has validation errors', async () => {

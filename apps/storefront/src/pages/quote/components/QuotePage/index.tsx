@@ -1,21 +1,15 @@
 import { ComponentProps, ReactNode, useContext } from 'react';
-import { ArrowBackIosNew, ShoppingCartCheckout } from '@mui/icons-material';
+import { ArrowBackIosNew } from '@mui/icons-material';
 import { Box, Button, Grid, Typography } from '@mui/material';
 
 import { b3HexToRgb, getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
-import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
-import QuoteDownloadButton from '@/pages/quote/components/QuoteDownloadButton';
+import QuoteActions from '@/pages/quote/components/QuoteActions';
 import QuoteInfo from '@/pages/quote/components/QuoteInfo';
 import QuoteLoading from '@/pages/quote/components/QuoteLoading';
 import QuoteStatus from '@/pages/quote/components/QuoteStatus';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 import { displayFormat } from '@/utils/b3DateFormat';
-
-interface QuoteAction {
-  onClick: () => void;
-  disabled?: boolean;
-}
 
 interface QuotePageProps {
   busy: boolean;
@@ -26,13 +20,7 @@ interface QuotePageProps {
   expiredAt?: number;
   salesRepInfo?: { salesRepName?: string; salesRepEmail?: string };
   back?: { label: string; onClick: () => void };
-  actions?: {
-    download: QuoteAction;
-    requestOffer?: QuoteAction;
-    convertToOrder?: QuoteAction;
-    print?: QuoteAction;
-    sentAtLabel?: string;
-  };
+  actions?: ComponentProps<typeof QuoteActions>['actions'];
   information: ComponentProps<typeof QuoteInfo>;
   editingInformation?: ReactNode;
   children: ReactNode;
@@ -54,7 +42,6 @@ export default function QuotePage({
   children,
   dialog,
 }: QuotePageProps) {
-  const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
   const {
     state: {
@@ -122,59 +109,7 @@ export default function QuotePage({
           </Grid>
           {actions && (
             <Grid item xs={12} md={8} sx={{ displayPrint: 'none' }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  alignItems: 'flex-start',
-                  flexWrap: 'wrap',
-                  justifyContent: isMobile ? 'flex-start' : 'flex-end',
-                  '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: '44px' },
-                }}
-              >
-                <QuoteDownloadButton
-                  disabled={busy || !!actions.download.disabled}
-                  onClick={actions.download.onClick}
-                />
-                {actions.requestOffer && (
-                  <Button
-                    variant="contained"
-                    disabled={busy || actions.requestOffer.disabled}
-                    onClick={actions.requestOffer.onClick}
-                  >
-                    {b3Lang('quoteDetail.requestOffer')}
-                  </Button>
-                )}
-                {actions.convertToOrder && (
-                  <Button
-                    variant="contained"
-                    disabled={busy || actions.convertToOrder.disabled}
-                    startIcon={<ShoppingCartCheckout />}
-                    sx={{
-                      backgroundColor: '#15803d',
-                      color: '#ffffff',
-                      '&:hover': { backgroundColor: '#166534' },
-                    }}
-                    onClick={actions.convertToOrder.onClick}
-                  >
-                    {b3Lang('quoteDetail.convertToOrder')}
-                  </Button>
-                )}
-                {actions.print && (
-                  <Button
-                    variant="contained"
-                    disabled={busy || actions.print.disabled}
-                    onClick={actions.print.onClick}
-                  >
-                    {b3Lang('quoteDetail.header.print')}
-                  </Button>
-                )}
-              </Box>
-              {actions.sentAtLabel && (
-                <Typography variant="body2" sx={{ mt: 1, textAlign: isMobile ? 'left' : 'right' }}>
-                  {actions.sentAtLabel}
-                </Typography>
-              )}
+              <QuoteActions busy={busy} actions={actions} />
             </Grid>
           )}
         </Grid>

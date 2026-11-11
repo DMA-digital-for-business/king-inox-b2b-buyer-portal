@@ -38,6 +38,7 @@ import {
   QuoteExtraFields,
   QuoteFormattedItemsProps,
   QuoteInfo as QuoteInfoType,
+  QuoteShippingTerms,
   ShippingAddress,
 } from '@/types/quotes';
 import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
@@ -457,6 +458,18 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         formatQuotePrice(calculateQuoteSummary(draftQuoteList, showInclusiveTaxPrice).grandTotal),
       );
 
+  const conversionTotal = Number(
+    draftQuoteList
+      .reduce(
+        (total, { node }) =>
+          total +
+          (Number(node.basePrice || 0) + (enteredInclusiveTax ? 0 : Number(node.taxPrice || 0))) *
+            Number(node.quantity || 0),
+        0,
+      )
+      .toFixed(displayCurrency.decimalPlaces),
+  );
+
   const accountFormFields = getAccountFormFields(isMobile, b3Lang);
 
   const getFileList = (files: CustomFieldItems[]) => {
@@ -528,15 +541,32 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     setQuoteSubmissionResponseOpen(true);
   };
 
-  const convertCreatedQuoteToOrder = async (quote: QuoteSubmissionDataRefType) => {
-    await createOrderFromQuote(String(quote.id), Number(quote.createdAt));
+  const convertCreatedQuoteToOrder = async (
+    quote: QuoteSubmissionDataRefType,
+    shippingTerms: QuoteShippingTerms,
+  ) => {
+    await createOrderFromQuote(String(quote.id), Number(quote.createdAt), shippingTerms);
     handleReset();
     navigate('/orders');
+    return true;
   };
 
-  const handleSubmit = async (downloadPdf = false, convertToOrder = false) => {
+  const getConversionDetails = () => {
+    const address: ShippingAddress =
+      (shippingRef.current ? getAddress().shippingAddress : quoteInfoOrigin.shippingAddress) ??
+      shippingAddress;
+    const currentAddress = cloneAddressWithId(address);
+    return {
+      companyId: Number(selectCompanyHierarchyId || companyB2BId || salesRepCompanyId),
+      address: { ...currentAddress, extraFields: address.extraFields ?? [] },
+      total: conversionTotal,
+      currencyCode: displayCurrency.currencyCode || 'EUR',
+    };
+  };
+
+  const handleSubmit = async (downloadPdf = false, convertToOrder?: QuoteShippingTerms) => {
     if (submissionInProgress.current || loading) {
-      return;
+      return false;
     }
 
     submissionInProgress.current = true;
@@ -546,17 +576,17 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     try {
       if (!downloadPdf && quoteSubmissionDataRef.current) {
         if (convertToOrder) {
-          await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current);
-        } else {
-          await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
+          return await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current, convertToOrder);
         }
-        return;
+        await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
+
+        return true;
       }
       const info = cloneDeep(quoteInfoOrigin);
       const { decimalPlaces } = displayCurrency;
       if (isEdit && contactInfoRef?.current) {
         const data = await handleCollectingData(info);
-        if (!data) return;
+        if (!data) return false;
       }
 
       const currentAddresses = shippingRef.current ? getAddress() : info;
@@ -569,7 +599,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
               : 'quoteDraft.notification.shippingAddressRequired',
           ),
         );
-        return;
+        return false;
       }
 
       const contactInfo = info?.contactInfo || {};
@@ -588,12 +618,12 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       if (validateObject(quoteInfoOrigin, 'contactInfo') || !isComplete) {
         snackbar.error(b3Lang('quoteDraft.addQuoteInfo'));
-        return;
+        return false;
       }
 
       if (!draftQuoteList || draftQuoteList.length === 0) {
         snackbar.error(b3Lang('quoteDraft.submit'));
-        return;
+        return false;
       }
 
       if (!isAddNonPurchasableOutOfStockToQuoteEnabled && !isBackorderEnabled) {
@@ -603,7 +633,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
         if (itHasInvalidProduct) {
           snackbar.error(b3Lang('quoteDraft.submit.errorTip'));
-          return;
+          return false;
         }
       }
 
@@ -749,7 +779,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
             },
           );
 
-          return;
+          return false;
         }
       }
 
@@ -776,17 +806,20 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       quoteSubmissionDataRef.current = { id, createdAt, uuid };
 
       if (convertToOrder) {
-        await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current);
-      } else if (downloadPdf) {
+        return await convertCreatedQuoteToOrder(quoteSubmissionDataRef.current, convertToOrder);
+      }
+      if (downloadPdf) {
         handleAfterSubmit(quoteSubmissionDataRef.current, true);
       } else {
         await requestOfferForCreatedQuote(quoteSubmissionDataRef.current);
       }
+      return true;
     } catch (error: any) {
       b2bLogger.error(error);
       if (downloadPdf) snackbar.error(b3Lang('quoteDraft.pdf.downloadError'));
       if (convertToOrder) snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
       if (!downloadPdf && !convertToOrder) snackbar.error(b3Lang('quoteDetail.sendToKing.error'));
+      return false;
     } finally {
       submissionInProgress.current = false;
       setLoading(false);
@@ -846,7 +879,10 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           ? {
               download: { onClick: () => handleSubmit(true) },
               requestOffer: { onClick: () => handleSubmit() },
-              convertToOrder: { onClick: () => handleSubmit(false, true) },
+              convertToOrder: {
+                getDetails: getConversionDetails,
+                onConfirm: (terms) => handleSubmit(false, terms),
+              },
             }
           : undefined
       }

@@ -22,10 +22,10 @@ import { displayFormat } from '@/utils/b3DateFormat';
 import { channelId } from '@/utils/basicConfig';
 import { buildCurrenciesMap } from '@/utils/currencyUtils';
 
-import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
 import { addPrice } from '../quote/shared/config';
 
+import { formatSubtotal } from './formatSubtotal';
 import { QuoteItemCard } from './QuoteItemCard';
 
 interface ListItem {
@@ -179,11 +179,7 @@ const useColumnList = (
       const effectiveCurrency =
         (isCurrencySymbolPlacementFixEnabled && currencyCode && currenciesMap[currencyCode]) ||
         currency;
-      return formatQuoteConvertedPrice(Number(totalAmount), {
-        currency: effectiveCurrency,
-        isConversionRate: false,
-        useCurrentCurrency: !!effectiveCurrency,
-      });
+      return formatSubtotal(Number(totalAmount), effectiveCurrency);
     },
     [isCurrencySymbolPlacementFixEnabled, currenciesMap],
   );

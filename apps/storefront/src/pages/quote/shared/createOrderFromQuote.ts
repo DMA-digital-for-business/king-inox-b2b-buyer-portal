@@ -1,9 +1,11 @@
 import { getCurrentCustomerJWT } from '@/shared/service/bc/api/login';
 import { getCurrentApiClientId, getCurrentApiDomain } from '@/shared/service/kingInox/apiDomain';
+import type { QuoteShippingTerms } from '@/types/quotes';
 
 export default async function createOrderFromQuote(
   quoteId: string,
   createdAt: number,
+  shippingTerms?: QuoteShippingTerms,
 ): Promise<void> {
   const token = (await getCurrentCustomerJWT(getCurrentApiClientId()))?.trim();
   if (!token) {
@@ -13,7 +15,7 @@ export default async function createOrderFromQuote(
   const response = await fetch(`${getCurrentApiDomain()}/api/v1/bigcommerce/quote-checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ quote_id: Number(quoteId), createdAt }),
+    body: JSON.stringify({ quote_id: Number(quoteId), createdAt, shipping_terms: shippingTerms }),
   });
 
   if (!response.ok) {

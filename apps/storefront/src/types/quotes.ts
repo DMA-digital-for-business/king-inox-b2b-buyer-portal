@@ -2,6 +2,8 @@ import { ExtraFieldsConfigType, Maybe, QuoteExtraFieldsConfigType } from '@/type
 
 import { Product } from './products';
 
+export type QuoteShippingTerms = 'porto_franco' | 'porto_assegnato' | 'porto_franco_con_addebito';
+
 export interface ContactInfo {
   name: string;
   email: string;

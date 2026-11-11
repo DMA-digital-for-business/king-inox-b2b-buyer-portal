@@ -11,8 +11,9 @@ import { useB3Lang } from '@/lib/lang';
 import { DisplayCurrency } from '@/types/currency';
 import { displayFormat } from '@/utils/b3DateFormat';
 
-import { formatQuoteConvertedPrice } from '../quote/components/quotePriceFormat';
 import QuoteStatus from '../quote/components/QuoteStatus';
+
+import { formatSubtotal } from './formatSubtotal';
 
 interface ListItem {
   [key: string]: string | Object | undefined;
@@ -48,11 +49,7 @@ export function QuoteItemCard(props: QuoteItemCardProps) {
     const effectiveCurrency =
       (isCurrencySymbolPlacementFixEnabled && currencyCode && currenciesMap[currencyCode]) ||
       currency;
-    return formatQuoteConvertedPrice(Number(totalAmount), {
-      currency: effectiveCurrency,
-      isConversionRate: false,
-      useCurrentCurrency: !!effectiveCurrency,
-    });
+    return formatSubtotal(Number(totalAmount), effectiveCurrency);
   }, [item, isCurrencySymbolPlacementFixEnabled, currenciesMap]);
 
   const columnAllItems: TableColumnItem<ListItem>[] = [

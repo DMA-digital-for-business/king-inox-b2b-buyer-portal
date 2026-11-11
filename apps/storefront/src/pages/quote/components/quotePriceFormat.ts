@@ -4,6 +4,7 @@ import {
   currencyFormatInfo,
   ordersCurrencyFormat,
 } from '@/utils/b3CurrencyFormat';
+import { roundToDecimalPlaces } from '@/utils/roundToDecimalPlaces';
 
 interface QuoteCurrencyOptions {
   currency?: CurrencyProps | DisplayCurrency;
@@ -23,7 +24,7 @@ export const formatQuotePrice = (price: number | string, showCurrencyToken = tru
       ...moneyFormat,
       decimal_places: clampDecimalPlaces(moneyFormat.decimal_places),
     },
-    price,
+    roundToDecimalPlaces(price, clampDecimalPlaces(moneyFormat.decimal_places)),
     showCurrencyToken,
   );
 };
@@ -36,18 +37,25 @@ export const formatQuoteConvertedPrice = (
     isConversionRate = false,
     useCurrentCurrency = false,
   }: QuoteCurrencyOptions,
-) =>
-  currencyFormatConvert(price, {
-    currency: currency
-      ? {
-          ...currency,
-          decimalPlaces: clampDecimalPlaces(currency.decimalPlaces),
-        }
-      : currency,
-    showCurrencyToken,
-    isConversionRate,
-    useCurrentCurrency,
-  });
+) => {
+  const decimalPlaces = clampDecimalPlaces(
+    useCurrentCurrency && currency ? currency.decimalPlaces : currencyFormatInfo().decimal_places,
+  );
+  return currencyFormatConvert(
+    isConversionRate ? price : roundToDecimalPlaces(price, decimalPlaces),
+    {
+      currency: currency
+        ? {
+            ...currency,
+            decimalPlaces: clampDecimalPlaces(currency.decimalPlaces),
+          }
+        : currency,
+      showCurrencyToken,
+      isConversionRate,
+      useCurrentCurrency,
+    },
+  );
+};
 
 export const formatQuoteUnitPrice = (price: number) => `${formatQuotePrice(price * 100, false)} %`;
 

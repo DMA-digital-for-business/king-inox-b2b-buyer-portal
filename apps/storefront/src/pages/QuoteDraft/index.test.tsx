@@ -489,6 +489,8 @@ it.each([
   'download',
   'convert',
   'convert-failed',
+  'convert-cancel',
+  'convert-free',
   'offer',
   'offer-setting-off',
   'offer-retry',
@@ -498,6 +500,7 @@ it.each([
   const update = vi.fn();
   const send = vi.fn();
   const token = faker.string.alphanumeric(40);
+  const companyId = faker.number.int({ min: 1, max: 10000 }).toString();
   vi.spyOn(B3LStorage, 'get').mockReturnValue(undefined);
   vi.spyOn(B3LStorage, 'delete').mockImplementation(() => {});
   set(window, 'b2b.callbacks.dispatchEvent', vi.fn().mockReturnValue(true));
@@ -521,7 +524,31 @@ it.each([
     completeSubmission = resolve;
   });
   const createQuote = vi.fn();
+  const quoteInfo = buildQuoteInfoStateWith({
+    draftQuoteInfo: { contactInfo: { email: customerEmail } },
+  });
   server.use(
+    graphql.query('QuoteConversionAddresses', () =>
+      HttpResponse.json({
+        data: {
+          addresses: {
+            edges: [
+              {
+                node: {
+                  id: quoteInfo.draftQuoteInfo.shippingAddress.addressId,
+                  extraFields:
+                    action === 'convert-free'
+                      ? [{ fieldName: 'SOGLIA PORTOFRANCO', fieldValue: '0' }]
+                      : [],
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false },
+          },
+        },
+      }),
+    ),
+    http.get('*/api/v1/bigcommerce/order-status', () => HttpResponse.json({ data: [] })),
     graphql.query('Countries', () => HttpResponse.json({ data: { countries: [fakeCountry] } })),
     graphql.query('Addresses', () =>
       HttpResponse.json({ data: { addresses: { totalCount: 0, edges: [] } } }),
@@ -568,15 +595,12 @@ it.each([
       HttpResponse.json({ data: { cart: { deleteCart: { ...deletedCart } } } }),
     ),
   );
-  const quoteInfo = buildQuoteInfoStateWith({
-    draftQuoteInfo: { contactInfo: { email: customerEmail } },
-  });
   const { navigation, store } = renderWithProviders(<QuoteDraft setOpenPage={vi.fn()} />, {
     preloadedState: {
       ...preloadedState,
       quoteInfo,
       company: buildCompanyStateWith({
-        companyInfo: { status: CompanyStatus.APPROVED },
+        companyInfo: { id: companyId, status: CompanyStatus.APPROVED },
         customer: {
           userType: UserTypes.MULTIPLE_B2C,
           role: CustomerRole.SENIOR_BUYER,
@@ -597,6 +621,28 @@ it.each([
   if (action.startsWith('convert')) actionName = 'Convert to order';
   const downloadButton = await screen.findByRole('button', { name: actionName });
   await userEvent.dblClick(downloadButton);
+  if (action.startsWith('convert')) {
+    expect(
+      await screen.findByRole('dialog', { name: 'Confirm conversion to order' }),
+    ).toBeVisible();
+    expect(createQuote).not.toHaveBeenCalled();
+    expect(checkout).not.toHaveBeenCalled();
+    if (action === 'convert-cancel') {
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(createQuote).not.toHaveBeenCalled();
+      expect(checkout).not.toHaveBeenCalled();
+      return;
+    }
+    if (action === 'convert-free') {
+      await screen.findByText('Threshold reached: free shipping will be applied.');
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    } else {
+      await userEvent.click(await screen.findByRole('combobox', { name: /Shipping terms/ }));
+      await userEvent.click(screen.getByRole('option', { name: 'Freight collect' }));
+    }
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Continue converting to order' }));
+  }
   await waitFor(() => expect(createQuote).toHaveBeenCalledTimes(1));
   expect(createQuote).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -624,11 +670,13 @@ it.each([
     expect(checkout).toHaveBeenCalledExactlyOnceWith({
       quote_id: createdQuote.id,
       createdAt: Number(createdQuote.createdAt),
+      shipping_terms: action === 'convert-free' ? 'porto_franco' : 'porto_assegnato',
     });
     expect(send).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
     expect(createQuote).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    if (action === 'convert-failed') expect(screen.getByRole('dialog')).toBeVisible();
+    else await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     return;
   }
   if (action !== 'download' && action !== 'convert') {

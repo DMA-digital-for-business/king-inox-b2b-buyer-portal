@@ -380,61 +380,67 @@ describe('when the user is a B2B customer', () => {
   });
 
   describe('when the user has a draft quote', () => {
-    it('displays the draft quote details at the top of the list', async () => {
-      const someSavedQuote = buildQuoteEdgeWith({ node: { quoteTitle: 'Some Saved Quote' } });
-      const quotesListB2B = buildQuotesListB2BWith({
-        data: { quotes: { totalCount: 1, edges: [someSavedQuote] } },
-      });
+    it.each([
+      { firstPrice: 23, secondPrice: 77, quantity: 2, expected: '$200.00' },
+      { firstPrice: 10.075, secondPrice: 0, quantity: 1, expected: '$10.08' },
+    ])(
+      'displays the draft quote details at the top of the list with subtotal $expected',
+      async ({ firstPrice, secondPrice, quantity, expected }) => {
+        const someSavedQuote = buildQuoteEdgeWith({ node: { quoteTitle: 'Some Saved Quote' } });
+        const quotesListB2B = buildQuotesListB2BWith({
+          data: { quotes: { totalCount: 1, edges: [someSavedQuote] } },
+        });
 
-      server.use(
-        graphql.query('GetQuotesList', () => HttpResponse.json(quotesListB2B)),
-        graphql.query('GetShoppingListsCreatedByUser', () =>
-          HttpResponse.json(buildShoppingListsCreatedByUserWith('WHATEVER_VALUES')),
-        ),
-      );
+        server.use(
+          graphql.query('GetQuotesList', () => HttpResponse.json(quotesListB2B)),
+          graphql.query('GetShoppingListsCreatedByUser', () =>
+            HttpResponse.json(buildShoppingListsCreatedByUserWith('WHATEVER_VALUES')),
+          ),
+        );
 
-      const someDraftQuoteItem = buildDraftQuoteItemWith({
-        node: { basePrice: 23, taxPrice: 0, quantity: 2 },
-      });
-      const anotherDraftQuoteItem = buildDraftQuoteItemWith({
-        node: { basePrice: 77, taxPrice: 0, quantity: 2 },
-      });
+        const someDraftQuoteItem = buildDraftQuoteItemWith({
+          node: { basePrice: firstPrice, taxPrice: 0, quantity },
+        });
+        const anotherDraftQuoteItem = buildDraftQuoteItemWith({
+          node: { basePrice: secondPrice, taxPrice: 0, quantity },
+        });
 
-      const quoteInfo = buildQuoteInfoStateWith({
-        draftQuoteList: [someDraftQuoteItem, anotherDraftQuoteItem],
-      });
+        const quoteInfo = buildQuoteInfoStateWith({
+          draftQuoteList: [someDraftQuoteItem, anotherDraftQuoteItem],
+        });
 
-      renderWithProviders(<QuotesList />, {
-        preloadedState: { ...preloadedState, quoteInfo },
-      });
+        renderWithProviders(<QuotesList />, {
+          preloadedState: { ...preloadedState, quoteInfo },
+        });
 
-      const table = await screen.findByRole('table');
-      const allRows = within(table).getAllByRole('row');
+        const table = await screen.findByRole('table');
+        const allRows = within(table).getAllByRole('row');
 
-      const rowOfDraftQuote = within(table).getByRole('row', { name: /Draft/ });
-      const rowOfSomeSavedQuote = within(table).getByRole('row', {
-        name: /Some Saved Quote/,
-      });
+        const rowOfDraftQuote = within(table).getByRole('row', { name: /Draft/ });
+        const rowOfSomeSavedQuote = within(table).getByRole('row', {
+          name: /Some Saved Quote/,
+        });
 
-      // Row 0 is the header row
-      expect(allRows[1]).toBe(rowOfDraftQuote);
-      expect(allRows[2]).toBe(rowOfSomeSavedQuote);
+        // Row 0 is the header row
+        expect(allRows[1]).toBe(rowOfDraftQuote);
+        expect(allRows[2]).toBe(rowOfSomeSavedQuote);
 
-      const allDraftQuoteCells = within(rowOfDraftQuote).getAllByRole('cell');
+        const allDraftQuoteCells = within(rowOfDraftQuote).getAllByRole('cell');
 
-      // Quote #
-      expect(allDraftQuoteCells[0]).toHaveTextContent('—');
-      // Title
-      expect(allDraftQuoteCells[1]).toHaveTextContent('—');
-      // Draft quotes are created by the current user in state
-      expect(allDraftQuoteCells[2]).toHaveTextContent('John Doe');
-      // Date created
-      expect(allDraftQuoteCells[3]).toHaveTextContent('—');
-      // Expiration date
-      expect(allDraftQuoteCells[4]).toHaveTextContent('—');
-      // Subtotal is the sum of all the items in the draft quote
-      expect(allDraftQuoteCells[5]).toHaveTextContent('$200.00');
-    });
+        // Quote #
+        expect(allDraftQuoteCells[0]).toHaveTextContent('—');
+        // Title
+        expect(allDraftQuoteCells[1]).toHaveTextContent('—');
+        // Draft quotes are created by the current user in state
+        expect(allDraftQuoteCells[2]).toHaveTextContent('John Doe');
+        // Date created
+        expect(allDraftQuoteCells[3]).toHaveTextContent('—');
+        // Expiration date
+        expect(allDraftQuoteCells[4]).toHaveTextContent('—');
+        // Subtotal is the sum of all the items in the draft quote
+        expect(allDraftQuoteCells[5]).toHaveTextContent(expected);
+      },
+    );
   });
 
   describe('when clicking on the row of the draft quote', () => {
@@ -1387,7 +1393,7 @@ describe('fix_quote_currency_symbol_placement feature flag', () => {
         totalCount: 1,
         edges: [
           buildQuoteEdgeWith({
-            node: { totalAmount: '100.00', currency: eurOnRightInQuote },
+            node: { totalAmount: '10.075', currency: eurOnRightInQuote },
           }),
         ],
       },
@@ -1419,7 +1425,7 @@ describe('fix_quote_currency_symbol_placement feature flag', () => {
     });
 
     const table = await screen.findByRole('table');
-    expect(within(table).getByRole('cell', { name: '100.00€' })).toBeInTheDocument();
+    expect(within(table).getByRole('cell', { name: '10.08€' })).toBeInTheDocument();
   });
 
   it('uses the current BC currency placement when the flag is enabled', async () => {
@@ -1435,7 +1441,7 @@ describe('fix_quote_currency_symbol_placement feature flag', () => {
     });
 
     const table = await screen.findByRole('table');
-    expect(within(table).getByRole('cell', { name: '€100.00' })).toBeInTheDocument();
+    expect(within(table).getByRole('cell', { name: '€10.08' })).toBeInTheDocument();
   });
 
   it('places the token on the left when BC config has uppercase token_location LEFT and flag is enabled', async () => {
@@ -1465,6 +1471,6 @@ describe('fix_quote_currency_symbol_placement feature flag', () => {
     });
 
     const table = await screen.findByRole('table');
-    expect(within(table).getByRole('cell', { name: '€100.00' })).toBeInTheDocument();
+    expect(within(table).getByRole('cell', { name: '€10.08' })).toBeInTheDocument();
   });
 });
