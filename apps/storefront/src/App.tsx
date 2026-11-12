@@ -155,7 +155,10 @@ export default function App() {
       if (/action=create_account/.test(search)) {
         openUrl = '/register';
       }
-      if (/action=reset_password/.test(search)) {
+      if (
+        /action=reset_password/.test(search) ||
+        window.location.hash.slice(1).split('?')[0] === PATH_ROUTES.FORGOT_PASSWORD
+      ) {
         openUrl = '/forgotPassword';
       }
 
