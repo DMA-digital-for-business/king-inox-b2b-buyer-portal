@@ -23,8 +23,6 @@ export const useLoginInfo = () => {
   const loginInfo = {
     loginBtn: b3Lang('login.button.signInUppercase'),
     createAccountButtonText: b3Lang('login.button.createAccount'),
-    joinCompanyPrompt: b3Lang('login.joinCompany.prompt'),
-    joinCompanyLinkText: b3Lang('login.joinCompany.link'),
     btnColor: primaryButtonColor || '',
     widgetHeadText: topHtmlRegionEnabled ? topHtmlRegionHtml : undefined,
     widgetBodyText: defaultCreateAccountPanel(b3Lang),
