@@ -90,8 +90,8 @@ function parseSortDirection(value: string | null): DocumentSortDirection {
   return value === 'asc' || value === 'desc' ? value : DEFAULT_SORT_DIRECTION;
 }
 
-function sanitizeFileName(fileName: string): string {
-  return fileName.split(/[\\/]/).pop() || 'document';
+function sanitizeFileName(fileName: string | null): string {
+  return fileName?.split(/[\\/]/).pop() || 'document';
 }
 
 export default function Documents() {
@@ -186,7 +186,7 @@ export default function Documents() {
       const objectUrl = URL.createObjectURL(blob);
       const anchor = window.document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = sanitizeFileName(fileName || document.fileName);
+      anchor.download = sanitizeFileName(fileName || document?.fileName || "document");
       anchor.click();
       URL.revokeObjectURL(objectUrl);
     } catch {

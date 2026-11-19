@@ -61,7 +61,7 @@ export function DocumentCard({
               textTransform: 'none',
             }}
           >
-            {getDisplayedFileName(document.fileName)}
+            {getDisplayedFileName(document?.fileName || document?.documentTypeLabel)}
           </Button>
           <Typography variant="body2" color="text.secondary">
             {b3Lang('documents.documentType')}: {documentTypeLabel}
