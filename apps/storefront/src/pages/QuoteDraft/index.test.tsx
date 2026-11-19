@@ -679,7 +679,7 @@ it.each([
       expect(downloadButton).toBeEnabled();
     } else {
       await waitFor(() =>
-        expect(redirect).toHaveBeenCalledWith(`/order-confirmation/?orderId=${order.data.id}`),
+        expect(redirect).toHaveBeenCalledWith(`/en/order-confirmation/?orderId=${order.data.id}`),
       );
     }
     expect(checkout).toHaveBeenCalledExactlyOnceWith({

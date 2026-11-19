@@ -326,6 +326,8 @@ describe('when the user is a B2B customer', () => {
       },
     });
     quote.data.quote.companyId.id = faker.number.int({ min: 1, max: 10000 }).toString();
+    const locale = status === 0 ? 'it' : 'en';
+    window.location.assign(status === 0 ? '/it/' : '/');
     const checkout = vitest.fn();
     const redirect = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
     const order = builder(() => ({ data: { id: faker.number.int({ min: 1 }) } }))(
@@ -419,7 +421,9 @@ describe('when the user is a B2B customer', () => {
     }
     if (mode === 'success') {
       await waitFor(() =>
-        expect(redirect).toHaveBeenCalledWith(`/order-confirmation/?orderId=${order.data.id}`),
+        expect(redirect).toHaveBeenCalledWith(
+          `/${locale}/order-confirmation/?orderId=${order.data.id}`,
+        ),
       );
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     } else {

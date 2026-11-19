@@ -15,6 +15,7 @@ import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermis
 import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
 import createOrderFromQuote from '@/pages/quote/shared/createOrderFromQuote';
+import getOrderConfirmationUrl from '@/pages/quote/shared/getOrderConfirmationUrl';
 import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
 import { createQuote, getB2BCustomerAddresses, getBCCustomerAddresses } from '@/shared/service/b2b';
@@ -551,7 +552,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       shippingTerms,
     );
     handleReset();
-    window.location.assign(`/order-confirmation/?orderId=${orderId}`);
+    window.location.assign(getOrderConfirmationUrl(orderId, window.location.pathname));
     return true;
   };
 

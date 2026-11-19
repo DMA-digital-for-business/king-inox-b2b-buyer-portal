@@ -12,6 +12,7 @@ import { useB3Lang } from '@/lib/lang';
 import QuotePage from '@/pages/quote/components/QuotePage';
 import QuoteSubmissionResponse from '@/pages/quote/components/QuoteSubmissionResponse';
 import createOrderFromQuote from '@/pages/quote/shared/createOrderFromQuote';
+import getOrderConfirmationUrl from '@/pages/quote/shared/getOrderConfirmationUrl';
 import notifyQuotePdfCreated from '@/pages/quote/shared/notifyQuotePdfCreated';
 import sendQuoteToKing from '@/pages/quote/shared/sendQuoteToKing';
 import { GlobalContext } from '@/shared/global';
@@ -905,7 +906,7 @@ function QuoteDetail() {
         quoteDetail.createdAt,
         shippingTerms,
       );
-      window.location.assign(`/order-confirmation/?orderId=${orderId}`);
+      window.location.assign(getOrderConfirmationUrl(orderId, window.location.pathname));
       return true;
     } catch {
       snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));
