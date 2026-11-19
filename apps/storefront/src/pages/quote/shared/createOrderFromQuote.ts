@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { getCurrentCustomerJWT } from '@/shared/service/bc/api/login';
 import { getCurrentApiClientId, getCurrentApiDomain } from '@/shared/service/kingInox/apiDomain';
 import type { QuoteShippingTerms } from '@/types/quotes';
@@ -6,7 +8,7 @@ export default async function createOrderFromQuote(
   quoteId: string,
   createdAt: number,
   shippingTerms?: QuoteShippingTerms,
-): Promise<void> {
+): Promise<number> {
   const token = (await getCurrentCustomerJWT(getCurrentApiClientId()))?.trim();
   if (!token) {
     throw new Error('A current customer JWT could not be obtained.');
@@ -21,4 +23,8 @@ export default async function createOrderFromQuote(
   if (!response.ok) {
     throw new Error(`Unable to create order from quote (${response.status})`);
   }
+  const order = z
+    .object({ data: z.object({ id: z.number().int().positive() }) })
+    .parse(await response.json());
+  return order.data.id;
 }

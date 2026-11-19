@@ -900,8 +900,12 @@ function QuoteDetail() {
     setIsConvertingToOrder(true);
     try {
       await ensureQuoteOpen();
-      await createOrderFromQuote(String(quoteDetail.id), quoteDetail.createdAt, shippingTerms);
-      navigate('/orders');
+      const orderId = await createOrderFromQuote(
+        String(quoteDetail.id),
+        quoteDetail.createdAt,
+        shippingTerms,
+      );
+      window.location.assign(`/order-confirmation/?orderId=${orderId}`);
       return true;
     } catch {
       snackbar.error(b3Lang('quoteDetail.convertToOrder.error'));

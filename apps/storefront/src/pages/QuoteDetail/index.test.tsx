@@ -327,6 +327,10 @@ describe('when the user is a B2B customer', () => {
     });
     quote.data.quote.companyId.id = faker.number.int({ min: 1, max: 10000 }).toString();
     const checkout = vitest.fn();
+    const redirect = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    const order = builder(() => ({ data: { id: faker.number.int({ min: 1 }) } }))(
+      'WHATEVER_VALUES',
+    );
     const update = vitest.fn();
     let quoteReads = 0;
     let completeCheckout: () => void = () => {};
@@ -376,7 +380,7 @@ describe('when the user is a B2B customer', () => {
         if (status === 0) expect(quoteReads).toBeGreaterThan(1);
         checkout(await request.json());
         await pendingCheckout;
-        return HttpResponse.json({}, { status: mode === 'failed' ? 500 : 201 });
+        return HttpResponse.json(order, { status: mode === 'failed' ? 500 : 201 });
       }),
     );
     vitest.mocked(useParams).mockReturnValue({ id });
@@ -409,16 +413,20 @@ describe('when the user is a B2B customer', () => {
         }),
       );
       expect(convert).toBeDisabled();
+      expect(redirect).not.toHaveBeenCalled();
       expect(navigation).not.toHaveBeenCalledWith('/orders');
       completeCheckout();
     }
     if (mode === 'success') {
-      await waitFor(() => expect(navigation).toHaveBeenCalledWith('/orders'));
+      await waitFor(() =>
+        expect(redirect).toHaveBeenCalledWith(`/order-confirmation/?orderId=${order.data.id}`),
+      );
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     } else {
       expect(
         await screen.findByText('Unable to convert to order. Please try again.'),
       ).toBeVisible();
+      expect(redirect).not.toHaveBeenCalled();
       expect(navigation).not.toHaveBeenCalledWith('/orders');
       expect(convert).toBeEnabled();
       if (mode === 'not-open' || mode === 'missing-token') expect(checkout).not.toHaveBeenCalled();

@@ -545,9 +545,13 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     quote: QuoteSubmissionDataRefType,
     shippingTerms: QuoteShippingTerms,
   ) => {
-    await createOrderFromQuote(String(quote.id), Number(quote.createdAt), shippingTerms);
+    const orderId = await createOrderFromQuote(
+      String(quote.id),
+      Number(quote.createdAt),
+      shippingTerms,
+    );
     handleReset();
-    navigate('/orders');
+    window.location.assign(`/order-confirmation/?orderId=${orderId}`);
     return true;
   };
 

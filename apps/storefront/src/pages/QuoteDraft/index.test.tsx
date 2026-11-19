@@ -502,6 +502,8 @@ it.each([
   ),
 ])('submits the draft through $action (DeleteCart $failure)', async ({ action, failure }) => {
   const checkout = vi.fn();
+  const redirect = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+  const order = builder(() => ({ data: { id: faker.number.int({ min: 1 }) } }))('WHATEVER_VALUES');
   const update = vi.fn();
   const send = vi.fn();
   const token = faker.string.alphanumeric(40);
@@ -595,7 +597,7 @@ it.each([
       expect(request.headers.get('authorization')).toBe(`Bearer ${token}`);
       expect(screen.getByRole('status')).toBeVisible();
       checkout(await request.json());
-      return HttpResponse.json({}, { status: action === 'convert-failed' ? 500 : 200 });
+      return HttpResponse.json(order, { status: action === 'convert-failed' ? 500 : 200 });
     }),
     graphql.mutation('DeleteCart', () => {
       if (failure === 'graphql') return HttpResponse.json({ errors: [{ message: cartError }] });
@@ -672,10 +674,13 @@ it.each([
       expect(
         await screen.findByText('Unable to convert to order. Please try again.'),
       ).toBeVisible();
+      expect(redirect).not.toHaveBeenCalled();
       expect(navigation).not.toHaveBeenCalledWith('/orders');
       expect(downloadButton).toBeEnabled();
     } else {
-      await waitFor(() => expect(navigation).toHaveBeenCalledWith('/orders'));
+      await waitFor(() =>
+        expect(redirect).toHaveBeenCalledWith(`/order-confirmation/?orderId=${order.data.id}`),
+      );
     }
     expect(checkout).toHaveBeenCalledExactlyOnceWith({
       quote_id: createdQuote.id,
