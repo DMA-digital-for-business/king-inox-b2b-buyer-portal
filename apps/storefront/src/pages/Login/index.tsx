@@ -40,6 +40,7 @@ import LoginTip from './LoginTip';
 import { navigateAfterSuccessfulLogin } from './navigateAfterSuccessfulLogin';
 import { performB2BLogin } from './performB2BLogin';
 import { performLoginCheckout } from './performLoginCheckout';
+import { setLastLogin } from './setLastLogin';
 import { LoginContainer } from './styled';
 import { useLoginInfo } from './useLoginInfo';
 import { useLogout } from './useLogout';
@@ -155,6 +156,7 @@ function Login(props: PageProps) {
       }
 
       await getCurrentCustomerInfo(token);
+      await setLastLogin();
       navigateAfterSuccessfulLogin(navigate, quoteDetailToCheckoutUrl, redirectUrl);
     } catch (error: unknown) {
       if (isCompanyError(error)) {
@@ -170,6 +172,7 @@ function Login(props: PageProps) {
     try {
       const result = await performLoginCheckout(data);
       if (result === 'success') {
+        await setLastLogin();
         window.location.href = CHECKOUT_URL;
       } else {
         setLoginFlag(result);

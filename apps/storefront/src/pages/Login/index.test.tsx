@@ -14,7 +14,9 @@ import {
 } from 'tests/test-utils';
 
 import locales from '@/lib/lang/locales';
+import { getCurrentApiDomain } from '@/shared/service/kingInox/apiDomain';
 import { CustomerRole } from '@/types';
+import b2bLogger from '@/utils/b3Logger';
 import { snackbar } from '@/utils/b3Tip';
 import { getCurrentCustomerInfo } from '@/utils/loginInfo';
 import { setDefaultLoginStylingEnabled } from '@/utils/preMountLoginMask';
@@ -52,6 +54,12 @@ describe('LoginPage', () => {
     beforeEach(() => {
       window.location.assign('/login.php');
       server.use(http.get('*/login/token/:token', () => new HttpResponse(null, { status: 200 })));
+      server.use(
+        http.get('*/customer/current.jwt', () => HttpResponse.text(faker.string.alphanumeric(100))),
+        http.post(`${getCurrentApiDomain()}/api/v1/bigcommerce/set-last-login`, () =>
+          HttpResponse.json({ success: true }),
+        ),
+      );
     });
 
     it.each(['en', 'it', 'fr', 'es', 'de'] as const)(
@@ -122,8 +130,16 @@ describe('LoginPage', () => {
       },
     );
 
-    it('redirects SuperAdmin to /en/webshop after successful login', async () => {
+    it.each([200, 500])('redirects SuperAdmin even when last login returns %s', async (status) => {
       vi.mock('@/hooks/useB2BCallback');
+      const notified = vi.fn();
+      vi.spyOn(b2bLogger, 'error').mockImplementation(() => {});
+      server.use(
+        http.post(`${getCurrentApiDomain()}/api/v1/bigcommerce/set-last-login`, () => {
+          notified();
+          return HttpResponse.json({ success: status === 200 }, { status });
+        }),
+      );
 
       server.use(
         graphql.mutation('Login', () => {
@@ -160,6 +176,14 @@ describe('LoginPage', () => {
       await waitFor(() => {
         expect(window.location.pathname).toBe('/en/webshop');
       });
+      expect(notified).toHaveBeenCalledOnce();
+      expect(snackbar.error).not.toHaveBeenCalled();
+      if (status === 500) {
+        expect(b2bLogger.error).toHaveBeenCalledWith(
+          'Failed to set last login:',
+          expect.any(Error),
+        );
+      }
     });
   });
 
