@@ -42,7 +42,7 @@ const buildScenarioWith = builder(() => ({
   token: faker.string.alphanumeric(40),
 }));
 let scenario: ReturnType<typeof buildScenarioWith>;
-let convert: ReturnType<typeof vi.fn>;
+let convert: ReturnType<typeof vi.fn<ComponentProps<typeof ConvertToOrderDialog>['onConfirm']>>;
 
 function renderDialog(overrides: Partial<ComponentProps<typeof ConvertToOrderDialog>> = {}) {
   return renderWithProviders(
